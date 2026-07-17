@@ -1,0 +1,126 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2600" height="1020" viewBox="0 0 2600 1020">
+  <title>Catch Up editable mobile UI board</title>
+  <desc>Six editable mobile app screens recreated from the Catch Up reference image.</desc>
+  <defs>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#7051D9" flood-opacity="0.13"/>
+    </filter>
+    <filter id="softShadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="5" stdDeviation="7" flood-color="#3B2C72" flood-opacity="0.10"/>
+    </filter>
+    <style>
+      .screen { font-family: Arial, sans-serif; }
+      .ink { fill: #282333; }
+      .muted { fill: #8F899D; }
+      .purple { fill: #8B69F7; }
+      .soft { fill: #EEE8FF; }
+      .line { stroke: #E8E2F3; }
+      .tiny { font-size: 9px; }
+      .small { font-size: 11px; }
+      .body { font-size: 12px; }
+      .label { font-size: 10px; font-weight: 700; }
+      .title { font-size: 19px; font-weight: 800; }
+      .bold { font-weight: 800; }
+    </style>
+  </defs>
+
+  <rect id="board-background" width="2600" height="1020" fill="#FFFFFF"/>
+
+  <g id="screen-01-splash" class="screen" transform="translate(60 70)">
+    <rect id="splash-device" width="370" height="850" rx="47" fill="#EEE8FF"/>
+    <rect id="splash-status-bar" x="28" y="18" width="314" height="25" rx="12" fill="#EEE8FF"/>
+    <text id="splash-time" x="32" y="35" class="tiny ink bold">9:41</text>
+    <rect id="splash-island" x="142" y="17" width="87" height="23" rx="13" fill="#15131B"/>
+    <path id="splash-glow-top" d="M-45 215C70 82 225 35 405 88" fill="none" stroke="#FFFFFF" stroke-width="1.5" opacity=".75"/>
+    <path id="splash-glow-bottom" d="M-10 790C105 615 295 612 418 742" fill="none" stroke="#FFFFFF" stroke-width="1.5" opacity=".78"/>
+    <path id="splash-star" d="M308 274l4 10 10 4-10 4-4 10-4-10-10-4 10-4z" fill="#FFFFFF"/>
+    <text id="splash-brand" x="185" y="380" text-anchor="middle" class="purple" font-size="43" font-weight="900" font-style="italic">Catch Up</text>
+    <text id="splash-subtitle" x="185" y="430" text-anchor="middle" class="ink body bold">오늘도 이번 주</text>
+    <text id="splash-subtitle-2" x="185" y="449" text-anchor="middle" class="ink body bold">학업 계획을 한눈에</text>
+    <rect id="splash-home-indicator" x="127" y="817" width="116" height="5" rx="3" fill="#18151E"/>
+    <text id="splash-frame-label" x="185" y="885" text-anchor="middle" class="muted tiny">01 / SPLASH</text>
+  </g>
+
+  <g id="screen-02-calendar-connect" class="screen" transform="translate(480 70)">
+    <rect id="connect-device" width="370" height="850" rx="47" fill="#F8F5FF"/>
+    <text id="connect-time" x="31" y="35" class="tiny ink bold">9:41</text>
+    <rect id="connect-island" x="142" y="17" width="87" height="23" rx="13" fill="#15131B"/>
+    <text id="connect-title" x="185" y="126" text-anchor="middle" class="ink title">Google Calendar 연결</text>
+    <text id="connect-description" x="185" y="154" text-anchor="middle" class="muted small">개인 일정과 수업 시간을</text>
+    <text id="connect-description-2" x="185" y="170" text-anchor="middle" class="muted small">함께 반영해요</text>
+    <g id="connect-illustration" filter="url(#softShadow)">
+      <rect id="connect-calendar" x="74" y="215" width="100" height="100" rx="17" fill="#FFFFFF" stroke="#E8E2F3"/>
+      <rect id="connect-calendar-top" x="74" y="215" width="100" height="27" rx="17" fill="#4285F4"/>
+      <text id="connect-calendar-number" x="124" y="292" text-anchor="middle" fill="#4285F4" font-size="38" font-weight="900">31</text>
+      <rect id="connect-outline" x="173" y="232" width="112" height="98" rx="15" fill="none" stroke="#DDD3FF" stroke-width="3"/>
+      <path id="connect-outline-grid" d="M194 258h70M194 279h70M194 300h70M216 244v72M238 244v72" stroke="#EEE8FF" stroke-width="4"/>
+      <circle id="connect-link-badge" cx="279" cy="313" r="29" fill="#8B69F7"/>
+      <path id="connect-link-icon" d="M267 313h9m5 0h9m-18-6 4-4c4-4 10-4 14 0l3 3c4 4 4 10 0 14l-4 4m-5-5-4 4c-4 4-10 4-14 0l-3-3c-4-4-4-10 0-14l4-4" fill="none" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round"/>
+    </g>
+    <g id="connect-benefit-card" filter="url(#shadow)">
+      <rect x="34" y="392" width="302" height="275" rx="23" fill="#FFFFFF"/>
+      <g id="connect-benefit-1"><circle cx="64" cy="432" r="13" fill="#EEE8FF"/><path d="M58 426h12v12H58z" fill="none" stroke="#8B69F7" stroke-width="2"/><text x="88" y="436" class="ink small">개인 일정과 수업 시간을 같은 계획에 반영</text></g>
+      <g id="connect-benefit-2"><circle cx="64" cy="475" r="13" fill="#EEE8FF"/><circle cx="64" cy="475" r="6" fill="none" stroke="#8B69F7" stroke-width="2"/><path d="M64 475l4-4" stroke="#8B69F7" stroke-width="2"/><text x="88" y="479" class="ink small">충돌 없는 일정으로 하루 만들기</text></g>
+      <g id="connect-benefit-3"><circle cx="64" cy="518" r="13" fill="#EEE8FF"/><path d="M64 510l8 3v6c0 6-8 9-8 9s-8-3-8-9v-6z" fill="none" stroke="#8B69F7" stroke-width="2"/><text x="88" y="522" class="ink small">언제든 연결 해제 가능</text></g>
+      <rect id="connect-button" x="50" y="570" width="270" height="54" rx="15" fill="#8B69F7"/>
+      <text id="connect-button-text" x="185" y="603" text-anchor="middle" fill="#FFFFFF" class="body bold">캘린더 연결하기</text>
+    </g>
+    <text id="connect-skip" x="185" y="711" text-anchor="middle" class="muted small">나중에 할게요</text>
+    <rect id="connect-home-indicator" x="127" y="817" width="116" height="5" rx="3" fill="#18151E"/>
+    <text id="connect-frame-label" x="185" y="885" text-anchor="middle" class="muted tiny">02 / CALENDAR CONNECT</text>
+  </g>
+
+  <g id="screen-03-today" class="screen" transform="translate(900 70)">
+    <rect id="today-device" width="370" height="850" rx="47" fill="#FCFBFF"/>
+    <text id="today-time" x="31" y="35" class="tiny ink bold">9:41</text>
+    <rect id="today-island" x="142" y="17" width="87" height="23" rx="13" fill="#15131B"/>
+    <text id="today-greeting" x="28" y="104" class="ink title">오늘도 따라잡아볼까요? 👋</text>
+    <path id="today-bell" d="M326 99c0-8 5-13 11-13s11 5 11 13l4 5h-30zM333 109h8" fill="none" stroke="#8F899D" stroke-width="2" stroke-linecap="round"/>
+    <g id="today-date-strip">
+      <text x="73" y="142" text-anchor="middle" class="muted tiny">월</text><circle cx="73" cy="163" r="19" fill="#FFFFFF"/><text x="73" y="167" text-anchor="middle" class="ink body bold">7</text>
+      <text x="122" y="142" text-anchor="middle" class="muted tiny">화</text><circle cx="122" cy="163" r="19" fill="#FFFFFF"/><text x="122" y="167" text-anchor="middle" class="ink body bold">8</text>
+      <text x="171" y="142" text-anchor="middle" class="muted tiny">수</text><circle cx="171" cy="163" r="19" fill="#18151E"/><text x="171" y="167" text-anchor="middle" fill="#FFFFFF" class="body bold">9</text>
+      <text x="220" y="142" text-anchor="middle" class="muted tiny">목</text><circle cx="220" cy="163" r="19" fill="#FFFFFF"/><text x="220" y="167" text-anchor="middle" class="ink body bold">10</text>
+      <text x="269" y="142" text-anchor="middle" class="muted tiny">금</text><circle cx="269" cy="163" r="19" fill="#FFFFFF"/><text x="269" y="167" text-anchor="middle" class="ink body bold">11</text>
+      <text x="318" y="142" text-anchor="middle" class="muted tiny">토</text><circle cx="318" cy="163" r="19" fill="#FFFFFF"/><text x="318" y="167" text-anchor="middle" class="ink body bold">12</text>
+    </g>
+    <g id="today-mate-card"><rect x="27" y="196" width="316" height="89" rx="16" fill="#FBF9FF" stroke="#D9C9FF"/><text x="48" y="219" class="purple label">✦ AI Mate</text><text x="48" y="243" class="ink small">4주 일정을 고려해 중요한 일부터 정리했어요.</text><text x="48" y="260" class="ink small">오늘 집중하면 목표 달성이 더 쉬워요! 👍</text><text x="296" y="255" class="purple" font-size="32" font-weight="900">✦</text></g>
+    <text id="today-tasks-title" x="28" y="326" class="ink title" font-size="16">오늘의 할 일</text><rect id="today-count" x="105" y="311" width="28" height="20" rx="9" fill="#EEE8FF"/><text x="119" y="325" text-anchor="middle" class="purple tiny bold">3개</text>
+    <g id="today-task-1"><rect x="27" y="344" width="316" height="72" rx="13" fill="#FFFFFF"/><rect x="42" y="369" width="16" height="16" rx="4" fill="#FFFFFF" stroke="#BEB8C9"/><text x="68" y="371" class="ink small bold">자료구조 과제 정리</text><text x="68" y="392" class="purple tiny">⚑ 높음</text><rect x="254" y="378" width="70" height="20" rx="7" fill="#F2F0F6"/><text x="289" y="391" text-anchor="middle" class="muted tiny">7/16 마감</text></g>
+    <g id="today-task-2"><rect x="27" y="424" width="316" height="72" rx="13" fill="#FFFFFF"/><rect x="42" y="449" width="16" height="16" rx="4" fill="#FFFFFF" stroke="#BEB8C9"/><text x="68" y="451" class="ink small bold">마케팅 발표 준비</text><text x="68" y="472" class="purple tiny">⚑ 중간</text><rect x="254" y="458" width="70" height="20" rx="7" fill="#F2F0F6"/><text x="289" y="471" text-anchor="middle" class="muted tiny">7/18 마감</text></g>
+    <g id="today-task-3"><rect x="27" y="504" width="316" height="72" rx="13" fill="#FFFFFF"/><rect x="42" y="529" width="16" height="16" rx="4" fill="#FFFFFF" stroke="#BEB8C9"/><text x="68" y="531" class="ink small bold">운영체제 퀴즈 복습</text><text x="68" y="552" class="purple tiny">⚑ 낮음</text><rect x="254" y="538" width="70" height="20" rx="7" fill="#F2F0F6"/><text x="289" y="551" text-anchor="middle" class="muted tiny">7/12 예정</text></g>
+    <g id="today-floating-mate"><circle cx="313" cy="628" r="25" fill="#8B69F7" filter="url(#shadow)"/><text x="313" y="635" text-anchor="middle" fill="#FFFFFF" font-size="20">•••</text></g>
+    <g id="today-tabs"><rect x="0" y="778" width="370" height="72" fill="#FFFFFF"/><path d="M0 778h370" stroke="#E8E2F3"/><text x="74" y="814" text-anchor="middle" class="purple tiny bold">⌂</text><text x="74" y="833" text-anchor="middle" class="purple tiny">Today</text><text x="185" y="814" text-anchor="middle" class="muted tiny">□</text><text x="185" y="833" text-anchor="middle" class="muted tiny">Month</text><text x="296" y="814" text-anchor="middle" class="muted tiny">⇧</text><text x="296" y="833" text-anchor="middle" class="muted tiny">Upload</text></g>
+    <rect id="today-home-indicator" x="127" y="817" width="116" height="5" rx="3" fill="#18151E"/>
+    <text id="today-frame-label" x="185" y="885" text-anchor="middle" class="muted tiny">03 / TODAY</text>
+  </g>
+
+  <g id="screen-04-month" class="screen" transform="translate(1320 70)">
+    <rect id="month-device" width="370" height="850" rx="47" fill="#FCFBFF"/>
+    <text id="month-time" x="31" y="35" class="tiny ink bold">9:41</text><rect id="month-island" x="142" y="17" width="87" height="23" rx="13" fill="#15131B"/>
+    <text id="month-title" x="28" y="105" class="ink title">2026년 7월⌄</text><text x="316" y="105" class="muted" font-size="20">□</text><text x="340" y="105" class="muted" font-size="20">≡</text>
+    <g id="month-calendar" transform="translate(27 132)"><text x="25" y="0" class="muted tiny">일</text><text x="72" y="0" class="muted tiny">월</text><text x="119" y="0" class="muted tiny">화</text><text x="166" y="0" class="muted tiny">수</text><text x="213" y="0" class="muted tiny">목</text><text x="260" y="0" class="muted tiny">금</text><text x="307" y="0" class="muted tiny">토</text><path d="M0 15h316M0 77h316M0 139h316M0 201h316M0 263h316M0 325h316M0 387h316" stroke="#F0ECF6"/>
+      <g id="month-numbers" class="ink small"><text x="10" y="39" class="muted">28</text><text x="57" y="39" class="muted">29</text><text x="104" y="39" class="muted">30</text><text x="154" y="39">1</text><text x="201" y="39">2</text><text x="248" y="39">3</text><text x="295" y="39">4</text><text x="10" y="101">5</text><text x="57" y="101">6</text><text x="104" y="101">7</text><text x="154" y="101">8</text><text x="201" y="101">9</text><circle cx="248" cy="96" r="18" fill="#8B69F7"/><text x="248" y="101" fill="#FFFFFF" font-weight="800">10</text><text x="295" y="101">11</text><text x="10" y="163">12</text><text x="57" y="163">13</text><text x="104" y="163">14</text><text x="154" y="163">15</text><text x="201" y="163">16</text><text x="248" y="163">17</text><text x="295" y="163">18</text><text x="10" y="225">19</text><text x="57" y="225">20</text><text x="104" y="225">21</text><text x="154" y="225">22</text><text x="201" y="225">23</text><text x="248" y="225">24</text><text x="295" y="225">25</text><text x="10" y="287">26</text><text x="57" y="287">27</text><text x="104" y="287">28</text><text x="154" y="287">29</text><text x="201" y="287">30</text><text x="248" y="287">31</text></g><g id="month-dots" fill="#8B69F7"><circle cx="154" cy="48" r="3"/><circle cx="201" cy="48" r="3"/><circle cx="248" cy="48" r="3"/><circle cx="295" cy="48" r="3"/><circle cx="10" cy="110" r="3"/><circle cx="57" cy="110" r="3"/><circle cx="104" cy="110" r="3"/><circle cx="154" cy="110" r="3"/><circle cx="295" cy="110" r="3"/><circle cx="57" cy="172" r="3"/><circle cx="104" cy="172" r="3"/></g><g id="month-pills"><rect x="182" y="53" width="62" height="18" rx="7" fill="#EEE8FF"/><text x="213" y="65" text-anchor="middle" class="purple tiny">과제 제출</text><rect x="82" y="177" width="63" height="18" rx="7" fill="#EEE8FF"/><text x="113" y="189" text-anchor="middle" class="purple tiny">중간고사</text><rect x="230" y="177" width="53" height="18" rx="7" fill="#EEE8FF"/><text x="256" y="189" text-anchor="middle" class="purple tiny">팀 회의</text></g></g>
+    <g id="month-floating-mate"><circle cx="313" cy="628" r="25" fill="#8B69F7" filter="url(#shadow)"/><text x="313" y="635" text-anchor="middle" fill="#FFFFFF" font-size="20">•••</text></g>
+    <g id="month-tabs"><rect x="0" y="778" width="370" height="72" fill="#FFFFFF"/><path d="M0 778h370" stroke="#E8E2F3"/><text x="74" y="814" text-anchor="middle" class="muted tiny">⌂</text><text x="74" y="833" text-anchor="middle" class="muted tiny">Today</text><text x="185" y="814" text-anchor="middle" class="purple tiny bold">□</text><text x="185" y="833" text-anchor="middle" class="purple tiny">Month</text><text x="296" y="814" text-anchor="middle" class="muted tiny">⇧</text><text x="296" y="833" text-anchor="middle" class="muted tiny">Upload</text></g><rect id="month-home-indicator" x="127" y="817" width="116" height="5" rx="3" fill="#18151E"/><text id="month-frame-label" x="185" y="885" text-anchor="middle" class="muted tiny">04 / MONTH</text>
+  </g>
+
+  <g id="screen-05-upload" class="screen" transform="translate(1740 70)">
+    <rect id="upload-device" width="370" height="850" rx="47" fill="#FCFBFF"/><text x="31" y="35" class="tiny ink bold">9:41</text><rect x="142" y="17" width="87" height="23" rx="13" fill="#15131B"/>
+    <text id="upload-title" x="28" y="105" class="ink title">자료 업로드</text><text x="330" y="105" class="muted" font-size="22">□</text>
+    <g id="upload-drop-zone"><rect x="27" y="132" width="316" height="176" rx="16" fill="#FFFFFF" stroke="#CDBBFF" stroke-dasharray="6 5"/><path d="M185 176v38m-15-15 15-15 15 15M163 223h44" fill="none" stroke="#8B69F7" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/><text x="185" y="253" text-anchor="middle" class="ink body bold">학업 자료 업로드</text><text x="185" y="272" text-anchor="middle" class="muted small">PDF 또는 이미지 파일</text></g>
+    <text x="28" y="351" class="ink title" font-size="16">업로드한 자료</text>
+    <g id="upload-file-1"><rect x="27" y="371" width="316" height="66" rx="13" fill="#FFFFFF"/><rect x="42" y="389" width="28" height="31" rx="5" fill="#EEE8FF"/><text x="56" y="408" text-anchor="middle" class="purple tiny bold">PDF</text><text x="82" y="399" class="ink small bold">강의계획서.pdf</text><text x="82" y="417" class="muted tiny">2.4MB · 2026-07-05</text><rect x="250" y="393" width="64" height="19" rx="7" fill="#E3F7ED"/><text x="282" y="406" text-anchor="middle" fill="#4BAE83" class="tiny bold">추출 완료</text></g>
+    <g id="upload-file-2"><rect x="27" y="447" width="316" height="66" rx="13" fill="#FFFFFF"/><rect x="42" y="465" width="28" height="31" rx="5" fill="#EEE8FF"/><text x="56" y="484" text-anchor="middle" class="purple tiny bold">PDF</text><text x="82" y="475" class="ink small bold">강의계획서.pdf</text><text x="82" y="493" class="muted tiny">2.4MB · 2026-07-05</text><rect x="250" y="469" width="64" height="19" rx="7" fill="#E3F7ED"/><text x="282" y="482" text-anchor="middle" fill="#4BAE83" class="tiny bold">추출 완료</text></g>
+    <g id="upload-extract-card"><rect x="27" y="542" width="316" height="72" rx="13" fill="#FFFFFF"/><circle cx="56" cy="578" r="16" fill="#EEE8FF"/><text x="56" y="584" text-anchor="middle" class="purple">✦</text><text x="83" y="572" class="ink small bold">추출 결과 확인 및 수정</text><text x="83" y="591" class="muted tiny">AI가 추출한 정보를 확인하고</text><text x="83" y="605" class="muted tiny">필요 시 수정할 수 있어요</text><text x="317" y="583" class="muted" font-size="18">›</text></g>
+    <g id="upload-floating-mate"><circle cx="313" cy="680" r="25" fill="#8B69F7" filter="url(#shadow)"/><text x="313" y="687" text-anchor="middle" fill="#FFFFFF" font-size="20">•••</text></g>
+    <g id="upload-tabs"><rect x="0" y="778" width="370" height="72" fill="#FFFFFF"/><path d="M0 778h370" stroke="#E8E2F3"/><text x="74" y="814" text-anchor="middle" class="muted tiny">⌂</text><text x="74" y="833" text-anchor="middle" class="muted tiny">Today</text><text x="185" y="814" text-anchor="middle" class="muted tiny">□</text><text x="185" y="833" text-anchor="middle" class="muted tiny">Month</text><text x="296" y="814" text-anchor="middle" class="purple tiny bold">⇧</text><text x="296" y="833" text-anchor="middle" class="purple tiny">Upload</text></g><rect id="upload-home-indicator" x="127" y="817" width="116" height="5" rx="3" fill="#18151E"/><text id="upload-frame-label" x="185" y="885" text-anchor="middle" class="muted tiny">05 / UPLOAD</text>
+  </g>
+
+  <g id="screen-06-upload-ai-mate" class="screen" transform="translate(2160 70)">
+    <rect id="chat-device" width="370" height="850" rx="47" fill="#FCFBFF"/><text x="31" y="35" class="tiny ink bold">9:41</text><rect x="142" y="17" width="87" height="23" rx="13" fill="#15131B"/><text x="28" y="105" class="ink title">자료 업로드</text><text x="330" y="105" class="muted" font-size="22">□</text>
+    <rect id="chat-upload-top" x="27" y="132" width="316" height="116" rx="16" fill="#FFFFFF" stroke="#CDBBFF" stroke-dasharray="6 5"/><path d="M185 157v31m-13-12 13-13 13 13M165 196h40" fill="none" stroke="#8B69F7" stroke-width="3" stroke-linecap="round"/><text x="185" y="222" text-anchor="middle" class="ink small bold">학업 자료 업로드</text>
+    <g id="chat-panel" filter="url(#shadow)"><rect x="27" y="300" width="316" height="330" rx="18" fill="#FFFFFF" stroke="#E8E2F3"/><text x="49" y="334" class="purple body bold">✦ AI Mate</text><text x="263" y="334" class="muted tiny">조정 잔여 3회</text><text x="318" y="334" class="ink body">×</text><rect x="196" y="356" width="122" height="44" rx="12" fill="#EEE8FF"/><text x="257" y="382" text-anchor="middle" class="purple small bold">이번 주 계획 짜줘</text><text x="205" y="414" class="muted tiny">오전 9:41</text><rect x="49" y="434" width="230" height="68" rx="12" fill="#F8F5FF"/><text x="65" y="459" class="ink small">업로드 자료와 캘린더를 반영해</text><text x="65" y="478" class="ink small">이번 주 계획을 생성했어요.</text><text x="49" y="523" class="muted tiny">오전 9:41</text><rect x="49" y="550" width="268" height="43" rx="12" fill="#FFFFFF" stroke="#E8E2F3"/><text x="64" y="577" class="muted small">메시지를 입력하세요...</text><text x="294" y="577" class="purple" font-size="18">➤</text></g>
+    <g id="chat-tabs"><rect x="0" y="778" width="370" height="72" fill="#FFFFFF"/><path d="M0 778h370" stroke="#E8E2F3"/><text x="74" y="814" text-anchor="middle" class="muted tiny">⌂</text><text x="74" y="833" text-anchor="middle" class="muted tiny">Today</text><text x="185" y="814" text-anchor="middle" class="muted tiny">□</text><text x="185" y="833" text-anchor="middle" class="muted tiny">Month</text><text x="296" y="814" text-anchor="middle" class="purple tiny bold">⇧</text><text x="296" y="833" text-anchor="middle" class="purple tiny">Upload</text></g><rect id="chat-home-indicator" x="127" y="817" width="116" height="5" rx="3" fill="#18151E"/><text id="chat-frame-label" x="185" y="885" text-anchor="middle" class="muted tiny">06 / UPLOAD + AI MATE</text>
+  </g>
+</svg>

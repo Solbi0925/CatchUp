@@ -1,0 +1,7 @@
+node_modules/
+.pnpm-store/
+dist/
+.expo/
+.DS_Store
+tmp_pdf_preview/
+*.zip
