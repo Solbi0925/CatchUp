@@ -14,7 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Constants from 'expo-constants';
 import * as AuthSession from 'expo-auth-session';
 import { MOCK_EVENTS, MOCK_PLAN_ITEMS, MOCK_EVENTS as SAMPLE_EVENTS, TODAY, eventsForDate, eventsForMonth, formatKoreanDate, plansForDate } from './src/data/mockCalendar';
-import { fetchGoogleCalendarEvents, GOOGLE_CALENDAR_SCOPES } from './src/services/googleCalendar';
+import { fetchGoogleCalendarEvents, getGoogleRedirectUri, GOOGLE_AUTH_DISCOVERY, GOOGLE_CALENDAR_SCOPES } from './src/services/googleCalendar';
 
 const COLORS = {
   ink: '#252135',
@@ -61,22 +61,24 @@ function Onboarding({ onContinue }) {
 
 function ConnectScreen({ onConnected, onSkip }) {
   const clientId = Constants.expoConfig?.extra?.googleCalendarClientId || '';
-  const redirectUri = AuthSession.makeRedirectUri({ scheme: 'catchup' });
-  const [request, response, promptAsync] = AuthSession.useAuthRequest({ clientId: clientId || 'demo-client-id', scopes: GOOGLE_CALENDAR_SCOPES, responseType: AuthSession.ResponseType.Token, redirectUri }, { authorizationEndpoint: 'https://accounts.google.com/o/oauth2/v2/auth' });
+  const redirectUri = getGoogleRedirectUri();
+  const [request, response, promptAsync] = AuthSession.useAuthRequest({ clientId: clientId || 'demo-client-id', scopes: GOOGLE_CALENDAR_SCOPES, responseType: AuthSession.ResponseType.Token, redirectUri, extraParams: { prompt: 'select_account' } }, GOOGLE_AUTH_DISCOVERY);
   const [status, setStatus] = useState('idle');
+  const [errorMessage, setErrorMessage] = useState('');
 
   useEffect(() => {
     if (response?.type === 'success') { setStatus('connected'); onConnected({ accessToken: response.authentication?.accessToken || response.params?.access_token }); }
-    if (response?.type === 'error') setStatus('error');
+    if (response?.type === 'error') { setStatus('error'); setErrorMessage(response.params?.error_description || response.error?.message || 'Google 인증이 취소되었거나 redirect 설정이 맞지 않습니다.'); }
   }, [response, onConnected]);
 
   async function connect() {
     if (!clientId) { setStatus('demo'); onConnected({ mode: 'demo' }); return; }
     setStatus('loading');
+    setErrorMessage('');
     await promptAsync();
   }
 
-  return <SafeAreaView style={styles.authScreen}><ScrollView contentContainerStyle={styles.authContent}><Text style={styles.authTitle}>Google Calendar 연결</Text><Text style={styles.authBody}>개인 일정과 수업 시간을{`\n`}함께 반영해요</Text><View style={styles.calendarIllustration}><View style={styles.calendarIcon}><Text style={styles.calendarIconDay}>31</Text></View><View style={styles.calendarOutline}><View /><View /><View /></View><View style={styles.linkBadge}><Ionicons name="link" size={22} color={COLORS.white} /></View></View><View style={styles.benefitCard}><View style={styles.benefitRow}><Ionicons name="calendar-outline" size={20} color={COLORS.purple} /><Text style={styles.benefitText}>개인 일정과 수업 시간을 같은 계획에 반영</Text></View><View style={styles.benefitRow}><Ionicons name="time-outline" size={20} color={COLORS.purple} /><Text style={styles.benefitText}>충돌 없는 일정으로 하루 만들기</Text></View><View style={styles.benefitRow}><Ionicons name="shield-checkmark-outline" size={20} color={COLORS.purple} /><Text style={styles.benefitText}>언제든 연결 해제 가능</Text></View><Pressable style={styles.authButton} onPress={connect} disabled={!request && Boolean(clientId) && status === 'loading'}><Ionicons name="logo-google" size={17} color={COLORS.white} /><Text style={styles.authButtonText}>{status === 'loading' ? '연결 중...' : '캘린더 연결하기'}</Text></Pressable></View>{status === 'error' ? <Text style={styles.errorText}>연결하지 못했어요. 다시 시도해주세요.</Text> : null}<Pressable onPress={() => onSkip({ mode: 'demo' })}><Text style={styles.skipText}>나중에 할게요</Text></Pressable></ScrollView></SafeAreaView>;
+  return <SafeAreaView style={styles.authScreen}><ScrollView contentContainerStyle={styles.authContent}><Text style={styles.authTitle}>Google Calendar 연결</Text><Text style={styles.authBody}>개인 일정과 수업 시간을{`\n`}함께 반영해요</Text><View style={styles.calendarIllustration}><View style={styles.calendarIcon}><Text style={styles.calendarIconDay}>31</Text></View><View style={styles.calendarOutline}><View /><View /><View /></View><View style={styles.linkBadge}><Ionicons name="link" size={22} color={COLORS.white} /></View></View><View style={styles.benefitCard}><View style={styles.benefitRow}><Ionicons name="calendar-outline" size={20} color={COLORS.purple} /><Text style={styles.benefitText}>개인 일정과 수업 시간을 같은 계획에 반영</Text></View><View style={styles.benefitRow}><Ionicons name="time-outline" size={20} color={COLORS.purple} /><Text style={styles.benefitText}>충돌 없는 일정으로 하루 만들기</Text></View><View style={styles.benefitRow}><Ionicons name="shield-checkmark-outline" size={20} color={COLORS.purple} /><Text style={styles.benefitText}>언제든 연결 해제 가능</Text></View><Pressable style={styles.authButton} onPress={connect} disabled={!request && Boolean(clientId) && status === 'loading'}><Ionicons name="logo-google" size={17} color={COLORS.white} /><Text style={styles.authButtonText}>{status === 'loading' ? '연결 중...' : '캘린더 연결하기'}</Text></Pressable></View>{status === 'error' ? <View style={styles.errorBox}><Text style={styles.errorText}>연결하지 못했어요. 다시 시도해주세요.</Text><Text style={styles.errorDetail}>{errorMessage}</Text></View> : null}<Pressable onPress={() => onSkip({ mode: 'demo' })}><Text style={styles.skipText}>나중에 할게요</Text></Pressable></ScrollView></SafeAreaView>;
 }
 
 function DateStrip() {
@@ -170,7 +172,9 @@ const styles = StyleSheet.create({
   authButton: { height: 52, borderRadius: 15, backgroundColor: COLORS.purple, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 9, marginTop: 4 },
   authButtonText: { color: COLORS.white, fontSize: 14, fontWeight: '900' },
   skipText: { color: COLORS.muted, fontSize: 12, fontWeight: '700', padding: 17 },
-  errorText: { color: '#C4566B', fontSize: 12, marginTop: 12 },
+  errorBox: { width: '100%', marginTop: 12, paddingHorizontal: 12, paddingVertical: 10, borderRadius: 12, backgroundColor: '#FFF1F4' },
+  errorText: { color: '#C4566B', fontSize: 12, fontWeight: '800' },
+  errorDetail: { color: '#A45A6A', fontSize: 10, lineHeight: 15, marginTop: 4 },
   todayHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
   todayGreeting: { color: COLORS.ink, fontSize: 21, fontWeight: '900' },
   todayDate: { color: COLORS.muted, fontSize: 12, fontWeight: '700', marginTop: 5 },

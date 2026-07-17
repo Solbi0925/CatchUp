@@ -5,22 +5,23 @@ WebBrowser.maybeCompleteAuthSession();
 
 export const GOOGLE_CALENDAR_SCOPES = ['https://www.googleapis.com/auth/calendar.readonly'];
 
-export function createGoogleCalendarRequest(clientId) {
-  return AuthSession.useAuthRequest(
-    {
-      clientId: clientId || 'demo-client-id',
-      scopes: GOOGLE_CALENDAR_SCOPES,
-      responseType: AuthSession.ResponseType.Token,
-      redirectUri: AuthSession.makeRedirectUri({ scheme: 'catchup' }),
-    },
-    { authorizationEndpoint: 'https://accounts.google.com/o/oauth2/v2/auth' },
-  );
+export const GOOGLE_AUTH_DISCOVERY = {
+  authorizationEndpoint: 'https://accounts.google.com/o/oauth2/v2/auth',
+};
+
+export const GOOGLE_IOS_REDIRECT_SCHEME =
+  'com.googleusercontent.apps.867893616824-r5brmhk4h4gctr1lghuadlcbreo6snui';
+
+export function getGoogleRedirectUri() {
+  return AuthSession.makeRedirectUri({
+    native: `${GOOGLE_IOS_REDIRECT_SCHEME}:/oauthredirect`,
+  });
 }
 
 export function getGoogleCalendarConfig() {
   return {
     scopes: GOOGLE_CALENDAR_SCOPES,
-    redirectUri: AuthSession.makeRedirectUri({ scheme: 'catchup' }),
+    redirectUri: getGoogleRedirectUri(),
   };
 }
 

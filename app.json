@@ -5,7 +5,7 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
-    "scheme": "catchup",
+    "scheme": "com.googleusercontent.apps.867893616824-r5brmhk4h4gctr1lghuadlcbreo6snui",
     "plugins": ["expo-web-browser"],
     "ios": {
       "supportsTablet": true,

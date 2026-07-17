@@ -5,3 +5,5 @@ dist/
 .DS_Store
 tmp_pdf_preview/
 *.zip
+ios/
+android/

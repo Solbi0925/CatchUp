@@ -84,7 +84,9 @@ pnpm start
 }
 ```
 
-앱은 `https://www.googleapis.com/auth/calendar.readonly`만 요청한다. 일정 생성·수정 권한은 요청하지 않으며, access token은 이 MVP에서 저장하지 않는다. Expo Go에서는 화면과 데모 모드를 확인하고, 실제 OAuth redirect 테스트는 `catchup` scheme이 포함된 development build에서 진행한다.
+앱은 `https://www.googleapis.com/auth/calendar.readonly`만 요청한다. 일정 생성·수정 권한은 요청하지 않으며, access token은 이 MVP에서 저장하지 않는다. Expo Go에서는 화면과 데모 모드만 확인할 수 있다. 실제 Google OAuth는 iOS OAuth client의 reverse scheme을 포함한 development build에서 진행한다.
+
+Client ID 또는 redirect 오류가 발생하면 Google Cloud의 테스트 사용자, `calendar.readonly` scope, iOS bundle ID `com.catchup.mobile`을 확인한다. OAuth 연결 후 앱은 access token으로 현재 시점부터 4주간의 Google Calendar 일정을 읽어 Today/Month 화면에 표시한다.
 
 ```bash
 pnpm ios
