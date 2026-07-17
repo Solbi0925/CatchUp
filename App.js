@@ -60,7 +60,8 @@ function Onboarding({ onContinue }) {
 }
 
 function ConnectScreen({ onConnected, onSkip }) {
-  const clientId = Constants.expoConfig?.extra?.googleCalendarClientId || '';
+  const runtimeExtra = Constants.expoConfig?.extra || Constants.manifest2?.extra || Constants.manifest?.extra || {};
+  const clientId = runtimeExtra.googleCalendarClientId || '';
   const redirectUri = getGoogleRedirectUri();
   const [request, response, promptAsync] = AuthSession.useAuthRequest({ clientId: clientId || 'demo-client-id', scopes: GOOGLE_CALENDAR_SCOPES, responseType: AuthSession.ResponseType.Token, redirectUri, extraParams: { prompt: 'select_account' } }, GOOGLE_AUTH_DISCOVERY);
   const [status, setStatus] = useState('idle');
@@ -72,10 +73,12 @@ function ConnectScreen({ onConnected, onSkip }) {
   }, [response, onConnected]);
 
   async function connect() {
-    if (!clientId) { setStatus('demo'); onConnected({ mode: 'demo' }); return; }
+    if (!clientId) { setStatus('error'); setErrorMessage('Google OAuth Client ID를 앱에서 읽지 못했어요. app.json 설정을 확인해주세요.'); return; }
+    if (!request) { setStatus('error'); setErrorMessage('Google OAuth 요청을 준비 중이에요. 잠시 후 다시 눌러주세요.'); return; }
     setStatus('loading');
     setErrorMessage('');
-    await promptAsync();
+    const result = await promptAsync();
+    if (result?.type === 'cancel' || result?.type === 'dismiss') setStatus('idle');
   }
 
   return <SafeAreaView style={styles.authScreen}><ScrollView contentContainerStyle={styles.authContent}><Text style={styles.authTitle}>Google Calendar 연결</Text><Text style={styles.authBody}>개인 일정과 수업 시간을{`\n`}함께 반영해요</Text><View style={styles.calendarIllustration}><View style={styles.calendarIcon}><Text style={styles.calendarIconDay}>31</Text></View><View style={styles.calendarOutline}><View /><View /><View /></View><View style={styles.linkBadge}><Ionicons name="link" size={22} color={COLORS.white} /></View></View><View style={styles.benefitCard}><View style={styles.benefitRow}><Ionicons name="calendar-outline" size={20} color={COLORS.purple} /><Text style={styles.benefitText}>개인 일정과 수업 시간을 같은 계획에 반영</Text></View><View style={styles.benefitRow}><Ionicons name="time-outline" size={20} color={COLORS.purple} /><Text style={styles.benefitText}>충돌 없는 일정으로 하루 만들기</Text></View><View style={styles.benefitRow}><Ionicons name="shield-checkmark-outline" size={20} color={COLORS.purple} /><Text style={styles.benefitText}>언제든 연결 해제 가능</Text></View><Pressable style={styles.authButton} onPress={connect} disabled={!request && Boolean(clientId) && status === 'loading'}><Ionicons name="logo-google" size={17} color={COLORS.white} /><Text style={styles.authButtonText}>{status === 'loading' ? '연결 중...' : '캘린더 연결하기'}</Text></Pressable></View>{status === 'error' ? <View style={styles.errorBox}><Text style={styles.errorText}>연결하지 못했어요. 다시 시도해주세요.</Text><Text style={styles.errorDetail}>{errorMessage}</Text></View> : null}<Pressable onPress={() => onSkip({ mode: 'demo' })}><Text style={styles.skipText}>나중에 할게요</Text></Pressable></ScrollView></SafeAreaView>;
