@@ -4,6 +4,8 @@ import * as WebBrowser from 'expo-web-browser';
 WebBrowser.maybeCompleteAuthSession();
 
 export const GOOGLE_CALENDAR_SCOPES = ['https://www.googleapis.com/auth/calendar.readonly'];
+export const GOOGLE_CALENDAR_CLIENT_ID =
+  '867893616824-r5brmhk4h4gctr1lghuadlcbreo6snui.apps.googleusercontent.com';
 
 export const GOOGLE_AUTH_DISCOVERY = {
   authorizationEndpoint: 'https://accounts.google.com/o/oauth2/v2/auth',
