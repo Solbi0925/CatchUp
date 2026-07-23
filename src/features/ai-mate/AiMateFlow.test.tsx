@@ -1,8 +1,11 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { App } from "../../app/App";
 
 afterEach(cleanup);
+beforeEach(() => {
+  sessionStorage.clear();
+});
 
 async function prepareConfirmedUpload() {
   const fileInput = screen.getByLabelText("학업 자료 업로드");
@@ -23,7 +26,41 @@ async function prepareConfirmedUpload() {
 }
 
 describe("Upload and AI Mate integrated prototype", () => {
+  it("offers Calendar onboarding after an upload when Calendar is disconnected", async () => {
+    sessionStorage.clear();
+    render(<App initialEntries={["/upload"]} />);
+    await prepareConfirmedUpload();
+
+    fireEvent.click(screen.getByRole("button", { name: "AI Mate 열기" }));
+    const composer = screen.getByPlaceholderText("메시지를 입력하세요...");
+    fireEvent.change(composer, { target: { value: "이번 주 계획 짜줘" } });
+    fireEvent.click(screen.getByRole("button", { name: "메시지 보내기" }));
+
+    expect(
+      await screen.findByText(
+        "개인 일정을 반영하려면 Google Calendar 연결이 필요해요.",
+        {},
+        { timeout: 2_000 },
+      ),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("link", { name: "Calendar 연결하기" }));
+
+    expect(
+      await screen.findByRole("heading", { name: "Google Calendar 연결" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("dialog", { name: "AI Mate" })).not.toBeInTheDocument();
+  });
+
   it("uses the confirmed extracted items to create and adjust a weekly plan", async () => {
+    sessionStorage.setItem(
+      "catchup:prototype:onboarding:v1",
+      JSON.stringify({
+        version: 1,
+        introSeen: true,
+        calendarStep: "connected",
+        calendarConnected: true,
+      }),
+    );
     render(<App initialEntries={["/upload"]} />);
     await prepareConfirmedUpload();
 

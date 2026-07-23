@@ -54,4 +54,22 @@ describe("adjustMockPlan", () => {
 
     expect(result.changed).toBe(false);
   });
+
+  it("derives weekday dates from the current weekly plan instead of a fixed fixture", () => {
+    const augustTodos: Todo[] = [
+      { ...todos[0], id: "todo-aug-wed", scheduledDate: "2026-08-05" },
+    ];
+    const input = {
+      operationId: "adjust-august",
+      requestText: "수요일 할 일을 줄여줘",
+      requestedAt: "2026-08-03T09:00:00+09:00",
+      weekStartDate: "2026-08-03",
+      todos: augustTodos,
+    };
+
+    const result = adjustMockPlan(input);
+
+    expect(result.changed).toBe(true);
+    expect(result.todos[0].scheduledDate).toBe("2026-08-06");
+  });
 });

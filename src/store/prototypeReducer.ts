@@ -13,10 +13,14 @@ import type {
   WeeklyPlanId,
   UploadedDocument,
 } from "../domain/types";
-import { demoCalendarEvents, demoUser } from "../mocks/templates";
+import { demoUser } from "../mocks/templates";
 
 export interface PrototypeState {
   user: User;
+  onboarding: {
+    introSeen: boolean;
+    calendarStep: "idle" | "connecting" | "connected" | "error" | "skipped";
+  };
   documentsById: Record<DocumentId, UploadedDocument>;
   extractedItemsById: Record<ExtractedItemId, ExtractedItem>;
   extractedItemIdsByDocumentId: Record<DocumentId, ExtractedItemId[]>;
@@ -29,6 +33,13 @@ export interface PrototypeState {
 }
 
 export type PrototypeAction =
+  | { type: "demo/reset"; payload: Record<string, never> }
+  | { type: "onboarding/introCompleted"; payload: Record<string, never> }
+  | { type: "calendar/connectionStarted"; payload: Record<string, never> }
+  | { type: "calendar/connectionSucceeded"; payload: { events: CalendarEvent[] } }
+  | { type: "calendar/connectionFailed"; payload: Record<string, never> }
+  | { type: "calendar/onboardingSkipped"; payload: Record<string, never> }
+  | { type: "todo/completionSet"; payload: { todoId: TodoId; isCompleted: boolean } }
   | { type: "extraction/applied"; payload: ExtractionResult }
   | {
       type: "extraction/confirmed";
@@ -43,12 +54,14 @@ export type PrototypeAction =
 export function createInitialPrototypeState(): PrototypeState {
   return {
     user: { ...demoUser },
+    onboarding: {
+      introSeen: false,
+      calendarStep: "idle",
+    },
     documentsById: {},
     extractedItemsById: {},
     extractedItemIdsByDocumentId: {},
-    calendarEventsById: Object.fromEntries(
-      demoCalendarEvents.map((event) => [event.id, { ...event }]),
-    ),
+    calendarEventsById: {},
     weeklyPlansById: {},
     todosById: {},
     todoIdsByWeeklyPlanId: {},
@@ -66,6 +79,53 @@ export function prototypeReducer(
   }
 
   switch (action.type) {
+    case "demo/reset":
+      return createInitialPrototypeState();
+    case "onboarding/introCompleted":
+      if (state.onboarding.introSeen) return state;
+      return {
+        ...state,
+        onboarding: { ...state.onboarding, introSeen: true },
+      };
+    case "calendar/connectionStarted":
+      return {
+        ...state,
+        user: { ...state.user, calendarConnectionStatus: "connecting" },
+        onboarding: { ...state.onboarding, introSeen: true, calendarStep: "connecting" },
+      };
+    case "calendar/connectionSucceeded":
+      return {
+        ...state,
+        user: { ...state.user, calendarConnectionStatus: "connected" },
+        onboarding: { ...state.onboarding, introSeen: true, calendarStep: "connected" },
+        calendarEventsById: Object.fromEntries(
+          action.payload.events.map((event) => [event.id, event]),
+        ),
+      };
+    case "calendar/connectionFailed":
+      return {
+        ...state,
+        user: { ...state.user, calendarConnectionStatus: "failed" },
+        onboarding: { ...state.onboarding, introSeen: true, calendarStep: "error" },
+      };
+    case "calendar/onboardingSkipped":
+      return {
+        ...state,
+        user: { ...state.user, calendarConnectionStatus: "disconnected" },
+        onboarding: { ...state.onboarding, introSeen: true, calendarStep: "skipped" },
+        calendarEventsById: {},
+      };
+    case "todo/completionSet": {
+      const todo = state.todosById[action.payload.todoId];
+      if (!todo || todo.isCompleted === action.payload.isCompleted) return state;
+      return {
+        ...state,
+        todosById: {
+          ...state.todosById,
+          [todo.id]: { ...todo, isCompleted: action.payload.isCompleted },
+        },
+      };
+    }
     case "extraction/applied": {
       const { document, extractedItems, operationId } = action.payload;
       return {

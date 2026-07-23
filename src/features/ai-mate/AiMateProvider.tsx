@@ -9,7 +9,7 @@ import {
   useState,
 } from "react";
 import { adjustMockPlan } from "../../application/adjustPlan";
-import { demoClock } from "../../application/clock";
+import { demoClock, demoInteractionClock, demoTodayDate } from "../../application/clock";
 import { generateMockWeeklyPlan } from "../../application/mockPlanEngine";
 import {
   selectAllExtractedItems,
@@ -30,7 +30,7 @@ import { usePrototypeStore } from "../../store/PrototypeStore";
 import { classifyAiMateIntent } from "./classifyAiMateIntent";
 
 const DAILY_ADJUSTMENT_LIMIT = 10;
-const DEMO_USAGE_DATE = "2026-07-19";
+const DEMO_USAGE_DATE = demoTodayDate;
 
 interface FailedRequest {
   operationId: OperationId;
@@ -40,6 +40,7 @@ interface FailedRequest {
 interface AiMateContextValue {
   isOpen: boolean;
   setOpen: (open: boolean) => void;
+  openWithDraft: (draft: string) => void;
   messages: AiMateMessage[];
   draft: string;
   setDraft: (draft: string) => void;
@@ -67,7 +68,7 @@ function assistantMessage(
     id: `assistant-${operationId}`,
     role: "assistant",
     text,
-    createdAt: demoClock.now().toISOString(),
+    createdAt: demoInteractionClock.now().toISOString(),
     status: "sent",
     intent,
     operationId,
@@ -92,6 +93,7 @@ function prerequisiteMessage(
     },
     "calendar-disconnected": {
       text: "개인 일정을 반영하려면 Google Calendar 연결이 필요해요.",
+      actions: [{ label: "Calendar 연결하기", href: "/onboarding/calendar" }],
     },
     "needs-review": {
       text: "확인이 필요한 추출 결과가 있어요. 내용을 확인하고 저장해주세요.",
@@ -121,6 +123,10 @@ export function AiMateProvider({ children }: { children: ReactNode }) {
 
   const appendAssistant = useCallback((message: AiMateMessage) => {
     setMessages((current) => [...current, message]);
+  }, []);
+  const openWithDraft = useCallback((nextDraft: string) => {
+    setDraft(nextDraft);
+    setOpen(true);
   }, []);
 
   const execute = useCallback(
@@ -191,7 +197,8 @@ export function AiMateProvider({ children }: { children: ReactNode }) {
           const result = adjustMockPlan({
             operationId,
             requestText: text,
-            requestedAt: demoClock.now().toISOString(),
+            requestedAt: demoInteractionClock.now().toISOString(),
+            weekStartDate: existingWeeklyPlan.weekStartDate,
             todos: selectTodosForCurrentPlan(state),
           });
           dispatch({
@@ -267,7 +274,7 @@ export function AiMateProvider({ children }: { children: ReactNode }) {
         id: `user-${operationId}`,
         role: "user",
         text,
-        createdAt: demoClock.now().toISOString(),
+        createdAt: demoInteractionClock.now().toISOString(),
         status: "sent",
         intent: classifyAiMateIntent(text),
         operationId,
@@ -296,6 +303,7 @@ export function AiMateProvider({ children }: { children: ReactNode }) {
     () => ({
       isOpen,
       setOpen,
+      openWithDraft,
       messages,
       draft,
       setDraft,

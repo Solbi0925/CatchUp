@@ -3,7 +3,7 @@ import type { CalendarEvent, User } from "../domain/types";
 export const demoUser: User = {
   id: "user-demo-01",
   displayName: "테스트 학생",
-  calendarConnectionStatus: "connected",
+  calendarConnectionStatus: "disconnected",
   weeklyPlanGenerationDay: 0,
   weeklyPlanGenerationTime: "20:00",
   planGenerationRequest: "일요일에는 쉬는 시간을 많이 확보하고 수요일은 가볍게 계획해줘.",

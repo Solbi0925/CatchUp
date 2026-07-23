@@ -4,20 +4,30 @@ interface AdjustPlanInput {
   operationId: OperationId;
   requestText: string;
   requestedAt: string;
+  weekStartDate?: string;
   todos: Todo[];
 }
 
-const dayTargets = [
-  { pattern: /월요일/, date: "2026-07-20", nextDate: "2026-07-21" },
-  { pattern: /화요일/, date: "2026-07-21", nextDate: "2026-07-22" },
-  { pattern: /수요일/, date: "2026-07-22", nextDate: "2026-07-23" },
-  { pattern: /목요일/, date: "2026-07-23", nextDate: "2026-07-24" },
-  { pattern: /금요일/, date: "2026-07-24", nextDate: "2026-07-25" },
-  { pattern: /토요일/, date: "2026-07-25", nextDate: "2026-07-26" },
-  { pattern: /일요일/, date: "2026-07-26", nextDate: "2026-07-25" },
-];
+function addDays(isoDate: string, amount: number) {
+  const date = new Date(`${isoDate}T00:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + amount);
+  return date.toISOString().slice(0, 10);
+}
+
+function createDayTargets(weekStartDate: string) {
+  return [
+    { pattern: /월요일/, date: addDays(weekStartDate, 0), nextDate: addDays(weekStartDate, 1) },
+    { pattern: /화요일/, date: addDays(weekStartDate, 1), nextDate: addDays(weekStartDate, 2) },
+    { pattern: /수요일/, date: addDays(weekStartDate, 2), nextDate: addDays(weekStartDate, 3) },
+    { pattern: /목요일/, date: addDays(weekStartDate, 3), nextDate: addDays(weekStartDate, 4) },
+    { pattern: /금요일/, date: addDays(weekStartDate, 4), nextDate: addDays(weekStartDate, 5) },
+    { pattern: /토요일/, date: addDays(weekStartDate, 5), nextDate: addDays(weekStartDate, 6) },
+    { pattern: /일요일/, date: addDays(weekStartDate, 6), nextDate: addDays(weekStartDate, 5) },
+  ];
+}
 
 export function adjustMockPlan(input: AdjustPlanInput): AdjustmentResult {
+  const dayTargets = createDayTargets(input.weekStartDate ?? "2026-07-20");
   const target = dayTargets.find(({ pattern }) => pattern.test(input.requestText));
   const candidate = target
     ? [...input.todos]

@@ -2,30 +2,47 @@ import { useMemo } from "react";
 import {
   createBrowserRouter,
   createMemoryRouter,
-  Navigate,
   RouterProvider,
 } from "react-router-dom";
 import { PrototypeStoreProvider } from "../store/PrototypeStore";
 import { AiMateProvider } from "../features/ai-mate/AiMateProvider";
 import { ExtractionReviewPage } from "../features/upload/ExtractionReviewPage";
 import { UploadPage } from "../features/upload/UploadPage";
+import { IntroPage } from "../features/intro/IntroPage";
+import { CalendarOnboardingPage } from "../features/onboarding/CalendarOnboardingPage";
+import { TodayPage } from "../features/today/TodayPage";
 import { AppShell } from "./AppShell";
 import { RoutePlaceholder } from "./RoutePlaceholder";
+import { InitialRoute } from "./InitialRoute";
 
 const routes = [
   {
+    path: "/onboarding/intro",
+    element: <IntroPage />,
+  },
+  {
+    path: "/onboarding/calendar",
+    element: <CalendarOnboardingPage />,
+  },
+  {
     path: "/",
+    element: <InitialRoute />,
+  },
+  {
     element: <AppShell />,
     children: [
-      { index: true, element: <Navigate to="/upload" replace /> },
       { path: "upload", element: <UploadPage /> },
-      { path: "today", element: <RoutePlaceholder title="Today" /> },
+      { path: "today", element: <TodayPage /> },
       { path: "month", element: <RoutePlaceholder title="Month" /> },
     ],
   },
   {
     path: "/upload/:documentId/extraction",
     element: <ExtractionReviewPage />,
+  },
+  {
+    path: "*",
+    element: <InitialRoute />,
   },
 ];
 
