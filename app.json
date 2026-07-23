@@ -6,16 +6,24 @@
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "scheme": "com.googleusercontent.apps.867893616824-r5brmhk4h4gctr1lghuadlcbreo6snui",
-    "plugins": ["expo-web-browser"],
+    "plugins": [
+      "expo-web-browser"
+    ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.catchup.mobile"
+      "bundleIdentifier": "com.catchup.mobile",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "package": "com.catchup.mobile"
     },
     "extra": {
-      "googleCalendarClientId": "867893616824-r5brmhk4h4gctr1lghuadlcbreo6snui.apps.googleusercontent.com"
+      "googleCalendarClientId": "867893616824-r5brmhk4h4gctr1lghuadlcbreo6snui.apps.googleusercontent.com",
+      "eas": {
+        "projectId": "8fa789d9-ee4d-4590-923a-de73685b1e54"
+      }
     }
   }
 }
