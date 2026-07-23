@@ -1,0 +1,23 @@
+:root {
+  --color-canvas: #f8f7fb;
+  --color-surface: #ffffff;
+  --color-ink: #111014;
+  --color-muted: #747786;
+  --color-icon-muted: #687181;
+  --color-line: #eceaf0;
+  --color-purple: #806cf2;
+  --color-purple-dark: #6f4be9;
+  --color-purple-soft: #eae3ff;
+  --color-purple-pale: #f8f5ff;
+  --color-purple-line: #c7b7ff;
+  --color-success: #29b84a;
+  --color-success-bg: #dff8e3;
+  --color-error: #d94b55;
+  --shadow-card: 0 4px 14px rgba(37, 33, 53, 0.045);
+  --shadow-fab: 0 6px 14px rgba(64, 48, 110, 0.22);
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: var(--color-ink);
+  background: var(--color-canvas);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
