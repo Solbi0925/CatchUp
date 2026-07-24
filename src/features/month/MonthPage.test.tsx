@@ -37,7 +37,44 @@ describe("MonthPage", () => {
 
     await user.type(screen.getByPlaceholderText("일정 제목을 입력하세요"), "스터디");
     await user.click(screen.getByRole("button", { name: "저장" }));
-    expect(screen.getAllByText("스터디")).toHaveLength(2);
+    expect(screen.getByText("스터디")).toBeInTheDocument();
+  });
+
+  it("shows only dots on the calendar and reveals titles after selecting a date", async () => {
+    const user = userEvent.setup();
+    renderMonth();
+
+    expect(screen.queryByText("팀 프로젝트 회의")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /2026년 7월 20일.*일정 1개/ }),
+    ).toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole("button", { name: /2026년 7월 20일.*일정 1개/ }),
+    );
+    expect(screen.getByText("팀 프로젝트 회의")).toBeInTheDocument();
+  });
+
+  it("edits a Google mock event without exposing delete", async () => {
+    const user = userEvent.setup();
+    renderMonth();
+    await user.click(
+      screen.getByRole("button", { name: /2026년 7월 20일.*일정 1개/ }),
+    );
+
+    expect(
+      screen.queryByRole("button", { name: "팀 프로젝트 회의 삭제" }),
+    ).not.toBeInTheDocument();
+    await user.click(
+      screen.getByRole("button", { name: "팀 프로젝트 회의 수정" }),
+    );
+
+    const title = screen.getByRole("textbox", { name: "제목" });
+    await user.clear(title);
+    await user.type(title, "팀 프로젝트 회의 변경");
+    await user.click(screen.getByRole("button", { name: "저장" }));
+
+    expect(screen.getByText("팀 프로젝트 회의 변경")).toBeInTheDocument();
   });
 
   it("moves to the next month", async () => {

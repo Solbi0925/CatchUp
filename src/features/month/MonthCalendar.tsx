@@ -1,7 +1,6 @@
 import type { MonthGridCell } from "./monthModel";
 import {
   getMonthDotCount,
-  getRepresentativeMonthScheduleItem,
   type MonthScheduleItem,
 } from "./monthSelectors";
 import { CalendarIcon, ChevronRightIcon } from "../../ui/icons";
@@ -154,28 +153,6 @@ export function MonthCalendar({
                           ))}
                         </span>
                       )}
-                    </button>
-                  );
-                })}
-              </div>
-              <div className="month-event-lane">
-                {weekCells.map((cell, columnIndex) => {
-                  if (!cell.isCurrentMonth) return null;
-                  const item = getRepresentativeMonthScheduleItem(
-                    schedulesByDate.get(cell.date) ?? [],
-                  );
-                  if (!item) return null;
-                  const span = Math.min(2, 7 - columnIndex);
-                  return (
-                    <button
-                      type="button"
-                      className="month-event-chip"
-                      aria-label={`${item.title}, ${formatKoreanDate(cell.date)} 일정 보기`}
-                      style={{ gridColumn: `${columnIndex + 1} / span ${span}` }}
-                      onClick={() => onSelectDate(cell.date)}
-                      key={item.id}
-                    >
-                      <span>{item.title}</span>
                     </button>
                   );
                 })}

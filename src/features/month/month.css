@@ -53,8 +53,7 @@
 }
 
 .month-calendar__weekdays,
-.month-week__dates,
-.month-event-lane {
+.month-week__dates {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
 }
@@ -67,7 +66,7 @@
 }
 
 .month-week {
-  min-height: 112px;
+  min-height: 92px;
   padding-top: 11px;
   border-bottom: 1px solid var(--color-line);
 }
@@ -119,34 +118,6 @@
   height: 5px;
   border-radius: 50%;
   background: #957bf6;
-}
-
-.month-event-lane {
-  position: relative;
-  height: 38px;
-  margin-top: 6px;
-  column-gap: 2px;
-}
-
-.month-event-chip {
-  z-index: 1;
-  height: 28px;
-  min-width: 0;
-  padding: 0 10px;
-  overflow: hidden;
-  border: 0;
-  border-radius: 14px;
-  background: linear-gradient(90deg, #e9e1ff, #eee9fb);
-  color: #2f2a3d;
-  font-size: 12px;
-  text-align: left;
-  white-space: nowrap;
-}
-
-.month-event-chip span {
-  display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .month-sheet-dialog {
@@ -327,6 +298,6 @@
 @media (max-height: 700px) {
   .month-calendar { padding-top: 32px; }
   .month-calendar__header { margin-bottom: 18px; }
-  .month-week { min-height: 90px; }
+  .month-week { min-height: 78px; }
   .month-sheet { max-height: calc(100dvh - 76px - env(safe-area-inset-bottom)); }
 }

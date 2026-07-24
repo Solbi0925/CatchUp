@@ -13,20 +13,28 @@ export function MonthPage() {
   const [visibleMonth, setVisibleMonth] = useState(demoTodayDate.slice(0, 7));
   const [selectedDate, setSelectedDate] = useState(demoTodayDate);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [mockEventOverrides, setMockEventOverrides] = useState<
+    Record<string, CalendarEvent>
+  >({});
   const returnFocusDate = useRef(selectedDate);
 
-  const schedules = useMemo(
+  const calendarEventsById = useMemo(
     () => {
-      const calendarEvents = Object.values({
+      return {
         ...Object.fromEntries(demoCalendarEvents.map((event) => [event.id, event])),
         ...state.calendarEventsById,
-      });
-      return buildMonthSchedules(
-        Object.values(state.extractedItemsById),
-        calendarEvents,
-      );
+        ...mockEventOverrides,
+      };
     },
-    [state.calendarEventsById, state.extractedItemsById],
+    [mockEventOverrides, state.calendarEventsById],
+  );
+  const schedules = useMemo(
+    () =>
+      buildMonthSchedules(
+        Object.values(state.extractedItemsById),
+        Object.values(calendarEventsById),
+      ),
+    [calendarEventsById, state.extractedItemsById],
   );
   const schedulesByDate = useMemo(
     () => groupSchedulesByDate(schedules),
@@ -54,7 +62,19 @@ export function MonthPage() {
 
   const saveEvent = (draft: MonthEventDraft, eventId?: string) => {
     if (eventId) {
-      dispatch({ type: "calendar/eventUpdated", payload: { id: eventId, ...draft } });
+      const existingEvent = calendarEventsById[eventId];
+      if (existingEvent?.source === "google-calendar") {
+        setMockEventOverrides((current) => ({
+          ...current,
+          [eventId]: {
+            ...existingEvent,
+            ...draft,
+            updatedAt: new Date().toISOString(),
+          },
+        }));
+      } else {
+        dispatch({ type: "calendar/eventUpdated", payload: { id: eventId, ...draft } });
+      }
     } else {
       dispatch({
         type: "calendar/eventCreated",
@@ -91,7 +111,7 @@ export function MonthPage() {
         <MonthScheduleDialog
           selectedDate={selectedDate}
           schedules={schedulesByDate.get(selectedDate) ?? []}
-          eventsById={state.calendarEventsById}
+          eventsById={calendarEventsById}
           onClose={closeSheet}
           onSave={saveEvent}
           onDelete={(eventId) =>

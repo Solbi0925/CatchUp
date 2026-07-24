@@ -51,12 +51,6 @@ export function groupSchedulesByDate(items: readonly MonthScheduleItem[]) {
   return grouped;
 }
 
-export function getRepresentativeMonthScheduleItem(
-  items: readonly MonthScheduleItem[],
-) {
-  return items[0];
-}
-
 export function getMonthDotCount(itemCount: number) {
   return Math.min(itemCount, 3);
 }

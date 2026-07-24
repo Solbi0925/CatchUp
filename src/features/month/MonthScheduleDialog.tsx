@@ -66,7 +66,7 @@ export function MonthScheduleDialog({
 
   const edit = (eventId: string) => {
     const event = eventsById[eventId];
-    if (!event || event.source !== "catchup") return;
+    if (!event) return;
     setEditingId(eventId);
     setDraft({
       title: event.title,
@@ -132,22 +132,24 @@ export function MonthScheduleDialog({
                   <strong>{item.title}</strong>
                   <span>{displayTime(item)}</span>
                 </div>
-                {item.source === "catchup" && item.eventId && (
+                {item.eventId && (
                   <div className="month-schedule-list__actions">
                     <button type="button" onClick={() => edit(item.eventId!)} aria-label={`${item.title} 수정`}>✎</button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        onDelete(item.eventId!);
-                        if (editingId === item.eventId) {
-                          setEditingId(undefined);
-                          setDraft(emptyDraft(selectedDate));
-                        }
-                      }}
-                      aria-label={`${item.title} 삭제`}
-                    >
-                      ♲
-                    </button>
+                    {item.source === "catchup" && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onDelete(item.eventId!);
+                          if (editingId === item.eventId) {
+                            setEditingId(undefined);
+                            setDraft(emptyDraft(selectedDate));
+                          }
+                        }}
+                        aria-label={`${item.title} 삭제`}
+                      >
+                        ♲
+                      </button>
+                    )}
                   </div>
                 )}
               </li>
@@ -191,8 +193,16 @@ export function MonthScheduleDialog({
           </label>
           <label>
             <span>과목/캘린더</span>
-            <select value="catchup" disabled>
-              <option>CatchUp 개인 일정</option>
+            <select
+              value={
+                editingId && eventsById[editingId]?.source === "google-calendar"
+                  ? "google"
+                  : "catchup"
+              }
+              disabled
+            >
+              <option value="catchup">CatchUp 개인 일정</option>
+              <option value="google">Google Calendar</option>
             </select>
           </label>
           <label>
