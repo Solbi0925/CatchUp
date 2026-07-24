@@ -7,7 +7,7 @@ import {
   useMemo,
   useReducer,
 } from "react";
-import { demoCalendarEvents } from "../mocks/templates";
+import { demoCalendarEvents, demoCatchUpCalendarEvents } from "../mocks/templates";
 import { readOnboardingSession, writeOnboardingSession } from "./onboardingSession";
 import {
   createInitialPrototypeState,
@@ -38,7 +38,12 @@ function createStoreInitialState() {
       calendarStep: session.calendarStep,
     },
     calendarEventsById: session.calendarConnected
-      ? Object.fromEntries(demoCalendarEvents.map((event) => [event.id, { ...event }]))
+      ? Object.fromEntries(
+          [...demoCalendarEvents, ...demoCatchUpCalendarEvents].map((event) => [
+            event.id,
+            { ...event },
+          ]),
+        )
       : {},
   };
 }

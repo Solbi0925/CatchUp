@@ -9,7 +9,7 @@ export const demoUser: User = {
   planGenerationRequest: "일요일에는 쉬는 시간을 많이 확보하고 수요일은 가볍게 계획해줘.",
 };
 
-export const mockGoogleCalendarEvents: Array<CalendarEvent & { source: "google-calendar" }> = [
+export const demoCalendarEvents: CalendarEvent[] = [
   {
     id: "calendar-demo-01",
     userId: demoUser.id,
@@ -60,7 +60,7 @@ export const mockGoogleCalendarEvents: Array<CalendarEvent & { source: "google-c
   },
 ];
 
-export const demoCatchUpCalendarEvents: Array<CalendarEvent & { source: "catchup" }> = [
+export const demoCatchUpCalendarEvents: CalendarEvent[] = [
   {
     id: "calendar-demo-catchup-01",
     userId: demoUser.id,
@@ -73,9 +73,4 @@ export const demoCatchUpCalendarEvents: Array<CalendarEvent & { source: "catchup
     source: "catchup",
     updatedAt: "2026-07-19T20:00:00+09:00",
   },
-];
-
-export const demoCalendarEvents: CalendarEvent[] = [
-  ...mockGoogleCalendarEvents,
-  ...demoCatchUpCalendarEvents,
 ];

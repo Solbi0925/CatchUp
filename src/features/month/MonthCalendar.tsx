@@ -47,7 +47,6 @@ function describeDate(
 }
 
 export interface MonthCalendarProps {
-  monthKey: string;
   monthLabel: string;
   gridCells: readonly MonthGridCell[];
   schedulesByDate: ReadonlyMap<string, readonly MonthScheduleItem[]>;
