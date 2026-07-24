@@ -1,5 +1,6 @@
 import type {
   CalendarEvent,
+  CalendarEventId,
   DocumentId,
   ExtractedItem,
   ExtractedItemId,
@@ -13,7 +14,13 @@ import type {
   WeeklyPlanId,
   UploadedDocument,
 } from "../domain/types";
+import { demoInteractionClock } from "../application/clock";
 import { demoUser } from "../mocks/templates";
+
+type EditableCalendarEventFields = Pick<
+  CalendarEvent,
+  "title" | "date" | "startTime" | "endTime" | "isAllDay" | "eventType"
+>;
 
 export interface PrototypeState {
   user: User;
@@ -24,7 +31,7 @@ export interface PrototypeState {
   documentsById: Record<DocumentId, UploadedDocument>;
   extractedItemsById: Record<ExtractedItemId, ExtractedItem>;
   extractedItemIdsByDocumentId: Record<DocumentId, ExtractedItemId[]>;
-  calendarEventsById: Record<string, CalendarEvent>;
+  calendarEventsById: Record<CalendarEventId, CalendarEvent>;
   weeklyPlansById: Record<WeeklyPlanId, WeeklyPlan>;
   todosById: Record<TodoId, Todo>;
   todoIdsByWeeklyPlanId: Record<WeeklyPlanId, TodoId[]>;
@@ -39,6 +46,15 @@ export type PrototypeAction =
   | { type: "calendar/connectionSucceeded"; payload: { events: CalendarEvent[] } }
   | { type: "calendar/connectionFailed"; payload: Record<string, never> }
   | { type: "calendar/onboardingSkipped"; payload: Record<string, never> }
+  | {
+      type: "calendar/eventCreated";
+      payload: { id: CalendarEventId } & EditableCalendarEventFields;
+    }
+  | {
+      type: "calendar/eventUpdated";
+      payload: { id: CalendarEventId } & EditableCalendarEventFields;
+    }
+  | { type: "calendar/eventDeleted"; payload: { id: CalendarEventId } }
   | { type: "todo/completionSet"; payload: { todoId: TodoId; isCompleted: boolean } }
   | { type: "extraction/applied"; payload: ExtractionResult }
   | {
@@ -98,9 +114,14 @@ export function prototypeReducer(
         ...state,
         user: { ...state.user, calendarConnectionStatus: "connected" },
         onboarding: { ...state.onboarding, introSeen: true, calendarStep: "connected" },
-        calendarEventsById: Object.fromEntries(
-          action.payload.events.map((event) => [event.id, event]),
-        ),
+        calendarEventsById: {
+          ...Object.fromEntries(action.payload.events.map((event) => [event.id, event])),
+          ...Object.fromEntries(
+            Object.values(state.calendarEventsById)
+              .filter((event) => event.source === "catchup")
+              .map((event) => [event.id, event]),
+          ),
+        },
       };
     case "calendar/connectionFailed":
       return {
@@ -113,8 +134,50 @@ export function prototypeReducer(
         ...state,
         user: { ...state.user, calendarConnectionStatus: "disconnected" },
         onboarding: { ...state.onboarding, introSeen: true, calendarStep: "skipped" },
-        calendarEventsById: {},
+        calendarEventsById: Object.fromEntries(
+          Object.values(state.calendarEventsById)
+            .filter((event) => event.source === "catchup")
+            .map((event) => [event.id, event]),
+        ),
       };
+    case "calendar/eventCreated": {
+      const { id, ...editableFields } = action.payload;
+      return {
+        ...state,
+        calendarEventsById: {
+          ...state.calendarEventsById,
+          [id]: {
+            id,
+            userId: state.user.id,
+            ...editableFields,
+            source: "catchup",
+            updatedAt: demoInteractionClock.now().toISOString(),
+          },
+        },
+      };
+    }
+    case "calendar/eventUpdated": {
+      const existingEvent = state.calendarEventsById[action.payload.id];
+      if (!existingEvent || existingEvent.source !== "catchup") return state;
+      const { id, ...editableFields } = action.payload;
+      return {
+        ...state,
+        calendarEventsById: {
+          ...state.calendarEventsById,
+          [id]: {
+            ...existingEvent,
+            ...editableFields,
+            updatedAt: demoInteractionClock.now().toISOString(),
+          },
+        },
+      };
+    }
+    case "calendar/eventDeleted": {
+      const existingEvent = state.calendarEventsById[action.payload.id];
+      if (!existingEvent || existingEvent.source !== "catchup") return state;
+      const { [action.payload.id]: _deletedEvent, ...calendarEventsById } = state.calendarEventsById;
+      return { ...state, calendarEventsById };
+    }
     case "todo/completionSet": {
       const todo = state.todosById[action.payload.todoId];
       if (!todo || todo.isCompleted === action.payload.isCompleted) return state;

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createInitialPrototypeState, prototypeReducer } from "./prototypeReducer";
-import type { ExtractionResult, GeneratePlanResult } from "../domain/types";
+import type { CalendarEvent, ExtractionResult, GeneratePlanResult } from "../domain/types";
 
 const extraction: ExtractionResult = {
   operationId: "extract-1",
@@ -72,6 +72,37 @@ const plan: GeneratePlanResult = {
   },
 };
 
+const calendarEventFields = {
+  title: "스터디 약속",
+  date: "2026-07-21",
+  startTime: "19:00",
+  endTime: "20:00",
+  isAllDay: false,
+  eventType: "personal" as const,
+};
+
+function googleEvent(id: string, title = "Google 일정"): CalendarEvent {
+  return {
+    id,
+    userId: "user-demo-01",
+    title,
+    date: "2026-07-21",
+    startTime: "09:00",
+    endTime: "10:00",
+    isAllDay: false,
+    eventType: "personal",
+    source: "google-calendar",
+    updatedAt: "2026-07-01T09:00:00+09:00",
+  };
+}
+
+function createCatchUpEvent() {
+  return prototypeReducer(createInitialPrototypeState(), {
+    type: "calendar/eventCreated",
+    payload: { id: "catchup-event-1", ...calendarEventFields },
+  });
+}
+
 describe("prototypeReducer", () => {
   it("stores an extraction result and its relation atomically", () => {
     const state = prototypeReducer(createInitialPrototypeState(), {
@@ -108,5 +139,152 @@ describe("prototypeReducer", () => {
 
     expect(saved.documentsById["doc-1"].extractionStatus).toBe("complete");
     expect(saved.extractedItemsById["item-1"].reviewStatus).toBe("confirmed");
+  });
+
+  it("creates a CatchUp event with the current user, source, and interaction time", () => {
+    const state = createCatchUpEvent();
+
+    expect(state.calendarEventsById["catchup-event-1"]).toEqual({
+      id: "catchup-event-1",
+      userId: "user-demo-01",
+      ...calendarEventFields,
+      source: "catchup",
+      updatedAt: "2026-07-20T00:00:00.000Z",
+    });
+  });
+
+  it("updates only editable fields on a CatchUp event", () => {
+    const created = createCatchUpEvent();
+    const updated = prototypeReducer(created, {
+      type: "calendar/eventUpdated",
+      payload: {
+        id: "catchup-event-1",
+        title: "스터디 장소 변경",
+        date: "2026-07-22",
+        startTime: null,
+        endTime: null,
+        isAllDay: true,
+        eventType: "class",
+      },
+    });
+
+    expect(updated.calendarEventsById["catchup-event-1"]).toEqual({
+      id: "catchup-event-1",
+      userId: "user-demo-01",
+      title: "스터디 장소 변경",
+      date: "2026-07-22",
+      startTime: null,
+      endTime: null,
+      isAllDay: true,
+      eventType: "class",
+      source: "catchup",
+      updatedAt: "2026-07-20T00:00:00.000Z",
+    });
+  });
+
+  it("deletes a CatchUp event", () => {
+    const deleted = prototypeReducer(createCatchUpEvent(), {
+      type: "calendar/eventDeleted",
+      payload: { id: "catchup-event-1" },
+    });
+
+    expect(deleted.calendarEventsById["catchup-event-1"]).toBeUndefined();
+  });
+
+  it("leaves missing and Google calendar update or delete requests unchanged", () => {
+    const initial = prototypeReducer(createInitialPrototypeState(), {
+      type: "calendar/connectionSucceeded",
+      payload: { events: [googleEvent("google-event-1")] },
+    });
+    const updateMissing = prototypeReducer(initial, {
+      type: "calendar/eventUpdated",
+      payload: { id: "missing", ...calendarEventFields },
+    });
+    const deleteMissing = prototypeReducer(initial, {
+      type: "calendar/eventDeleted",
+      payload: { id: "missing" },
+    });
+    const updateGoogle = prototypeReducer(initial, {
+      type: "calendar/eventUpdated",
+      payload: { id: "google-event-1", ...calendarEventFields },
+    });
+    const deleteGoogle = prototypeReducer(initial, {
+      type: "calendar/eventDeleted",
+      payload: { id: "google-event-1" },
+    });
+
+    expect(updateMissing).toBe(initial);
+    expect(deleteMissing).toBe(initial);
+    expect(updateGoogle).toBe(initial);
+    expect(deleteGoogle).toBe(initial);
+  });
+
+  it("replaces Google events on reconnect while preserving CatchUp events", () => {
+    const connected = prototypeReducer(createInitialPrototypeState(), {
+      type: "calendar/connectionSucceeded",
+      payload: { events: [googleEvent("google-event-old")] },
+    });
+    const withCatchUpEvent = prototypeReducer(connected, {
+      type: "calendar/eventCreated",
+      payload: { id: "catchup-event-1", ...calendarEventFields },
+    });
+    const reconnected = prototypeReducer(withCatchUpEvent, {
+      type: "calendar/connectionSucceeded",
+      payload: { events: [googleEvent("google-event-new", "새 Google 일정")] },
+    });
+
+    expect(reconnected.calendarEventsById["google-event-old"]).toBeUndefined();
+    expect(reconnected.calendarEventsById["google-event-new"]).toEqual(
+      googleEvent("google-event-new", "새 Google 일정"),
+    );
+    expect(reconnected.calendarEventsById["catchup-event-1"]).toEqual(
+      withCatchUpEvent.calendarEventsById["catchup-event-1"],
+    );
+  });
+
+  it("removes Google events on onboarding skip while preserving CatchUp events", () => {
+    const connected = prototypeReducer(createInitialPrototypeState(), {
+      type: "calendar/connectionSucceeded",
+      payload: { events: [googleEvent("google-event-1")] },
+    });
+    const withCatchUpEvent = prototypeReducer(connected, {
+      type: "calendar/eventCreated",
+      payload: { id: "catchup-event-1", ...calendarEventFields },
+    });
+    const skipped = prototypeReducer(withCatchUpEvent, {
+      type: "calendar/onboardingSkipped",
+      payload: {},
+    });
+
+    expect(skipped.calendarEventsById["google-event-1"]).toBeUndefined();
+    expect(skipped.calendarEventsById["catchup-event-1"]).toEqual(
+      withCatchUpEvent.calendarEventsById["catchup-event-1"],
+    );
+  });
+
+  it("does not change Todo or WeeklyPlan collections through calendar CRUD", () => {
+    const withPlan = prototypeReducer(createInitialPrototypeState(), {
+      type: "plan/applied",
+      payload: plan,
+    });
+    const created = prototypeReducer(withPlan, {
+      type: "calendar/eventCreated",
+      payload: { id: "catchup-event-1", ...calendarEventFields },
+    });
+    const updated = prototypeReducer(created, {
+      type: "calendar/eventUpdated",
+      payload: { id: "catchup-event-1", ...calendarEventFields, title: "수정한 스터디 약속" },
+    });
+    const deleted = prototypeReducer(updated, {
+      type: "calendar/eventDeleted",
+      payload: { id: "catchup-event-1" },
+    });
+
+    for (const state of [created, updated, deleted]) {
+      expect(state.todosById).toBe(withPlan.todosById);
+      expect(state.todoIdsByWeeklyPlanId).toBe(withPlan.todoIdsByWeeklyPlanId);
+      expect(state.weeklyPlansById).toBe(withPlan.weeklyPlansById);
+      expect(state.appliedOperations).toBe(withPlan.appliedOperations);
+    }
   });
 });

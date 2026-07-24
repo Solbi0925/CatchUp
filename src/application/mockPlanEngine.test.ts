@@ -54,6 +54,7 @@ const command: GeneratePlanCommand = {
       startTime: "17:00",
       endTime: "20:00",
       isAllDay: false,
+      eventType: "personal",
       source: "google-calendar",
       updatedAt: "2026-07-01T00:00:00+09:00",
     },

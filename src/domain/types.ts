@@ -66,6 +66,7 @@ export interface CalendarEvent {
   startTime: string | null;
   endTime: string | null;
   isAllDay: boolean;
+  eventType: "personal" | "class";
   source: "google-calendar" | "catchup";
   updatedAt: string;
 }
