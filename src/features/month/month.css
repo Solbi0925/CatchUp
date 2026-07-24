@@ -281,3 +281,241 @@
     transition: none;
   }
 }
+
+.month-schedule-dialog {
+  width: min(100%, 520px);
+  max-width: none;
+  max-height: none;
+  margin: auto auto 0;
+  padding: 0;
+  overflow: visible;
+  border: 0;
+  background: transparent;
+  color: var(--color-ink);
+}
+
+.month-schedule-dialog::backdrop {
+  background: rgb(24 18 38 / 46%);
+  backdrop-filter: blur(2px);
+}
+
+.month-schedule-sheet {
+  display: flex;
+  width: 100%;
+  max-height: min(86dvh, 760px);
+  padding-bottom: env(safe-area-inset-bottom);
+  overflow: hidden;
+  flex-direction: column;
+  border-radius: 26px 26px 0 0;
+  background: var(--color-surface);
+  box-shadow: 0 -12px 44px rgb(40 27 69 / 18%);
+}
+
+.month-schedule-dialog__handle {
+  width: 42px;
+  height: 5px;
+  margin: 10px auto 4px;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-muted) 42%, transparent);
+}
+
+.month-schedule-dialog__header {
+  display: flex;
+  padding: 12px 20px 14px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border-bottom: 1px solid var(--color-line);
+}
+
+.month-schedule-dialog__header h2 {
+  margin: 0;
+  font-size: 21px;
+  letter-spacing: -0.035em;
+}
+
+.month-schedule-dialog button {
+  min-height: 40px;
+  padding: 8px 14px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--color-purple-pale);
+  color: var(--color-purple-dark);
+  font: inherit;
+  font-weight: 700;
+}
+
+.month-schedule-dialog button:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
+.month-schedule-dialog button:focus-visible,
+.month-schedule-dialog input:focus-visible,
+.month-schedule-dialog select:focus-visible {
+  outline: 2px solid var(--color-purple-dark);
+  outline-offset: 2px;
+}
+
+.month-schedule-dialog__scroll {
+  min-height: 0;
+  padding: 14px 20px 24px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.month-schedule-dialog__add {
+  display: flex;
+  margin-bottom: 12px;
+  justify-content: flex-end;
+}
+
+.month-schedule-dialog__empty {
+  margin: 30px 0;
+  color: var(--color-muted);
+  text-align: center;
+}
+
+.month-schedule-list {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  gap: 10px;
+  list-style: none;
+}
+
+.month-schedule-row {
+  padding: 14px;
+  border: 1px solid var(--color-line);
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--color-purple-pale) 42%, white);
+}
+
+.month-schedule-row__body {
+  display: grid;
+  gap: 4px;
+}
+
+.month-schedule-row__body strong {
+  overflow-wrap: anywhere;
+}
+
+.month-schedule-row__body span {
+  color: var(--color-muted);
+  font-size: 13px;
+}
+
+.month-schedule-row__actions,
+.month-schedule-row__delete,
+.month-schedule-form__actions,
+.month-schedule-form__error,
+.month-schedule-discard {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.month-schedule-row__actions,
+.month-schedule-row__delete {
+  margin-top: 12px;
+  justify-content: flex-end;
+}
+
+.month-schedule-row__delete {
+  flex-wrap: wrap;
+}
+
+.month-schedule-row__delete p {
+  width: 100%;
+  margin: 0;
+}
+
+.month-schedule-row__delete [role="alert"],
+.month-schedule-form [role="alert"] {
+  color: #9f2333;
+  font-size: 13px;
+}
+
+.month-schedule-form {
+  display: grid;
+  margin-top: 18px;
+  padding: 18px;
+  gap: 8px;
+  border: 1px solid var(--color-purple-line);
+  border-radius: 18px;
+  background: var(--color-surface);
+}
+
+.month-schedule-form label {
+  display: grid;
+  gap: 7px;
+  color: var(--color-ink);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.month-schedule-form input,
+.month-schedule-form select {
+  width: 100%;
+  min-height: 44px;
+  padding: 9px 11px;
+  border: 1px solid var(--color-line);
+  border-radius: 11px;
+  background: var(--color-surface);
+  color: var(--color-ink);
+  font: inherit;
+  font-weight: 500;
+}
+
+.month-schedule-form > p {
+  margin: -2px 0 5px;
+  color: #9f2333;
+  font-size: 12px;
+}
+
+.month-schedule-form__error {
+  flex-wrap: wrap;
+  justify-content: space-between;
+}
+
+.month-schedule-form__error p {
+  margin: 0;
+}
+
+.month-schedule-form__actions {
+  position: sticky;
+  bottom: -24px;
+  margin: 8px -18px -18px;
+  padding: 12px 18px calc(12px + env(safe-area-inset-bottom));
+  justify-content: flex-end;
+  border-top: 1px solid var(--color-line);
+  background: var(--color-surface);
+}
+
+.month-schedule-discard {
+  padding: 14px 20px calc(14px + env(safe-area-inset-bottom));
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  border-top: 1px solid var(--color-purple-line);
+  background: var(--color-purple-pale);
+}
+
+.month-schedule-discard p {
+  width: 100%;
+  margin: 0 0 2px;
+  font-weight: 800;
+}
+
+@media (min-width: 521px) {
+  .month-schedule-dialog {
+    margin-bottom: 18px;
+  }
+
+  .month-schedule-sheet {
+    border-radius: 26px;
+  }
+}

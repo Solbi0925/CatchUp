@@ -4,6 +4,9 @@ import { CalendarIcon, HomeIcon, TabUploadIcon } from "../ui/icons";
 
 export function AppShell() {
   const location = useLocation();
+  const monthScheduleOpen =
+    location.pathname === "/month" &&
+    new URLSearchParams(location.search).get("sheet") === "schedule";
   const showCoachmark = Boolean(
     (location.state as { showAiMateCoachmark?: boolean } | null)?.showAiMateCoachmark,
   );
@@ -12,7 +15,7 @@ export function AppShell() {
       <main className="app-main">
         <Outlet />
       </main>
-      <AiMateLayer showCoachmark={showCoachmark} />
+      {!monthScheduleOpen && <AiMateLayer showCoachmark={showCoachmark} />}
       <nav className="bottom-tabs" aria-label="하단 탐색">
         <NavLink to="/today" className="bottom-tab">
           <HomeIcon />

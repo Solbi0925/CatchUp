@@ -133,6 +133,7 @@ export function MonthCalendar({
                   return (
                     <button
                       type="button"
+                      data-month-date={cell.date}
                       className={className}
                       aria-label={describeDate(
                         cell,

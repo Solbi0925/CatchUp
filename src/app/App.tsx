@@ -11,8 +11,8 @@ import { UploadPage } from "../features/upload/UploadPage";
 import { IntroPage } from "../features/intro/IntroPage";
 import { CalendarOnboardingPage } from "../features/onboarding/CalendarOnboardingPage";
 import { TodayPage } from "../features/today/TodayPage";
+import { MonthPage } from "../features/month/MonthPage";
 import { AppShell } from "./AppShell";
-import { RoutePlaceholder } from "./RoutePlaceholder";
 import { InitialRoute } from "./InitialRoute";
 
 const routes = [
@@ -33,7 +33,7 @@ const routes = [
     children: [
       { path: "upload", element: <UploadPage /> },
       { path: "today", element: <TodayPage /> },
-      { path: "month", element: <RoutePlaceholder title="Month" /> },
+      { path: "month", element: <MonthPage /> },
     ],
   },
   {
