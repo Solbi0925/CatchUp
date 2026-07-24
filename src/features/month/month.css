@@ -149,7 +149,7 @@
 }
 
 .month-date.is-adjacent {
-  color: #a7a7ac;
+  color: color-mix(in srgb, var(--color-muted) 64%, var(--color-surface));
 }
 
 .month-date.is-today .month-date__number {
@@ -158,16 +158,20 @@
 
 .month-date.is-selected .month-date__number {
   border-color: transparent;
-  background: linear-gradient(145deg, #a88bff, #7655ef);
-  box-shadow: 0 5px 12px rgba(111, 75, 233, 0.18);
-  color: white;
+  background: linear-gradient(
+    145deg,
+    color-mix(in srgb, var(--color-purple) 58%, var(--color-purple-line)),
+    var(--color-purple-dark)
+  );
+  box-shadow: var(--shadow-fab);
+  color: var(--color-surface);
 }
 
 .month-date.is-today.is-selected .month-date__number {
   box-shadow:
-    0 0 0 2px white,
+    0 0 0 2px var(--color-surface),
     0 0 0 4px var(--color-purple),
-    0 5px 12px rgba(111, 75, 233, 0.18);
+    var(--shadow-fab);
 }
 
 .month-date__dots {
@@ -209,7 +213,11 @@
   overflow: hidden;
   border: 0;
   border-radius: 999px;
-  background: linear-gradient(100deg, #eee8ff, #ded3ff);
+  background: linear-gradient(
+    100deg,
+    var(--color-purple-pale),
+    var(--color-purple-soft)
+  );
   color: var(--color-ink);
   font-size: 12px;
   font-weight: 500;

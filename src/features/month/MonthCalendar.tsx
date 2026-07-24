@@ -103,15 +103,12 @@ export function MonthCalendar({
           </button>
         </div>
       </header>
-      <div
-        className="month-calendar__grid"
-        role="grid"
-        aria-label={`${monthLabel} 달력`}
-      >
-        <div className="month-calendar__weekdays" role="row">
+      <div className="month-calendar__grid">
+        <div className="month-calendar__weekdays">
           {weekdays.map(([shortLabel, fullLabel]) => (
-            <span role="columnheader" aria-label={fullLabel} key={fullLabel}>
-              {shortLabel}
+            <span className="month-calendar__weekday-label" key={fullLabel}>
+              <span aria-hidden="true">{shortLabel}</span>
+              <span className="sr-only">{fullLabel}</span>
             </span>
           ))}
         </div>
@@ -119,7 +116,7 @@ export function MonthCalendar({
           const weekCells = gridCells.slice(weekIndex * 7, weekIndex * 7 + 7);
           return (
             <div className="month-week" key={weekCells[0]?.date}>
-              <div className="month-week__dates" role="row">
+              <div className="month-week__dates">
                 {weekCells.map((cell) => {
                   const isSelected = cell.date === selectedDate;
                   const isToday = cell.date === todayDate;
@@ -136,7 +133,6 @@ export function MonthCalendar({
                   return (
                     <button
                       type="button"
-                      role="gridcell"
                       className={className}
                       aria-label={describeDate(
                         cell,
@@ -145,7 +141,6 @@ export function MonthCalendar({
                         isSelected,
                       )}
                       aria-current={isToday ? "date" : undefined}
-                      aria-selected={isSelected}
                       onClick={() => onSelectDate(cell.date)}
                       key={cell.date}
                     >

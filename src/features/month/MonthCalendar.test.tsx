@@ -65,17 +65,26 @@ describe("MonthCalendar", () => {
         />,
       );
 
-      expect(screen.getAllByRole("columnheader").map((header) => header.textContent)).toEqual([
-        "일",
-        "월",
-        "화",
-        "수",
-        "목",
-        "금",
-        "토",
-      ]);
-      expect(screen.getAllByRole("gridcell")).toHaveLength(cellCount);
-      expect(screen.getByRole("grid", { name: `${monthLabel} 달력` })).toBeInTheDocument();
+      const weekdayNames = [
+        "일요일",
+        "월요일",
+        "화요일",
+        "수요일",
+        "목요일",
+        "금요일",
+        "토요일",
+      ];
+
+      weekdayNames.forEach((name) => {
+        expect(
+          screen.getByText(name, {
+            selector: ".month-calendar__weekday-label .sr-only",
+          }),
+        ).toBeInTheDocument();
+      });
+      expect(screen.getAllByRole("button", { name: /일정 \d+개$/ })).toHaveLength(cellCount);
+      expect(screen.queryByRole("grid")).not.toBeInTheDocument();
+      expect(screen.queryByRole("gridcell")).not.toBeInTheDocument();
     },
   );
 
@@ -105,18 +114,17 @@ describe("MonthCalendar", () => {
     ]);
     render(<MonthCalendar {...createProps({ schedulesByDate })} />);
 
-    const adjacent = screen.getByRole("gridcell", {
+    const adjacent = screen.getByRole("button", {
       name: "2026년 6월 28일 일요일, 다른 달, 일정 0개",
     });
-    const selected = screen.getByRole("gridcell", {
+    const selected = screen.getByRole("button", {
       name: "2026년 7월 10일 금요일, 선택됨, 일정 2개",
     });
-    const today = screen.getByRole("gridcell", {
+    const today = screen.getByRole("button", {
       name: "2026년 7월 20일 월요일, 오늘, 일정 0개",
     });
 
     expect(adjacent).toHaveClass("is-adjacent");
-    expect(selected).toHaveAttribute("aria-selected", "true");
     expect(selected).toHaveClass("is-selected");
     expect(today).toHaveAttribute("aria-current", "date");
     expect(today).toHaveClass("is-today");
@@ -135,7 +143,7 @@ describe("MonthCalendar", () => {
     );
 
     await user.click(
-      screen.getByRole("gridcell", {
+      screen.getByRole("button", {
         name: "2026년 7월 17일 금요일, 일정 1개",
       }),
     );
@@ -160,10 +168,10 @@ describe("MonthCalendar", () => {
     ]);
     render(<MonthCalendar {...createProps({ schedulesByDate })} />);
 
-    const emptyDate = screen.getByRole("gridcell", {
+    const emptyDate = screen.getByRole("button", {
       name: "2026년 7월 22일 수요일, 일정 0개",
     });
-    const busyDate = screen.getByRole("gridcell", {
+    const busyDate = screen.getByRole("button", {
       name: "2026년 7월 21일 화요일, 일정 4개",
     });
 
