@@ -48,7 +48,8 @@
 
 .month-calendar__grid {
   display: grid;
-  grid-template-rows: auto 1fr;
+  grid-template-rows: auto;
+  grid-auto-rows: 1fr;
   min-height: 610px;
 }
 

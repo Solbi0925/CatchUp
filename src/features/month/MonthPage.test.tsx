@@ -83,4 +83,22 @@ describe("MonthPage", () => {
     await user.click(screen.getByRole("button", { name: "다음 달" }));
     expect(screen.getByRole("heading", { name: "2026년 8월" })).toBeInTheDocument();
   });
+
+  it("distributes every week row evenly in a five-week month", async () => {
+    const user = userEvent.setup();
+    const { container } = renderMonth();
+
+    await user.click(screen.getByRole("button", { name: "다음 달" }));
+    await user.click(screen.getByRole("button", { name: "다음 달" }));
+
+    expect(screen.getByRole("heading", { name: "2026년 9월" })).toBeInTheDocument();
+    expect(container.querySelector(".month-calendar")).toHaveAttribute(
+      "data-week-count",
+      "5",
+    );
+    expect(
+      getComputedStyle(container.querySelector(".month-calendar__grid")!)
+        .gridAutoRows,
+    ).toBe("1fr");
+  });
 });
