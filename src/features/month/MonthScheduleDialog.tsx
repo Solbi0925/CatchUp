@@ -52,6 +52,7 @@ export interface MonthScheduleDialogProps {
     eventId: CalendarEventId,
     fields: EditableCalendarEventFields,
   ) => Promise<void>;
+  onUpdateDateSaved: (date: string) => void;
   onDelete: (eventId: CalendarEventId) => Promise<void>;
   onOpenExtractedItem?: (documentId: string) => void;
 }
@@ -67,6 +68,7 @@ export function MonthScheduleDialog({
   onClose,
   onCreate,
   onUpdate,
+  onUpdateDateSaved,
   onDelete,
   onOpenExtractedItem,
 }: MonthScheduleDialogProps) {
@@ -79,6 +81,7 @@ export function MonthScheduleDialog({
   const [saveError, setSaveError] = useState("");
   const [deleteState, setDeleteState] = useState<DeleteState | null>(null);
   const [pendingIntent, setPendingIntent] = useState<PendingIntent | null>(null);
+  const mountedRef = useRef(true);
   const [, month, day] = selectedDate.split("-").map(Number);
   const title = `${month}월 ${day}일 일정`;
   const isDirty = Boolean(
@@ -87,23 +90,29 @@ export function MonthScheduleDialog({
 
   const blocker = useBlocker(
     ({ currentLocation, nextLocation }) =>
-      isDirty &&
+      (isDirty || isSaving) &&
       !allowNextNavigationRef.current &&
       (currentLocation.pathname !== nextLocation.pathname ||
         currentLocation.search !== nextLocation.search),
   );
+  const blockerRef = useRef(blocker);
+  blockerRef.current = blocker;
 
   useEffect(() => {
+    mountedRef.current = true;
     const dialog = dialogRef.current;
     if (dialog && !dialog.open) dialog.showModal();
     return () => {
+      mountedRef.current = false;
       if (dialog?.open) dialog.close();
     };
   }, []);
 
   useEffect(() => {
-    if (blocker.state === "blocked") setPendingIntent({ type: "router" });
-  }, [blocker.state]);
+    if (blocker.state === "blocked" && !isSaving) {
+      setPendingIntent((current) => current ?? { type: "router" });
+    }
+  }, [blocker.state, isSaving]);
 
   const resetFormMessages = () => {
     setErrors({});
@@ -154,6 +163,7 @@ export function MonthScheduleDialog({
   };
 
   const requestIntent = (intent: PendingIntent) => {
+    if (isSaving || pendingIntent) return;
     if (isDirty) {
       setPendingIntent(intent);
       return;
@@ -192,6 +202,7 @@ export function MonthScheduleDialog({
 
   const submitDraft = async () => {
     if (!form || isSaving) return;
+    const activeForm = form;
     const validation = validateScheduleDraft(form.draft);
     setErrors(validation.errors);
     const fields = toEditableCalendarEventFields(form.draft);
@@ -200,19 +211,34 @@ export function MonthScheduleDialog({
     setIsSaving(true);
     setSaveError("");
     try {
-      if (form.mode.type === "creating") {
+      if (activeForm.mode.type === "creating") {
         await onCreate(fields);
       } else {
+        await onUpdate(activeForm.mode.eventId, fields);
+      }
+      if (!mountedRef.current) return;
+      if (blockerRef.current.state === "blocked") {
+        blockerRef.current.reset();
+      }
+      if (
+        activeForm.mode.type === "editing" &&
+        fields.date !== selectedDate
+      ) {
         allowNextNavigationRef.current = true;
-        await onUpdate(form.mode.eventId, fields);
+        onUpdateDateSaved(fields.date);
+        allowNextNavigationRef.current = false;
       }
       resetFormMessages();
       setForm(null);
     } catch {
+      if (!mountedRef.current) return;
+      if (blockerRef.current.state === "blocked") {
+        blockerRef.current.reset();
+      }
       setSaveError("일정을 저장하지 못했어요. 다시 시도해주세요.");
     } finally {
       allowNextNavigationRef.current = false;
-      setIsSaving(false);
+      if (mountedRef.current) setIsSaving(false);
     }
   };
 
@@ -244,6 +270,10 @@ export function MonthScheduleDialog({
   const fieldDescription = (field: keyof ScheduleDraft) =>
     errors[field] ? `month-schedule-${field}-error` : undefined;
   const rowActionsDisabled = isSaving || deleteState !== null || pendingIntent !== null;
+  const displayTime = (schedule: MonthScheduleItem) => {
+    if (schedule.isAllDay) return "종일";
+    return [schedule.startTime, schedule.endTime].filter(Boolean).join("–");
+  };
 
   return (
     <dialog
@@ -262,7 +292,10 @@ export function MonthScheduleDialog({
     >
       <div className="month-schedule-sheet">
         <div className="month-schedule-dialog__handle" aria-hidden="true" />
-        <header className="month-schedule-dialog__header">
+        <header
+          className="month-schedule-dialog__header"
+          inert={pendingIntent !== null}
+        >
           <h2 id="month-schedule-title">{title}</h2>
           <button
             type="button"
@@ -273,7 +306,10 @@ export function MonthScheduleDialog({
           </button>
         </header>
 
-        <div className="month-schedule-dialog__scroll">
+        <div
+          className="month-schedule-dialog__scroll"
+          inert={pendingIntent !== null}
+        >
           <div className="month-schedule-dialog__add">
             <button
               type="button"
@@ -303,9 +339,7 @@ export function MonthScheduleDialog({
                     <div className="month-schedule-row__body">
                       <strong>{schedule.title}</strong>
                       <span>
-                        {schedule.isAllDay
-                          ? "종일"
-                          : `${schedule.startTime}–${schedule.endTime}`}
+                        {displayTime(schedule)}
                       </span>
                       <span>{schedule.sourceLabel}</span>
                     </div>

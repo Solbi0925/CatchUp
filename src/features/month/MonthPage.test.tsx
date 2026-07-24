@@ -7,6 +7,7 @@ import {
   within,
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { useEffect, useRef } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   createMemoryRouter,
@@ -15,7 +16,11 @@ import {
 } from "react-router-dom";
 import { AiMateProvider } from "../ai-mate/AiMateProvider";
 import { AppShell } from "../../app/AppShell";
-import { PrototypeStoreProvider } from "../../store/PrototypeStore";
+import type { ExtractedItem } from "../../domain/types";
+import {
+  PrototypeStoreProvider,
+  usePrototypeStore,
+} from "../../store/PrototypeStore";
 import { MonthPage } from "./MonthPage";
 import type { CalendarEventMutationAdapter } from "./mockCalendarEventMutation";
 
@@ -34,6 +39,7 @@ function connectDemoCalendar() {
 function renderMonth(
   initialEntries: InitialEntry[],
   mutation?: CalendarEventMutationAdapter,
+  extractedItems: readonly ExtractedItem[] = [],
 ) {
   const router = createMemoryRouter(
     [
@@ -50,6 +56,9 @@ function renderMonth(
 
   render(
     <PrototypeStoreProvider>
+      {extractedItems.length > 0 && (
+        <SeedExtractedItems items={extractedItems} />
+      )}
       <AiMateProvider>
         <RouterProvider router={router} />
       </AiMateProvider>
@@ -57,6 +66,37 @@ function renderMonth(
   );
 
   return router;
+}
+
+function SeedExtractedItems({ items }: { items: readonly ExtractedItem[] }) {
+  const { dispatch } = usePrototypeStore();
+  const seededRef = useRef(false);
+
+  useEffect(() => {
+    if (seededRef.current) return;
+    seededRef.current = true;
+    dispatch({
+      type: "extraction/applied",
+      payload: {
+        operationId: "month-page-test-extraction",
+        document: {
+          id: "month-page-test-document",
+          userId: "user-demo-01",
+          fileName: "sample-syllabus.pdf",
+          mimeType: "application/pdf",
+          sizeBytes: 1_024,
+          documentType: "syllabus",
+          supportedFileFormat: "pdf",
+          uploadStatus: "complete",
+          extractionStatus: "complete",
+          uploadedAt: "2026-07-01T00:00:00.000Z",
+        },
+        extractedItems: [...items],
+      },
+    });
+  }, [dispatch, items]);
+
+  return null;
 }
 
 describe("Month page integration", () => {
@@ -399,5 +439,137 @@ describe("Month page integration", () => {
     fireEvent.click(close);
 
     await waitFor(() => expect(document.activeElement).toBe(dateButton));
+  });
+
+  it("freezes the first pending intent and makes underlying controls inert", async () => {
+    connectDemoCalendar();
+    const router = renderMonth([
+      "/month?month=2026-07&date=2026-07-24&sheet=schedule",
+    ]);
+    fireEvent.click(await screen.findByText("수정", { selector: "button" }));
+    fireEvent.change(screen.getByLabelText("제목"), {
+      target: { value: "작성 중인 제목" },
+    });
+
+    fireEvent.click(screen.getByText("닫기", { selector: "button" }));
+    const confirmation = screen.getByText("변경사항을 버릴까요?");
+    expect(
+      screen
+        .getByText("7월 24일 일정", { selector: "h2" })
+        .closest("[inert]"),
+    ).not.toBeNull();
+
+    fireEvent.click(screen.getByText("일정 추가", { selector: "button" }));
+    expect(confirmation).toBeInTheDocument();
+    fireEvent.click(screen.getByText("버리기", { selector: "button" }));
+
+    await waitFor(() => {
+      expect(router.state.location.search).toBe("?month=2026-07");
+    });
+  });
+
+  it("blocks navigation and dismiss interactions while an update is saving", async () => {
+    connectDemoCalendar();
+    let finishSave: (() => void) | undefined;
+    const save = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          finishSave = resolve;
+        }),
+    );
+    const router = renderMonth(
+      ["/month?month=2026-07&date=2026-07-24&sheet=schedule"],
+      { save, delete: vi.fn() },
+    );
+    fireEvent.click(await screen.findByText("수정", { selector: "button" }));
+    fireEvent.change(screen.getByLabelText("날짜"), {
+      target: { value: "2026-08-03" },
+    });
+    fireEvent.click(screen.getByText("저장", { selector: "button" }));
+
+    const dialog = screen
+      .getByText("7월 24일 일정", { selector: "h2" })
+      .closest("dialog")!;
+    fireEvent(dialog, new Event("cancel", { cancelable: true }));
+    fireEvent.click(dialog);
+    fireEvent.click(screen.getByText("Today").closest("a")!);
+
+    expect(router.state.location.pathname).toBe("/month");
+    expect(router.state.location.search).toBe(
+      "?month=2026-07&date=2026-07-24&sheet=schedule",
+    );
+    expect(screen.queryByText("변경사항을 버릴까요?")).not.toBeInTheDocument();
+    expect(screen.getByText("닫기", { selector: "button" })).toBeDisabled();
+    expect(screen.getByText("일정 추가", { selector: "button" })).toBeDisabled();
+    expect(screen.getByText("취소", { selector: "button" })).toBeDisabled();
+
+    finishSave?.();
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe("/month");
+      expect(router.state.location.search).toBe(
+        "?month=2026-08&date=2026-08-03&sheet=schedule",
+      );
+    });
+  });
+
+  it("returns focus to the original invoking date after a moved update closes internally", async () => {
+    connectDemoCalendar();
+    const user = userEvent.setup();
+    const router = renderMonth(["/month?month=2026-07"]);
+    const originalDateButton = await screen.findByRole("button", {
+      name: "2026년 7월 24일 금요일, 일정 1개",
+    });
+    await user.click(originalDateButton);
+    fireEvent.click(await screen.findByText("수정", { selector: "button" }));
+    fireEvent.change(screen.getByLabelText("날짜"), {
+      target: { value: "2026-08-03" },
+    });
+    fireEvent.click(screen.getByText("저장", { selector: "button" }));
+    await waitFor(() => {
+      expect(router.state.location.search).toBe(
+        "?month=2026-08&date=2026-08-03&sheet=schedule",
+      );
+    });
+    expect(
+      await screen.findByText("8월 3일 일정", { selector: "h2" }),
+    ).toBeInTheDocument();
+    await waitFor(() => expect(originalDateButton.isConnected).toBe(false));
+
+    fireEvent.click(screen.getByText("닫기", { selector: "button" }));
+    await waitFor(() => {
+      expect(router.state.location.search).toBe("?month=2026-07");
+      expect(document.activeElement).toBe(
+        document.querySelector('button[data-month-date="2026-07-24"]'),
+      );
+    });
+  });
+
+  it("renders a timed extracted item with only its single start time", async () => {
+    const extractedItem: ExtractedItem = {
+      id: "extracted-timed-item",
+      documentId: "month-page-test-document",
+      title: "정규화 개념 퀴즈",
+      itemType: "exam",
+      courseName: "데이터베이스",
+      date: "2026-07-25",
+      time: "10:00",
+      submissionMethod: "LMS 응시",
+      requiredMaterials: null,
+      difficulty: "medium",
+      estimatedDurationMinutes: 120,
+      reviewStatus: "confirmed",
+      isUserEdited: false,
+    };
+    renderMonth(
+      ["/month?month=2026-07&date=2026-07-25&sheet=schedule"],
+      undefined,
+      [extractedItem],
+    );
+
+    const row = (await screen.findByText("정규화 개념 퀴즈", {
+      selector: "strong",
+    })).closest("li")!;
+    expect(within(row).getByText("10:00")).toBeInTheDocument();
+    expect(row).not.toHaveTextContent("null");
   });
 });

@@ -61,7 +61,9 @@ export function MonthPage({
   ]);
 
   useEffect(() => {
-    if (sheetOpen) focusReturnDateRef.current = selectedDate;
+    if (!wasSheetOpenRef.current && sheetOpen) {
+      focusReturnDateRef.current = selectedDate;
+    }
     if (wasSheetOpenRef.current && !sheetOpen) {
       const focusDate = focusReturnDateRef.current;
       window.setTimeout(() => {
@@ -173,19 +175,19 @@ export function MonthPage({
               type: "calendar/eventUpdated",
               payload: { id: eventId, ...fields },
             });
-            if (fields.date !== selectedDate) {
-              const next = new URLSearchParams(searchParams);
-              next.set("month", fields.date.slice(0, 7));
-              next.set("date", fields.date);
-              next.set("sheet", "schedule");
-              navigate(
-                {
-                  pathname: location.pathname,
-                  search: `?${next.toString()}`,
-                },
-                { replace: true, state: location.state },
-              );
-            }
+          }}
+          onUpdateDateSaved={(date) => {
+            const next = new URLSearchParams(searchParams);
+            next.set("month", date.slice(0, 7));
+            next.set("date", date);
+            next.set("sheet", "schedule");
+            navigate(
+              {
+                pathname: location.pathname,
+                search: `?${next.toString()}`,
+              },
+              { replace: true, state: location.state },
+            );
           }}
           onDelete={async (eventId) => {
             const existing = state.calendarEventsById[eventId];
