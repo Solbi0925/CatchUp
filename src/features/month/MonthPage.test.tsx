@@ -345,6 +345,42 @@ describe("Month page integration", () => {
     ).toBeInTheDocument();
   });
 
+  it("disables every form field while saving and restores them after failure", async () => {
+    let failSave: ((error: Error) => void) | undefined;
+    const save = vi.fn(
+      () =>
+        new Promise<void>((_resolve, reject) => {
+          failSave = reject;
+        }),
+    );
+    renderMonth(["/month?month=2026-07&date=2026-07-24&sheet=schedule"], {
+      save,
+      delete: vi.fn(),
+    });
+
+    fireEvent.click(await screen.findByText("일정 추가", { selector: "button" }));
+    fireEvent.change(screen.getByLabelText("제목"), {
+      target: { value: "실패 후 복원할 일정" },
+    });
+    fireEvent.click(screen.getByText("저장", { selector: "button" }));
+
+    const form = screen.getByLabelText("제목").closest("form")!;
+    const fields = [...form.querySelectorAll("input, select")];
+    expect(fields).toHaveLength(6);
+    for (const field of fields) {
+      expect(field).toBeDisabled();
+    }
+
+    failSave?.(new Error("save failed"));
+    expect(
+      await screen.findByText("일정을 저장하지 못했어요. 다시 시도해주세요."),
+    ).toBeInTheDocument();
+    for (const field of fields) {
+      expect(field).not.toBeDisabled();
+    }
+    expect(screen.getByLabelText("제목")).toHaveValue("실패 후 복원할 일정");
+  });
+
   it("retains inline delete context on failure and retries successfully", async () => {
     connectDemoCalendar();
     const remove = vi

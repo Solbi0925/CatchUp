@@ -438,6 +438,7 @@ export function MonthScheduleDialog({
                 <input
                   value={form.draft.title}
                   aria-describedby={fieldDescription("title")}
+                  disabled={isSaving}
                   onChange={(event) => updateDraft("title", event.target.value)}
                 />
               </label>
@@ -450,6 +451,7 @@ export function MonthScheduleDialog({
                   type="date"
                   value={form.draft.date}
                   aria-describedby={fieldDescription("date")}
+                  disabled={isSaving}
                   onChange={(event) => updateDraft("date", event.target.value)}
                 />
               </label>
@@ -462,6 +464,7 @@ export function MonthScheduleDialog({
                   type="time"
                   value={form.draft.startTime}
                   aria-describedby={fieldDescription("startTime")}
+                  disabled={isSaving}
                   onChange={(event) =>
                     updateDraft("startTime", event.target.value)
                   }
@@ -476,6 +479,7 @@ export function MonthScheduleDialog({
                   type="time"
                   value={form.draft.endTime}
                   aria-describedby={fieldDescription("endTime")}
+                  disabled={isSaving}
                   onChange={(event) =>
                     updateDraft("endTime", event.target.value)
                   }
@@ -489,6 +493,7 @@ export function MonthScheduleDialog({
                 <select
                   value={form.draft.calendar}
                   aria-describedby={fieldDescription("calendar")}
+                  disabled={isSaving}
                   onChange={(event) =>
                     updateDraft(
                       "calendar",
@@ -504,6 +509,7 @@ export function MonthScheduleDialog({
                 <select
                   value={form.draft.eventType}
                   aria-describedby={fieldDescription("eventType")}
+                  disabled={isSaving}
                   onChange={(event) =>
                     updateDraft(
                       "eventType",
