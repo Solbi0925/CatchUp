@@ -31,9 +31,23 @@ describe("Month UTC date model", () => {
     expect(formatDateKey({ year: 2026, month: 7, day: 3 })).toBe("2026-07-03");
   });
 
+  it("rejects date parts that cannot form canonical keys", () => {
+    expect(formatMonthKey({ year: 10_000, month: 1 })).toBeNull();
+    expect(formatMonthKey({ year: 2026, month: 13 })).toBeNull();
+    expect(formatMonthKey({ year: 2026.5, month: 7 })).toBeNull();
+    expect(formatDateKey({ year: 2026, month: 2, day: 29 })).toBeNull();
+    expect(formatDateKey({ year: 2000, month: 2, day: 29 })).toBe("2000-02-29");
+    expect(formatDateKey({ year: 2026, month: 7, day: 32 })).toBeNull();
+  });
+
   it("moves months across January and December boundaries", () => {
     expect(shiftMonth("2026-01", -1)).toBe("2025-12");
     expect(shiftMonth("2026-12", 1)).toBe("2027-01");
+  });
+
+  it("rejects month navigation outside the supported canonical year range", () => {
+    expect(shiftMonth("9999-12", 1)).toBe("9999-12");
+    expect(shiftMonth("0000-01", -1)).toBe("0000-01");
   });
 
   it("builds a Sunday-first grid through the final Saturday", () => {

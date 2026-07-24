@@ -19,6 +19,8 @@ export interface CanonicalMonthQuery {
 
 const MONTH_KEY_PATTERN = /^(\d{4})-(\d{2})$/;
 const DATE_KEY_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
+const MIN_YEAR = 0;
+const MAX_YEAR = 9_999;
 
 function pad(value: number) {
   return String(value).padStart(2, "0");
@@ -36,6 +38,26 @@ function daysInMonth(year: number, month: number) {
   lastDay.setUTCFullYear(year, month, 0);
   lastDay.setUTCHours(0, 0, 0, 0);
   return lastDay.getUTCDate();
+}
+
+function hasValidMonthParts({ year, month }: UtcMonthParts) {
+  return (
+    Number.isInteger(year) &&
+    year >= MIN_YEAR &&
+    year <= MAX_YEAR &&
+    Number.isInteger(month) &&
+    month >= 1 &&
+    month <= 12
+  );
+}
+
+function hasValidDateParts(parts: UtcDateParts) {
+  return (
+    hasValidMonthParts(parts) &&
+    Number.isInteger(parts.day) &&
+    parts.day >= 1 &&
+    parts.day <= daysInMonth(parts.year, parts.month)
+  );
 }
 
 export function parseCanonicalMonth(value: string | null | undefined): UtcMonthParts | null {
@@ -62,11 +84,13 @@ export function parseCanonicalDate(value: string | null | undefined): UtcDatePar
 }
 
 export function formatMonthKey({ year, month }: UtcMonthParts) {
+  if (!hasValidMonthParts({ year, month })) return null;
   return `${String(year).padStart(4, "0")}-${pad(month)}`;
 }
 
 export function formatDateKey({ year, month, day }: UtcDateParts) {
-  return `${formatMonthKey({ year, month })}-${pad(day)}`;
+  if (!hasValidDateParts({ year, month, day })) return null;
+  return `${String(year).padStart(4, "0")}-${pad(month)}-${pad(day)}`;
 }
 
 export function shiftMonth(monthKey: string, amount: number) {
@@ -76,7 +100,7 @@ export function shiftMonth(monthKey: string, amount: number) {
   const absoluteMonth = month.year * 12 + (month.month - 1) + amount;
   const year = Math.floor(absoluteMonth / 12);
   const nextMonth = ((absoluteMonth % 12) + 12) % 12 + 1;
-  return formatMonthKey({ year, month: nextMonth });
+  return formatMonthKey({ year, month: nextMonth }) ?? monthKey;
 }
 
 export function buildMonthGrid(monthKey: string): MonthGridCell[] {
@@ -97,8 +121,12 @@ export function buildMonthGrid(monthKey: string): MonthGridCell[] {
       month: date.getUTCMonth() + 1,
       day: date.getUTCDate(),
     };
+    const dateKey = formatDateKey(parts);
+    if (!dateKey) {
+      throw new Error("Month grid generated a date outside the supported range");
+    }
     return {
-      date: formatDateKey(parts),
+      date: dateKey,
       isCurrentMonth: parts.year === month.year && parts.month === month.month,
     };
   });
@@ -116,7 +144,7 @@ export function resolveMonthQuery(
   const month = parseCanonicalMonth(query.get("month"));
   const date = parseCanonicalDate(query.get("date"));
   return {
-    month: month ? formatMonthKey(month) : formatMonthKey(fallback),
-    date: date ? formatDateKey(date) : formatDateKey(fallback),
+    month: formatMonthKey(month ?? fallback)!,
+    date: formatDateKey(date ?? fallback)!,
   };
 }
