@@ -8,4 +8,3 @@ test-results/
 *.tsbuildinfo
 .DS_Store
 .worktrees/
-.gstack/
