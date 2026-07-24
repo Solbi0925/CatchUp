@@ -34,6 +34,17 @@ export type UpdateCalendarEventPayload =
   & EditableCalendarEventFields
   & ImmutableCalendarEventFields;
 
+function pickEditableCalendarEventFields({
+  title,
+  date,
+  startTime,
+  endTime,
+  isAllDay,
+  eventType,
+}: EditableCalendarEventFields): EditableCalendarEventFields {
+  return { title, date, startTime, endTime, isAllDay, eventType };
+}
+
 export interface PrototypeState {
   user: User;
   onboarding: {
@@ -157,7 +168,8 @@ export function prototypeReducer(
         ),
       };
     case "calendar/eventCreated": {
-      const { id, ...editableFields } = action.payload;
+      const { id } = action.payload;
+      const editableFields = pickEditableCalendarEventFields(action.payload);
       return {
         ...state,
         calendarEventsById: {
@@ -175,7 +187,8 @@ export function prototypeReducer(
     case "calendar/eventUpdated": {
       const existingEvent = state.calendarEventsById[action.payload.id];
       if (!existingEvent || existingEvent.source !== "catchup") return state;
-      const { id, ...editableFields } = action.payload;
+      const { id } = action.payload;
+      const editableFields = pickEditableCalendarEventFields(action.payload);
       return {
         ...state,
         calendarEventsById: {

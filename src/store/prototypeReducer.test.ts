@@ -168,6 +168,26 @@ describe("prototypeReducer", () => {
     });
   });
 
+  it("does not let a malformed create payload overwrite CatchUp ownership", () => {
+    const state = prototypeReducer(createInitialPrototypeState(), {
+      type: "calendar/eventCreated",
+      payload: {
+        id: "malformed-create-event",
+        ...calendarEventFields,
+        userId: undefined,
+        source: undefined,
+        updatedAt: undefined,
+      } as unknown as CreateCalendarEventPayload,
+    });
+
+    expect(state.calendarEventsById["malformed-create-event"]).toMatchObject({
+      id: "malformed-create-event",
+      userId: "user-demo-01",
+      source: "catchup",
+      updatedAt: "2026-07-20T00:00:00.000Z",
+    });
+  });
+
   it("updates only editable fields on a CatchUp event", () => {
     const created = createCatchUpEvent();
     const updated = prototypeReducer(created, {
@@ -192,6 +212,29 @@ describe("prototypeReducer", () => {
       endTime: null,
       isAllDay: true,
       eventType: "class",
+      source: "catchup",
+      updatedAt: "2026-07-20T00:00:00.000Z",
+    });
+  });
+
+  it("does not let a malformed update payload overwrite CatchUp ownership", () => {
+    const created = createCatchUpEvent();
+    const updated = prototypeReducer(created, {
+      type: "calendar/eventUpdated",
+      payload: {
+        id: "catchup-event-1",
+        ...calendarEventFields,
+        title: "위변조된 수정 요청",
+        userId: undefined,
+        source: undefined,
+        updatedAt: undefined,
+      } as unknown as UpdateCalendarEventPayload,
+    });
+
+    expect(updated.calendarEventsById["catchup-event-1"]).toMatchObject({
+      id: "catchup-event-1",
+      userId: "user-demo-01",
+      title: "위변조된 수정 요청",
       source: "catchup",
       updatedAt: "2026-07-20T00:00:00.000Z",
     });
