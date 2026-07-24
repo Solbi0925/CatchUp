@@ -1,0 +1,122 @@
+export interface UtcMonthParts {
+  year: number;
+  month: number;
+}
+
+export interface UtcDateParts extends UtcMonthParts {
+  day: number;
+}
+
+export interface MonthGridCell {
+  date: string;
+  isCurrentMonth: boolean;
+}
+
+export interface CanonicalMonthQuery {
+  month: string;
+  date: string;
+}
+
+const MONTH_KEY_PATTERN = /^(\d{4})-(\d{2})$/;
+const DATE_KEY_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
+
+function pad(value: number) {
+  return String(value).padStart(2, "0");
+}
+
+function createUtcDate({ year, month, day }: UtcDateParts) {
+  const date = new Date(0);
+  date.setUTCFullYear(year, month - 1, day);
+  date.setUTCHours(0, 0, 0, 0);
+  return date;
+}
+
+function daysInMonth(year: number, month: number) {
+  const lastDay = new Date(0);
+  lastDay.setUTCFullYear(year, month, 0);
+  lastDay.setUTCHours(0, 0, 0, 0);
+  return lastDay.getUTCDate();
+}
+
+export function parseCanonicalMonth(value: string | null | undefined): UtcMonthParts | null {
+  const match = value?.match(MONTH_KEY_PATTERN);
+  if (!match) return null;
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  return month >= 1 && month <= 12 ? { year, month } : null;
+}
+
+export function parseCanonicalDate(value: string | null | undefined): UtcDateParts | null {
+  const match = value?.match(DATE_KEY_PATTERN);
+  if (!match) return null;
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  if (month < 1 || month > 12 || day < 1 || day > daysInMonth(year, month)) {
+    return null;
+  }
+
+  return { year, month, day };
+}
+
+export function formatMonthKey({ year, month }: UtcMonthParts) {
+  return `${String(year).padStart(4, "0")}-${pad(month)}`;
+}
+
+export function formatDateKey({ year, month, day }: UtcDateParts) {
+  return `${formatMonthKey({ year, month })}-${pad(day)}`;
+}
+
+export function shiftMonth(monthKey: string, amount: number) {
+  const month = parseCanonicalMonth(monthKey);
+  if (!month || !Number.isInteger(amount)) return monthKey;
+
+  const absoluteMonth = month.year * 12 + (month.month - 1) + amount;
+  const year = Math.floor(absoluteMonth / 12);
+  const nextMonth = ((absoluteMonth % 12) + 12) % 12 + 1;
+  return formatMonthKey({ year, month: nextMonth });
+}
+
+export function buildMonthGrid(monthKey: string): MonthGridCell[] {
+  const month = parseCanonicalMonth(monthKey);
+  if (!month) return [];
+
+  const firstOfMonth = createUtcDate({ ...month, day: 1 });
+  const gridStart = new Date(firstOfMonth);
+  gridStart.setUTCDate(firstOfMonth.getUTCDate() - firstOfMonth.getUTCDay());
+
+  const weeks = Math.ceil((firstOfMonth.getUTCDay() + daysInMonth(month.year, month.month)) / 7);
+
+  return Array.from({ length: weeks * 7 }, (_, index) => {
+    const date = new Date(gridStart);
+    date.setUTCDate(gridStart.getUTCDate() + index);
+    const parts = {
+      year: date.getUTCFullYear(),
+      month: date.getUTCMonth() + 1,
+      day: date.getUTCDate(),
+    };
+    return {
+      date: formatDateKey(parts),
+      isCurrentMonth: parts.year === month.year && parts.month === month.month,
+    };
+  });
+}
+
+export function resolveMonthQuery(
+  query: URLSearchParams,
+  fallbackDate: string,
+): CanonicalMonthQuery {
+  const fallback = parseCanonicalDate(fallbackDate);
+  if (!fallback) {
+    throw new Error("fallbackDate must be a canonical UTC date key");
+  }
+
+  const month = parseCanonicalMonth(query.get("month"));
+  const date = parseCanonicalDate(query.get("date"));
+  return {
+    month: month ? formatMonthKey(month) : formatMonthKey(fallback),
+    date: date ? formatDateKey(date) : formatDateKey(fallback),
+  };
+}
