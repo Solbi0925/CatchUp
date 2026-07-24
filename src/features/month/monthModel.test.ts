@@ -76,6 +76,11 @@ describe("Month UTC date model", () => {
     expect(august.at(-1)?.date).toBe("2026-09-05");
   });
 
+  it("rejects boundary months that cannot form a complete canonical grid", () => {
+    expect(buildMonthGrid("0000-01")).toEqual([]);
+    expect(buildMonthGrid("9999-12")).toEqual([]);
+  });
+
   it("resolves invalid query values to the canonical demo today month and date", () => {
     expect(resolveMonthQuery(new URLSearchParams("month=2026-7&date=2026-07-40"), "2026-07-20")).toEqual({
       month: "2026-07",
@@ -84,6 +89,10 @@ describe("Month UTC date model", () => {
     expect(resolveMonthQuery(new URLSearchParams("month=2026-08&date=2026-07-31"), "2026-07-20")).toEqual({
       month: "2026-08",
       date: "2026-07-31",
+    });
+    expect(resolveMonthQuery(new URLSearchParams("month=0000-01&date=0000-01-01"), "2026-07-20")).toEqual({
+      month: "2026-07",
+      date: "2026-07-20",
     });
   });
 });

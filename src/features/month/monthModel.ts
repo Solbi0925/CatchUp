@@ -60,6 +60,17 @@ function hasValidDateParts(parts: UtcDateParts) {
   );
 }
 
+function hasCompleteMonthGrid({ year, month }: UtcMonthParts) {
+  if (!hasValidMonthParts({ year, month })) return false;
+
+  const firstOfMonth = createUtcDate({ year, month, day: 1 });
+  const leadingDays = firstOfMonth.getUTCDay();
+  const weeks = Math.ceil((leadingDays + daysInMonth(year, month)) / 7);
+  const trailingDays = weeks * 7 - leadingDays - daysInMonth(year, month);
+
+  return !(year === MIN_YEAR && leadingDays > 0) && !(year === MAX_YEAR && trailingDays > 0);
+}
+
 export function parseCanonicalMonth(value: string | null | undefined): UtcMonthParts | null {
   const match = value?.match(MONTH_KEY_PATTERN);
   if (!match) return null;
@@ -105,7 +116,7 @@ export function shiftMonth(monthKey: string, amount: number) {
 
 export function buildMonthGrid(monthKey: string): MonthGridCell[] {
   const month = parseCanonicalMonth(monthKey);
-  if (!month) return [];
+  if (!month || !hasCompleteMonthGrid(month)) return [];
 
   const firstOfMonth = createUtcDate({ ...month, day: 1 });
   const gridStart = new Date(firstOfMonth);
@@ -137,14 +148,14 @@ export function resolveMonthQuery(
   fallbackDate: string,
 ): CanonicalMonthQuery {
   const fallback = parseCanonicalDate(fallbackDate);
-  if (!fallback) {
-    throw new Error("fallbackDate must be a canonical UTC date key");
+  if (!fallback || !hasCompleteMonthGrid(fallback)) {
+    throw new Error("fallbackDate must belong to a complete canonical UTC month grid");
   }
 
   const month = parseCanonicalMonth(query.get("month"));
   const date = parseCanonicalDate(query.get("date"));
   return {
-    month: formatMonthKey(month ?? fallback)!,
-    date: formatDateKey(date ?? fallback)!,
+    month: formatMonthKey(month && hasCompleteMonthGrid(month) ? month : fallback)!,
+    date: formatDateKey(date && hasCompleteMonthGrid(date) ? date : fallback)!,
   };
 }
