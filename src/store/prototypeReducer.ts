@@ -21,6 +21,18 @@ type EditableCalendarEventFields = Pick<
   CalendarEvent,
   "title" | "date" | "startTime" | "endTime" | "isAllDay" | "eventType"
 >;
+type ImmutableCalendarEventFields = {
+  [Field in keyof Pick<CalendarEvent, "userId" | "source" | "updatedAt">]?: never;
+};
+
+export type CreateCalendarEventPayload =
+  & { id: CalendarEventId }
+  & EditableCalendarEventFields
+  & ImmutableCalendarEventFields;
+export type UpdateCalendarEventPayload =
+  & { id: CalendarEventId }
+  & EditableCalendarEventFields
+  & ImmutableCalendarEventFields;
 
 export interface PrototypeState {
   user: User;
@@ -48,11 +60,11 @@ export type PrototypeAction =
   | { type: "calendar/onboardingSkipped"; payload: Record<string, never> }
   | {
       type: "calendar/eventCreated";
-      payload: { id: CalendarEventId } & EditableCalendarEventFields;
+      payload: CreateCalendarEventPayload;
     }
   | {
       type: "calendar/eventUpdated";
-      payload: { id: CalendarEventId } & EditableCalendarEventFields;
+      payload: UpdateCalendarEventPayload;
     }
   | { type: "calendar/eventDeleted"; payload: { id: CalendarEventId } }
   | { type: "todo/completionSet"; payload: { todoId: TodoId; isCompleted: boolean } }
@@ -115,7 +127,11 @@ export function prototypeReducer(
         user: { ...state.user, calendarConnectionStatus: "connected" },
         onboarding: { ...state.onboarding, introSeen: true, calendarStep: "connected" },
         calendarEventsById: {
-          ...Object.fromEntries(action.payload.events.map((event) => [event.id, event])),
+          ...Object.fromEntries(
+            action.payload.events
+              .filter((event) => event.source === "google-calendar")
+              .map((event) => [event.id, event]),
+          ),
           ...Object.fromEntries(
             Object.values(state.calendarEventsById)
               .filter((event) => event.source === "catchup")

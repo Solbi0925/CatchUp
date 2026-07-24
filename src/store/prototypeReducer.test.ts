@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { createInitialPrototypeState, prototypeReducer } from "./prototypeReducer";
+import {
+  createInitialPrototypeState,
+  prototypeReducer,
+  type CreateCalendarEventPayload,
+  type UpdateCalendarEventPayload,
+} from "./prototypeReducer";
 import type { CalendarEvent, ExtractionResult, GeneratePlanResult } from "../domain/types";
 
 const extraction: ExtractionResult = {
@@ -102,6 +107,16 @@ function createCatchUpEvent() {
     payload: { id: "catchup-event-1", ...calendarEventFields },
   });
 }
+
+const untrustedCalendarEvent = googleEvent("untrusted-event");
+
+// @ts-expect-error Calendar records cannot be reused as CatchUp create commands.
+const forgedCreatePayload: CreateCalendarEventPayload = untrustedCalendarEvent;
+// @ts-expect-error Calendar records cannot be reused as CatchUp update commands.
+const forgedUpdatePayload: UpdateCalendarEventPayload = untrustedCalendarEvent;
+
+void forgedCreatePayload;
+void forgedUpdatePayload;
 
 describe("prototypeReducer", () => {
   it("stores an extraction result and its relation atomically", () => {
@@ -219,27 +234,38 @@ describe("prototypeReducer", () => {
     expect(deleteGoogle).toBe(initial);
   });
 
-  it("replaces Google events on reconnect while preserving CatchUp events", () => {
+  it("accepts only Google events on reconnect and lets an existing CatchUp ID win collisions", () => {
     const connected = prototypeReducer(createInitialPrototypeState(), {
       type: "calendar/connectionSucceeded",
       payload: { events: [googleEvent("google-event-old")] },
     });
     const withCatchUpEvent = prototypeReducer(connected, {
       type: "calendar/eventCreated",
-      payload: { id: "catchup-event-1", ...calendarEventFields },
+      payload: { id: "shared-event-id", ...calendarEventFields },
     });
+    const payloadCatchUpEvent = {
+      ...withCatchUpEvent.calendarEventsById["shared-event-id"],
+      id: "payload-catchup-event",
+    };
     const reconnected = prototypeReducer(withCatchUpEvent, {
       type: "calendar/connectionSucceeded",
-      payload: { events: [googleEvent("google-event-new", "새 Google 일정")] },
+      payload: {
+        events: [
+          googleEvent("shared-event-id", "Google이 덮어쓰려는 일정"),
+          googleEvent("google-event-new", "새 Google 일정"),
+          payloadCatchUpEvent,
+        ],
+      },
     });
 
     expect(reconnected.calendarEventsById["google-event-old"]).toBeUndefined();
     expect(reconnected.calendarEventsById["google-event-new"]).toEqual(
       googleEvent("google-event-new", "새 Google 일정"),
     );
-    expect(reconnected.calendarEventsById["catchup-event-1"]).toEqual(
-      withCatchUpEvent.calendarEventsById["catchup-event-1"],
+    expect(reconnected.calendarEventsById["shared-event-id"]).toEqual(
+      withCatchUpEvent.calendarEventsById["shared-event-id"],
     );
+    expect(reconnected.calendarEventsById["payload-catchup-event"]).toBeUndefined();
   });
 
   it("removes Google events on onboarding skip while preserving CatchUp events", () => {

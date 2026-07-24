@@ -1,4 +1,4 @@
-import { demoCalendarEvents } from "../../mocks/templates";
+import { mockGoogleCalendarEvents } from "../../mocks/templates";
 import type { CalendarEvent } from "../../domain/types";
 
 export type CalendarMockScenario = "success" | "fail-once";
@@ -22,7 +22,7 @@ export function connectMockCalendar({
         reject(new Error("mock-calendar-connection-failed"));
         return;
       }
-      resolve({ events: demoCalendarEvents.map((event) => ({ ...event })) });
+      resolve({ events: mockGoogleCalendarEvents.map((event) => ({ ...event })) });
     }, 650);
 
     signal?.addEventListener(
