@@ -54,7 +54,7 @@ export interface MonthScheduleDialogProps {
   ) => Promise<void>;
   onUpdateDateSaved: (date: string) => void;
   onDelete: (eventId: CalendarEventId) => Promise<void>;
-  onOpenExtractedItem?: (documentId: string) => void;
+  onOpenExtractedItem?: (documentId: string, itemId: string) => void;
 }
 
 function calendarEventId(item: MonthScheduleItem) {
@@ -345,12 +345,18 @@ export function MonthScheduleDialog({
                     </div>
                     {schedule.source === "extracted-item" &&
                       schedule.documentId &&
+                      schedule.sourceItemId &&
                       onOpenExtractedItem && (
                         <button
                           type="button"
-                          onClick={() => onOpenExtractedItem(schedule.documentId!)}
+                          onClick={() =>
+                            onOpenExtractedItem(
+                              schedule.documentId!,
+                              schedule.sourceItemId!,
+                            )
+                          }
                         >
-                          업로드 자료 보기
+                          추출 정보 수정
                         </button>
                       )}
                     {eventId && !isConfirmingDelete && (

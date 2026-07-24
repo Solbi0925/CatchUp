@@ -195,6 +195,11 @@ export function MonthPage({
             await mutation.delete(eventId);
             dispatch({ type: "calendar/eventDeleted", payload: { id: eventId } });
           }}
+          onOpenExtractedItem={(documentId, itemId) =>
+            navigate(`/upload/${documentId}/extraction`, {
+              state: { focusItemId: itemId },
+            })
+          }
         />
       )}
     </>

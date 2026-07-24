@@ -5,6 +5,7 @@ export type MonthScheduleType = ExtractedItemType | CalendarEvent["eventType"];
 
 export interface MonthScheduleItem {
   id: string;
+  sourceItemId: string | null;
   title: string;
   date: string;
   startTime: string | null;
@@ -42,6 +43,7 @@ function extractedItemToMonthScheduleItem(item: ExtractedItem): MonthScheduleIte
   const source = "extracted-item" as const;
   return {
     id: `${source}:${item.id}`,
+    sourceItemId: item.id,
     title: item.title,
     date: item.date,
     startTime: item.time,
@@ -58,6 +60,7 @@ function extractedItemToMonthScheduleItem(item: ExtractedItem): MonthScheduleIte
 function calendarEventToMonthScheduleItem(event: CalendarEvent): MonthScheduleItem {
   return {
     id: `${event.source}:${event.id}`,
+    sourceItemId: null,
     title: event.title,
     date: event.date,
     startTime: event.startTime,

@@ -16,6 +16,7 @@ function schedule(
 ): MonthScheduleItem {
   return {
     id,
+    sourceItemId: id,
     title,
     date,
     startTime: null,

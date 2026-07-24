@@ -23,6 +23,7 @@ import {
 } from "../../store/PrototypeStore";
 import { MonthPage } from "./MonthPage";
 import type { CalendarEventMutationAdapter } from "./mockCalendarEventMutation";
+import { ExtractionReviewPage } from "../upload/ExtractionReviewPage";
 
 function connectDemoCalendar() {
   sessionStorage.setItem(
@@ -48,6 +49,10 @@ function renderMonth(
         children: [
           { path: "/month", element: <MonthPage mutation={mutation} /> },
           { path: "/today", element: <p>Today destination</p> },
+          {
+            path: "/upload/:documentId/extraction",
+            element: <ExtractionReviewPage />,
+          },
         ],
       },
     ],
@@ -607,5 +612,94 @@ describe("Month page integration", () => {
     })).closest("li")!;
     expect(within(row).getByText("10:00")).toBeInTheDocument();
     expect(row).not.toHaveTextContent("null");
+  });
+
+  it("hands an extracted row off to its Upload review item without Month edit controls", async () => {
+    const user = userEvent.setup();
+    const extractedItem: ExtractedItem = {
+      id: "raw:extracted-item-42",
+      documentId: "month-page-test-document",
+      title: "네트워크 과제 제출",
+      itemType: "submission",
+      courseName: "컴퓨터 네트워크",
+      date: "2026-07-25",
+      time: null,
+      submissionMethod: "LMS 제출",
+      requiredMaterials: null,
+      difficulty: "medium",
+      estimatedDurationMinutes: 90,
+      reviewStatus: "confirmed",
+      isUserEdited: false,
+    };
+    const router = renderMonth(
+      ["/month?month=2026-07&date=2026-07-25&sheet=schedule"],
+      undefined,
+      [extractedItem],
+    );
+
+    const row = (await screen.findByText("네트워크 과제 제출", {
+      selector: "strong",
+    })).closest("li")!;
+    expect(within(row).getByRole("button", { name: "추출 정보 수정" })).toBeInTheDocument();
+    expect(within(row).queryByRole("button", { name: "수정" })).not.toBeInTheDocument();
+    expect(within(row).queryByRole("button", { name: "삭제" })).not.toBeInTheDocument();
+
+    await user.click(within(row).getByRole("button", { name: "추출 정보 수정" }));
+
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe(
+        "/upload/month-page-test-document/extraction",
+      );
+      expect(router.state.location.state).toEqual({
+        focusItemId: "raw:extracted-item-42",
+      });
+    });
+    expect(
+      await screen.findByRole("heading", { name: "추출 결과 확인 및 수정" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /네트워크 과제 제출/ }),
+    ).toHaveAttribute("aria-expanded", "true");
+  });
+
+  it("uses the existing review fallback when the requested extracted item is stale", async () => {
+    const firstItem: ExtractedItem = {
+      id: "first-item",
+      documentId: "month-page-test-document",
+      title: "첫 번째 추출 항목",
+      itemType: "deadline",
+      courseName: "소프트웨어 공학",
+      date: "2026-07-25",
+      time: null,
+      submissionMethod: null,
+      requiredMaterials: null,
+      difficulty: "low",
+      estimatedDurationMinutes: 30,
+      reviewStatus: "confirmed",
+      isUserEdited: false,
+    };
+    const needsReviewItem: ExtractedItem = {
+      ...firstItem,
+      id: "needs-review-item",
+      title: "확인이 필요한 항목",
+      reviewStatus: "needs-review",
+    };
+    const router = renderMonth(
+      ["/month?month=2026-07&date=2026-07-25&sheet=schedule"],
+      undefined,
+      [firstItem, needsReviewItem],
+    );
+
+    await screen.findByText("첫 번째 추출 항목", { selector: "strong" });
+    await router.navigate("/upload/month-page-test-document/extraction", {
+      state: { focusItemId: "stale-item" },
+    });
+
+    expect(
+      await screen.findByRole("heading", { name: "추출 결과 확인 및 수정" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /확인이 필요한 항목/ }),
+    ).toHaveAttribute("aria-expanded", "true");
   });
 });

@@ -55,6 +55,7 @@ describe("Month schedule selectors", () => {
     expect(items).toHaveLength(1);
     expect(items[0]).toMatchObject({
       id: "extracted-item:extracted-1",
+      sourceItemId: "extracted-1",
       source: "extracted-item",
       sourceLabel: "업로드 자료",
       documentId: "document-1",

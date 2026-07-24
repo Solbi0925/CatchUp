@@ -1,19 +1,31 @@
 import { useMemo, useRef, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { selectExtractedItemsForDocument } from "../../domain/selectors";
 import type { ExtractedItem } from "../../domain/types";
 import { usePrototypeStore } from "../../store/PrototypeStore";
 
 export function ExtractionReviewPage() {
   const { documentId = "" } = useParams();
+  const location = useLocation();
   const navigate = useNavigate();
   const { state, dispatch } = usePrototypeStore();
   const document = state.documentsById[documentId];
   const items = selectExtractedItemsForDocument(state, documentId);
   const [draft, setDraft] = useState<ExtractedItem[]>(() => items.map((item) => ({ ...item })));
-  const [expandedId, setExpandedId] = useState<string | undefined>(
-    () => items.find((item) => item.reviewStatus === "needs-review")?.id ?? items[0]?.id,
-  );
+  const [expandedId, setExpandedId] = useState<string | undefined>(() => {
+    const focusItemId =
+      typeof location.state === "object" &&
+      location.state !== null &&
+      "focusItemId" in location.state &&
+      typeof location.state.focusItemId === "string"
+        ? location.state.focusItemId
+        : undefined;
+    return (
+      items.find((item) => item.id === focusItemId)?.id ??
+      items.find((item) => item.reviewStatus === "needs-review")?.id ??
+      items[0]?.id
+    );
+  });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const firstErrorRef = useRef<HTMLInputElement>(null);
   const isDirty = useMemo(() => JSON.stringify(draft) !== JSON.stringify(items), [draft, items]);
