@@ -1,0 +1,201 @@
+.calendar-onboarding {
+  overflow-y: auto;
+  min-height: 100dvh;
+  padding: max(76px, calc(env(safe-area-inset-top) + 40px)) 24px max(24px, calc(env(safe-area-inset-bottom) + 12px));
+  background:
+    radial-gradient(70% 40% at 18% 8%, rgba(255, 255, 255, 0.96) 0%, transparent 74%),
+    radial-gradient(68% 54% at 92% 78%, rgba(211, 195, 255, 0.48) 0%, transparent 78%),
+    linear-gradient(145deg, #faf8ff 0%, #f4efff 55%, #eae1ff 100%);
+  color: #17141e;
+}
+
+.calendar-onboarding > header {
+  margin: 0 auto 30px;
+  max-width: 430px;
+  text-align: center;
+}
+
+.calendar-onboarding h1 {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.035em;
+}
+
+.calendar-onboarding header p {
+  margin: 16px 0 0;
+  color: #656071;
+  font-size: 16px;
+  line-height: 1.55;
+}
+
+.calendar-onboarding-card {
+  display: flex;
+  min-height: 500px;
+  max-width: 325px;
+  margin: 0 auto;
+  padding: 38px 18px 24px;
+  flex-direction: column;
+  border: 1px solid rgba(255, 255, 255, 0.78);
+  border-radius: 28px;
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow: 0 18px 42px rgba(111, 80, 188, 0.1);
+  backdrop-filter: blur(24px);
+}
+
+.calendar-illustration {
+  position: relative;
+  height: 170px;
+  margin-bottom: 10px;
+}
+
+.google-calendar-mark,
+.catchup-calendar-mark {
+  position: absolute;
+  top: 35px;
+  display: grid;
+  width: 72px;
+  height: 72px;
+  place-items: center;
+  border-radius: 18px;
+}
+
+.google-calendar-mark {
+  left: 18px;
+  border: 9px solid #4285f4;
+  background:
+    linear-gradient(135deg, #ea4335 0 34%, transparent 34%),
+    linear-gradient(225deg, #fbbc04 0 34%, transparent 34%),
+    #fff;
+  color: #1a73e8;
+  font-size: 24px;
+  font-weight: 800;
+}
+
+.catchup-calendar-mark {
+  right: 18px;
+  background: linear-gradient(145deg, #c190ff, #7259f3);
+  box-shadow: inset 0 0 0 8px rgba(255, 255, 255, 0.72);
+}
+
+.catchup-calendar-mark::before {
+  width: 34px;
+  height: 30px;
+  border: 4px solid white;
+  border-radius: 8px;
+  content: "";
+}
+
+.calendar-link-line {
+  position: absolute;
+  top: 67px;
+  left: 50%;
+  width: 120px;
+  border-top: 3px dashed #c7b8fa;
+  transform: translateX(-50%);
+}
+
+.calendar-onboarding-card ul {
+  display: grid;
+  margin: 0 0 24px;
+  padding: 0;
+  gap: 18px;
+  list-style: none;
+}
+
+.calendar-onboarding-card li {
+  display: grid;
+  grid-template-columns: 28px 1fr;
+  align-items: start;
+  color: #3f3948;
+  font-size: 15px;
+  line-height: 22px;
+}
+
+.calendar-onboarding-card li::before {
+  display: grid;
+  width: 22px;
+  height: 22px;
+  place-items: center;
+  border-radius: 50%;
+  background: #efe9ff;
+  color: #7259f3;
+  content: "✓";
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.calendar-connect-button {
+  min-height: 66px;
+  margin-top: auto;
+  border: 0;
+  border-radius: 20px;
+  background: linear-gradient(110deg, #ad86ff 0%, #7b55f6 100%);
+  box-shadow: 0 8px 18px rgba(119, 82, 238, 0.24);
+  color: white;
+  font: inherit;
+  font-size: 16px;
+  font-weight: 750;
+}
+
+.calendar-connect-button:disabled {
+  cursor: progress;
+  opacity: 0.7;
+}
+
+.calendar-connect-button:focus-visible,
+.calendar-skip-button:focus-visible {
+  outline: 3px solid #5b35d5;
+  outline-offset: 3px;
+}
+
+.calendar-connect-button:not(:disabled):active {
+  transform: translateY(1px);
+  box-shadow: 0 5px 12px rgba(119, 82, 238, 0.2);
+}
+
+.calendar-status,
+.calendar-error {
+  min-height: 22px;
+  margin: 0 0 8px;
+  text-align: center;
+  font-size: 13px;
+}
+
+.calendar-status {
+  color: #686371;
+}
+
+.calendar-error {
+  color: #bd3b54;
+}
+
+.calendar-skip-button {
+  min-height: 48px;
+  border: 0;
+  background: transparent;
+  color: #686371;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 650;
+}
+
+@media (max-height: 740px) {
+  .calendar-onboarding {
+    padding-top: max(30px, env(safe-area-inset-top));
+  }
+
+  .calendar-onboarding-card {
+    min-height: 450px;
+  }
+
+  .calendar-illustration {
+    height: 140px;
+  }
+}
+
+@media (max-width: 340px) {
+  .calendar-onboarding h1 {
+    font-size: 26px;
+  }
+}
