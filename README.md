@@ -36,7 +36,7 @@ Google Calendar를 사용하는 대학생의 강의계획서, LMS 공지, 과제
 - AI 기반 과제명, 마감일, 시험일, 제출 방식, 중요 일정 추출
 - 추출된 정보 확인 및 수정
 - Google Calendar 기반 주간 학습 계획 생성
-- CatchUp 안에서 개인 일정 직접 추가
+- CatchUp 안에서 개인 일정 직접 추가 및 수정
 - 사용자가 설정한 요일과 시간에 주 1회만 주간 계획 생성
 - 한 주의 계획 범위는 월요일부터 일요일까지로 제한
 - 계획 생성 시 자연어 요구사항 입력
@@ -59,6 +59,8 @@ Google Calendar를 사용하는 대학생의 강의계획서, LMS 공지, 과제
 - `IA.md`: 정보 구조 문서
 - `USER_FLOW.md`: 사용자 흐름 문서
 - `SCREEN_SPEC.md`: 화면 상세 명세 문서
+- `FIRST_DESIGN.md`: 브랜드 인트로 화면 디자인·구현 명세
+- `ONBOARDING_DESIGN.md`: Google Calendar 연동 화면 디자인·구현 명세
 
 ## 다음에 Codex에게 맡길 작업 3개
 
