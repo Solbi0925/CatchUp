@@ -151,4 +151,18 @@ describe("prototypeReducer", () => {
       payload: { id: "google-1" },
     })).toBe(connected);
   });
+
+  it("stores a color override for the whole calendar category", () => {
+    const state = prototypeReducer(createInitialPrototypeState(), {
+      type: "calendar/categoryColorSet",
+      payload: {
+        categoryKey: "course:데이터베이스",
+        color: "#A5D1FF",
+      },
+    });
+
+    expect(state.categoryColorByKey).toEqual({
+      "course:데이터베이스": "#A5D1FF",
+    });
+  });
 });

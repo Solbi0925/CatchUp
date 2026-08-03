@@ -16,6 +16,7 @@ import type {
 } from "../domain/types";
 import { demoInteractionClock } from "../application/clock";
 import { demoUser } from "../mocks/templates";
+import type { CalendarCategoryColor } from "../features/calendar/calendarColors";
 
 type EditableCalendarEventFields = Pick<
   CalendarEvent,
@@ -59,6 +60,7 @@ export interface PrototypeState {
   todosById: Record<TodoId, Todo>;
   todoIdsByWeeklyPlanId: Record<WeeklyPlanId, TodoId[]>;
   adjustmentUsageByDate: Record<string, number>;
+  categoryColorByKey: Record<string, CalendarCategoryColor>;
   appliedOperations: Record<OperationId, "extraction" | "plan" | "adjustment">;
 }
 
@@ -78,6 +80,10 @@ export type PrototypeAction =
       payload: UpdateCalendarEventPayload;
     }
   | { type: "calendar/eventDeleted"; payload: { id: CalendarEventId } }
+  | {
+      type: "calendar/categoryColorSet";
+      payload: { categoryKey: string; color: CalendarCategoryColor };
+    }
   | { type: "todo/completionSet"; payload: { todoId: TodoId; isCompleted: boolean } }
   | { type: "extraction/applied"; payload: ExtractionResult }
   | {
@@ -105,6 +111,7 @@ export function createInitialPrototypeState(): PrototypeState {
     todosById: {},
     todoIdsByWeeklyPlanId: {},
     adjustmentUsageByDate: {},
+    categoryColorByKey: {},
     appliedOperations: {},
   };
 }
@@ -207,6 +214,14 @@ export function prototypeReducer(
       const { [action.payload.id]: _deletedEvent, ...calendarEventsById } = state.calendarEventsById;
       return { ...state, calendarEventsById };
     }
+    case "calendar/categoryColorSet":
+      return {
+        ...state,
+        categoryColorByKey: {
+          ...state.categoryColorByKey,
+          [action.payload.categoryKey]: action.payload.color,
+        },
+      };
     case "todo/completionSet": {
       const todo = state.todosById[action.payload.todoId];
       if (!todo || todo.isCompleted === action.payload.isCompleted) return state;
