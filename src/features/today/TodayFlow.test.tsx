@@ -66,10 +66,13 @@ describe("Today screen", () => {
     fireEvent.click(await screen.findByRole("link", { name: "Today" }));
 
     expect(screen.getByText("아직 이번 주 할 일이 없어요.")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "AI Mate 열기" }));
+    fireEvent.click(screen.getByRole("button", { name: "계획 생성하기" }));
 
     expect(screen.getByRole("dialog", { name: "AI Mate" })).toBeInTheDocument();
-    fireEvent.change(screen.getByPlaceholderText("메시지를 입력하세요..."), { target: { value: "이번 주 계획을 생성해줘" } });
+    expect(screen.getByRole("textbox", { name: "AI Mate 메시지" })).toHaveValue(
+      "이번 주 계획을 생성해줘",
+    );
+    expect(screen.queryByLabelText("내 메시지")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "메시지 보내기" }));
     await screen.findByText(
       /업로드 자료와 캘린더를 반영해\s*이번 주 계획을 만들었어요./,
@@ -82,8 +85,19 @@ describe("Today screen", () => {
     expect(screen.getByText(/ERD 실습 준비/)).toBeInTheDocument();
     expect(screen.queryByText(/우선순위/)).not.toBeInTheDocument();
     expect(screen.queryByText("추천 이유 보기")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "일정 추가" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "추가" })).toBeInTheDocument();
     expect(screen.getByText("팀 프로젝트 회의")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /ERD 실습 준비.*AI Mate/ }));
+    expect(screen.getByRole("button", { name: "할 일 추천이유" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "할 일 조정" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "7\/20일 할 일 추가" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "할 일 추천이유" }));
+    expect(
+      (screen.getByRole("textbox", { name: "AI Mate 메시지" }) as HTMLTextAreaElement).value,
+    ).toMatch(/ERD 실습 준비.*추천한 이유/);
+    expect(screen.getAllByLabelText("내 메시지")).toHaveLength(1);
+    fireEvent.click(screen.getByRole("button", { name: "AI Mate 닫기" }));
 
     const completionCheckbox = screen.getAllByRole("checkbox")[0];
     fireEvent.click(completionCheckbox);
@@ -101,5 +115,21 @@ describe("Today screen", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "7월 21일 화요일" }));
     expect(screen.getByText(/정규화 개념 퀴즈/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "7월 23일 목요일" }));
+    fireEvent.click(screen.getByRole("button", { name: /UX 리서치 보고서 일정 수정/ }));
+    expect(screen.getByRole("dialog", { name: "일정 편집" })).toBeInTheDocument();
+    fireEvent.change(screen.getByRole("textbox", { name: "제목" }), {
+      target: { value: "UX 보고서 제출" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "저장" }));
+    expect(screen.getByText("UX 보고서 제출")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "7월 26일 일요일" }));
+    fireEvent.click(screen.getByRole("button", { name: "계획 조정" }));
+    expect(screen.getByRole("textbox", { name: "AI Mate 메시지" })).toHaveValue(
+      "7/26일 계획을 조정해줘",
+    );
+    expect(screen.getAllByLabelText("내 메시지")).toHaveLength(2);
   });
 });

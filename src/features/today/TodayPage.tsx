@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { usePrototypeStore } from "../../store/PrototypeStore";
 import { AiMateCharacter } from "../ai-mate/components/AiMateCharacter";
+import { useAiMate, type AiMatePromptChip } from "../ai-mate/AiMateProvider";
 import { ScheduleEditorDialog, type ScheduleDraft } from "../calendar/ScheduleEditorDialog";
 import { PERSONAL_CATEGORY_KEY, resolveCategoryColor } from "../calendar/calendarColors";
 import type { CalendarEvent } from "../../domain/types";
@@ -35,8 +36,14 @@ function formatDueDate(isoDate: string) {
   return `${month}/${day} (${weekday})`;
 }
 
+function formatPromptDate(isoDate: string) {
+  const [, month, day] = isoDate.split("-").map(Number);
+  return `${month}/${day}`;
+}
+
 export function TodayPage() {
   const { state, dispatch } = usePrototypeStore();
+  const { openWithDraft } = useAiMate();
   const [selectedDate, setSelectedDate] = useState(demoTodayDate);
   const [editingScheduleId, setEditingScheduleId] = useState<string>();
   const [addingSchedule, setAddingSchedule] = useState(false);
@@ -114,6 +121,12 @@ export function TodayPage() {
             <div className="today-zero-state">
               <strong>아직 이번 주 할 일이 없어요.</strong>
               <p>AI Mate에서 이번 주 계획을 생성해보세요.</p>
+              <button
+                type="button"
+                onClick={() => openWithDraft("이번 주 계획을 생성해줘")}
+              >
+                계획 생성하기
+              </button>
             </div>
           </section>
         </>
@@ -143,6 +156,14 @@ export function TodayPage() {
               <div className="today-zero-state">
                 <strong>이날의 할 일은 없어요.</strong>
                 <p>다른 날짜를 확인하거나 AI Mate에게 계획 조정을 요청해보세요.</p>
+                <button
+                  type="button"
+                  onClick={() =>
+                    openWithDraft(`${formatPromptDate(selectedDate)}일 계획을 조정해줘`)
+                  }
+                >
+                  계획 조정
+                </button>
               </div>
             ) : (
               <div className="today-card-list">
@@ -159,14 +180,36 @@ export function TodayPage() {
                         })
                       }
                     />
-                    <div>
+                    <button
+                      type="button"
+                      className="today-todo-content"
+                      aria-label={`${todo.title} AI Mate에서 보기`}
+                      onClick={() => {
+                        const promptDate = formatPromptDate(selectedDate);
+                        const chips: AiMatePromptChip[] = [
+                          {
+                            label: "할 일 추천이유",
+                            draft: `${todo.title}을 추천한 이유를 알려줘`,
+                          },
+                          {
+                            label: "할 일 조정",
+                            draft: `${todo.title} 할 일을 조정해줘`,
+                          },
+                          {
+                            label: `${promptDate}일 할 일 추가`,
+                            draft: `${promptDate}일 할 일을 추가해줘`,
+                          },
+                        ];
+                        openWithDraft("", chips);
+                      }}
+                    >
                       <span className="today-course">{todo.courseOrSource}</span>
                       <h3>{todo.title}</h3>
                       <div className="today-todo-meta">
                         <span>{todo.estimatedMinutes < 60 ? `${todo.estimatedMinutes}M` : `${Number((todo.estimatedMinutes / 60).toFixed(1))}H`}</span>
                         {todo.dueAt && <span>▣ {formatDueDate(todo.dueAt)} 마감</span>}
                       </div>
-                    </div>
+                    </button>
                   </article>
                 ))}
               </div>
@@ -182,7 +225,7 @@ export function TodayPage() {
                     : `${formatSelectedDate(selectedDate)} 예정 일정`}
                 </h2>
               </div>
-              <button type="button" className="today-add-button" onClick={() => setAddingSchedule(true)}>일정 추가</button>
+              <button type="button" className="today-add-button" onClick={() => setAddingSchedule(true)}>추가</button>
             </div>
             {viewModel.schedules.length === 0 ? (
               <div className="today-zero-state">
@@ -211,11 +254,19 @@ export function TodayPage() {
           initialDraft={editorDraft}
           categoryKind={editorCategoryKey === PERSONAL_CATEGORY_KEY ? "personal" : "course"}
           categoryColor={resolveCategoryColor(editorCategoryKey, state.categoryColorByKey)}
-          readOnly={Boolean(editingItem)}
           onColorChange={(color) => dispatch({ type: "calendar/categoryColorSet", payload: { categoryKey: editorCategoryKey, color } })}
           onClose={() => { setEditingScheduleId(undefined); setAddingSchedule(false); }}
           onSave={(draft) => {
-            if (editingEvent?.source === "google-calendar") setEventOverrides((current) => ({ ...current, [editingEvent.id]: { ...editingEvent, ...draft } }));
+            if (editingItem) dispatch({
+              type: "extraction/itemUpdated",
+              payload: {
+                id: editingItem.id,
+                title: draft.title,
+                date: draft.date,
+                time: draft.startTime,
+              },
+            });
+            else if (editingEvent?.source === "google-calendar") setEventOverrides((current) => ({ ...current, [editingEvent.id]: { ...editingEvent, ...draft } }));
             else if (editingEvent) dispatch({ type: "calendar/eventUpdated", payload: { id: editingEvent.id, ...draft } });
             else dispatch({ type: "calendar/eventCreated", payload: { id: `catchup-${Date.now()}`, ...draft } });
             setEditingScheduleId(undefined); setAddingSchedule(false);

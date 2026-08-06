@@ -1,6 +1,6 @@
 .today-page {
   min-height: 100%;
-  padding: max(24px, env(safe-area-inset-top)) 20px calc(176px + env(safe-area-inset-bottom));
+  padding: max(44px, calc(24px + env(safe-area-inset-top))) 20px calc(176px + env(safe-area-inset-bottom));
   background: #f8f7fc;
   color: #111014;
 }
@@ -148,6 +148,17 @@
   line-height: 1.45;
 }
 
+.today-briefing.with-plan h2 {
+  white-space: nowrap;
+  font-size: clamp(11.5px, 3vw, 14px);
+  letter-spacing: -0.04em;
+}
+
+.today-briefing.with-plan > img {
+  width: 56px;
+  height: 56px;
+}
+
 .today-briefing p {
   margin: 0;
   color: #676272;
@@ -262,7 +273,7 @@
   font-weight: 750;
 }
 
-.today-todo-card h3,
+.today-todo-content h3,
 .today-schedule-card h3 {
   margin: 4px 0 6px;
   font-size: 15px;
@@ -290,35 +301,17 @@
   font-size: 12px;
 }
 
-.today-todo-card details {
-  margin-top: 10px;
-  color: #747786;
-  font-size: 12px;
-}
-
-.today-todo-card summary {
-  width: max-content;
-  cursor: pointer;
-  color: #806cf2;
-  font-weight: 650;
-}
-
-.today-todo-card details p {
-  margin: 7px 0 0;
-  line-height: 1.5;
-}
-
-.today-todo-card > button {
-  width: 38px;
-  height: 38px;
+.today-todo-content {
+  min-width: 0;
+  padding: 0;
   border: 0;
-  border-radius: 12px;
-  background: #f2effb;
-  color: #7259f3;
-  font-size: 18px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
 }
 
-.today-todo-card.completed h3 {
+.today-todo-card.completed .today-todo-content h3 {
   color: #92909a;
   text-decoration: line-through;
 }
