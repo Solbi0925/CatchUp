@@ -4,7 +4,7 @@ import type { CalendarEvent } from "../../domain/types";
 import { demoCalendarEvents } from "../../mocks/templates";
 import { usePrototypeStore } from "../../store/PrototypeStore";
 import { MonthCalendar } from "./MonthCalendar";
-import { MonthScheduleDialog, type MonthEventDraft } from "./MonthScheduleDialog";
+import { MonthScheduleDialog, type MonthEventDraft, type MonthScheduleTarget } from "./MonthScheduleDialog";
 import { buildMonthGrid, parseCanonicalMonth, shiftMonth } from "./monthModel";
 import { buildMonthSchedules, groupSchedulesByDate } from "./monthSelectors";
 
@@ -60,8 +60,19 @@ export function MonthPage() {
     });
   };
 
-  const saveEvent = (draft: MonthEventDraft, eventId?: string) => {
-    if (eventId) {
+  const saveEvent = (draft: MonthEventDraft, target?: MonthScheduleTarget) => {
+    if (target?.extractedItemId) {
+      dispatch({
+        type: "extraction/itemUpdated",
+        payload: {
+          id: target.extractedItemId,
+          title: draft.title,
+          date: draft.date,
+          time: draft.startTime,
+        },
+      });
+    } else if (target?.eventId) {
+      const eventId = target.eventId;
       const existingEvent = calendarEventsById[eventId];
       if (existingEvent?.source === "google-calendar") {
         setMockEventOverrides((current) => ({

@@ -4,6 +4,7 @@ import { getCourseCategoryKey, PERSONAL_CATEGORY_KEY } from "../calendar/calenda
 export interface MonthScheduleItem {
   id: string;
   eventId?: string;
+  extractedItemId?: string;
   title: string;
   date: string;
   startTime: string | null;
@@ -23,6 +24,7 @@ export function buildMonthSchedules(
       .filter((item) => item.reviewStatus === "confirmed")
       .map((item) => ({
         id: `upload-${item.id}`,
+        extractedItemId: item.id,
         title: item.title,
         date: item.date,
         startTime: item.time,

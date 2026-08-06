@@ -5,6 +5,10 @@ import { PERSONAL_CATEGORY_KEY, resolveCategoryColor, type CalendarCategoryColor
 import type { MonthScheduleItem } from "./monthSelectors";
 
 export type MonthEventDraft = ScheduleDraft;
+export interface MonthScheduleTarget {
+  eventId?: string;
+  extractedItemId?: string;
+}
 
 interface Props {
   selectedDate: string;
@@ -12,7 +16,7 @@ interface Props {
   eventsById: Readonly<Record<string, CalendarEvent>>;
   categoryColorByKey: Readonly<Record<string, CalendarCategoryColor>>;
   onClose: () => void;
-  onSave: (draft: MonthEventDraft, eventId?: string) => void;
+  onSave: (draft: MonthEventDraft, target?: MonthScheduleTarget) => void;
   onDelete: (eventId: string) => void;
   onColorChange: (categoryKey: string, color: CalendarCategoryColor) => void;
 }
@@ -61,17 +65,23 @@ export function MonthScheduleDialog({ selectedDate, schedules, eventsById, categ
               </li>)}
             </ul>
           )}
-          <button className="month-add-schedule" type="button" onClick={() => setAdding(true)}>일정 추가</button>
+          <button className="month-add-schedule" type="button" onClick={() => setAdding(true)}>추가</button>
         </>}
 
         {(selectedItem || adding) && <ScheduleEditorDialog
           initialDraft={draft}
           categoryKind={categoryKey === PERSONAL_CATEGORY_KEY ? "personal" : "course"}
           categoryColor={resolveCategoryColor(categoryKey, categoryColorByKey)}
-          readOnly={Boolean(selectedItem && !selectedItem.eventId)}
           onColorChange={(color) => onColorChange(categoryKey, color)}
           onClose={() => { setSelectedItem(undefined); setAdding(false); }}
-          onSave={(nextDraft) => { onSave(nextDraft, selectedItem?.eventId); setSelectedItem(undefined); setAdding(false); }}
+          onSave={(nextDraft) => {
+            onSave(nextDraft, selectedItem ? {
+              eventId: selectedItem.eventId,
+              extractedItemId: selectedItem.extractedItemId,
+            } : undefined);
+            setSelectedItem(undefined);
+            setAdding(false);
+          }}
         />}
       </section>
     </dialog>
