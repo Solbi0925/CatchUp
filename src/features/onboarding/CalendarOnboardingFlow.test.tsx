@@ -13,6 +13,18 @@ describe("Calendar onboarding flow", () => {
     vi.useRealTimers();
   });
 
+  it("centers the Google icon in a frame above the connector", () => {
+    render(<App initialEntries={["/onboarding/calendar"]} />);
+
+    expect(screen.getByTestId("google-calendar-icon-frame")).toContainElement(
+      screen.getByRole("img", { name: "Google Calendar" }),
+    );
+    expect(screen.getByTestId("calendar-connector")).toHaveAttribute(
+      "aria-hidden",
+      "true",
+    );
+  });
+
   it("prevents duplicate submission and moves to Today after Mock connection", async () => {
     render(<App initialEntries={["/onboarding/calendar"]} />);
 

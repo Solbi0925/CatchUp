@@ -1,5 +1,11 @@
 # CatchUp Google Calendar 연동 화면 디자인 명세
 
+## 최종 UX 보완 (2026-08-06)
+
+- 제목 아래 부제는 표시하지 않는다.
+- 제공된 파란색 Google Calendar 이미지는 연보라색 프레임 정중앙에 배치한다.
+- 연결 점선은 두 아이콘 프레임 사이의 빈 공간에만 표시하며 프레임이나 이미지 위로 겹치지 않는다.
+
 ## 1. 문서 목적
 
 이 문서는 브랜드 인트로 직후 나타나는 Google Calendar 연동 화면을 개발자가 목업 이미지 없이 구현할 수 있도록 정의한다. 기본 화면뿐 아니라 OAuth 연결 중, 연결 성공, 연결 실패, 연결 미루기, 재진입 상태와 접근성 요구사항까지 포함한다.
@@ -26,9 +32,6 @@
 
 ```text
 Google Calendar 연결
-
-개인 일정과 수업 시간을
-함께 반영해요
 ```
 
 ### 카드 혜택 목록
@@ -67,12 +70,11 @@ CalendarOnboardingPage
 └─ Content
    ├─ Header
    │  ├─ Title
-   │  └─ Subtitle
    └─ ConnectionCard
       ├─ Illustration
       │  ├─ GoogleCalendarLogo
       │  ├─ CalendarOutline
-      │  ├─ ConnectorCurve
+      │  ├─ ConnectorLine
       │  └─ LinkBadge
       ├─ BenefitList
       │  ├─ BenefitItem
@@ -89,7 +91,6 @@ CalendarOnboardingPage
 <main aria-labelledby="calendar-onboarding-title">
   <header>
     <h1 id="calendar-onboarding-title">Google Calendar 연결</h1>
-    <p>개인 일정과 수업 시간을<br />함께 반영해요</p>
   </header>
   <section aria-label="Google Calendar 연결 안내">
     <div aria-hidden="true"><!-- illustration asset --></div>
@@ -124,8 +125,7 @@ CalendarOnboardingPage
 | --- | --- |
 | 최대 너비 | `345px` |
 | 제목 상단 위치 | 약 `118px` |
-| 제목과 부제 사이 | `16px` |
-| 부제와 카드 사이 | `28px` |
+| 제목과 카드 사이 | `30px` |
 | 정렬 | 중앙 |
 
 헤더가 카드와 별도 영역으로 읽히되 큰 여백으로 분리되지 않게 한다.
@@ -462,10 +462,10 @@ OAuth 팝업을 사용하는 경우 팝업 차단이나 사용자의 창 닫기�
 
 ## 17. 개발 완료 조건
 
-- [ ] `393 × 852px`에서 제목, 부제, 카드가 목업과 같은 세로 흐름으로 배치된다.
-- [ ] 제목은 `Google Calendar 연결`, 부제는 정확히 2줄이다.
+- [ ] `393 × 852px`에서 제목과 카드가 안정적인 세로 흐름으로 배치된다.
+- [ ] 제목은 `Google Calendar 연결`이며 별도 부제를 표시하지 않는다.
 - [ ] 반투명 흰색 카드와 라벤더 배경이 명확히 구분된다.
-- [ ] 카드 상단에 Google Calendar 로고, 달력 윤곽, 연결 곡선, 링크 배지가 포함된다.
+- [ ] 카드 상단에 정중앙 배치된 Google Calendar 로고 프레임, CatchUp 프레임, 두 프레임 사이의 점선이 포함된다.
 - [ ] 혜택 3개와 해당 선형 아이콘이 정확한 순서로 표시된다.
 - [ ] CTA는 보라색 그라디언트, 큰 둥근 모서리, 흰색 텍스트를 사용한다.
 - [ ] `나중에 할게요`가 최소 터치 영역을 가진 실제 버튼으로 동작한다.

@@ -59,8 +59,17 @@ export function CalendarOnboardingPage() {
       </header>
       <section className="calendar-onboarding-card" aria-label="Google Calendar 연결 안내">
         <div className="calendar-illustration">
-          <img className="google-calendar-mark" src={googleCalendarIcon} alt="Google Calendar" />
-          <span className="calendar-link-line" />
+          <span
+            className="google-calendar-frame"
+            data-testid="google-calendar-icon-frame"
+          >
+            <img className="google-calendar-mark" src={googleCalendarIcon} alt="Google Calendar" />
+          </span>
+          <span
+            className="calendar-link-line"
+            data-testid="calendar-connector"
+            aria-hidden="true"
+          />
           <span className="catchup-calendar-mark" aria-hidden="true" />
         </div>
         <ul>
