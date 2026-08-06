@@ -1,5 +1,4 @@
 import { type FormEvent, useEffect, useState } from "react";
-import { Link } from "react-router-dom";
 import type { CalendarEvent } from "../../domain/types";
 import {
   CALENDAR_CATEGORY_COLORS,
@@ -16,7 +15,6 @@ interface Props {
   initialDraft: ScheduleDraft;
   categoryKind: "course" | "personal";
   categoryColor: CalendarCategoryColor;
-  readOnly: boolean;
   onSave: (draft: ScheduleDraft) => void;
   onColorChange: (color: CalendarCategoryColor) => void;
   onClose: () => void;
@@ -26,7 +24,6 @@ export function ScheduleEditorDialog({
   initialDraft,
   categoryKind,
   categoryColor,
-  readOnly,
   onSave,
   onColorChange,
   onClose,
@@ -53,9 +50,9 @@ export function ScheduleEditorDialog({
   };
 
   return (
-    <section className="schedule-editor" role="dialog" aria-label={readOnly ? "학업 일정 상세" : "일정 편집"}>
+    <section className="schedule-editor" role="dialog" aria-label="일정 편집">
       <header>
-        <h3>{readOnly ? "일정 상세" : "일정 편집"}</h3>
+        <h3>일정 편집</h3>
         <button type="button" onClick={onClose} aria-label="일정 편집 닫기">×</button>
       </header>
       <form onSubmit={submit}>
@@ -64,27 +61,24 @@ export function ScheduleEditorDialog({
           <input
             aria-label="제목"
             value={draft.title}
-            disabled={readOnly}
             onChange={(event) => setDraft({ ...draft, title: event.target.value })}
           />
         </label>
         <label>
           <span>날짜</span>
-          <input type="date" value={draft.date} disabled={readOnly} onChange={(event) => setDraft({ ...draft, date: event.target.value })} />
+          <input type="date" value={draft.date} onChange={(event) => setDraft({ ...draft, date: event.target.value })} />
         </label>
         <div className="schedule-editor__times">
-          <label><span>시작</span><input type="time" value={draft.startTime ?? ""} disabled={readOnly} onChange={(event) => setDraft({ ...draft, startTime: event.target.value })} /></label>
-          <label><span>종료</span><input type="time" value={draft.endTime ?? ""} disabled={readOnly} onChange={(event) => setDraft({ ...draft, endTime: event.target.value })} /></label>
+          <label><span>시작</span><input type="time" value={draft.startTime ?? ""} onChange={(event) => setDraft({ ...draft, startTime: event.target.value || null })} /></label>
+          <label><span>종료</span><input type="time" value={draft.endTime ?? ""} onChange={(event) => setDraft({ ...draft, endTime: event.target.value || null })} /></label>
         </div>
-        {!readOnly && (
-          <label>
-            <span>유형</span>
-            <select value={draft.eventType} onChange={(event) => setDraft({ ...draft, eventType: event.target.value as CalendarEvent["eventType"] })}>
-              <option value="personal">개인 일정</option>
-              <option value="class">수업 일정</option>
-            </select>
-          </label>
-        )}
+        <label>
+          <span>유형</span>
+          <select value={draft.eventType} onChange={(event) => setDraft({ ...draft, eventType: event.target.value as CalendarEvent["eventType"] })}>
+            <option value="personal">개인 일정</option>
+            <option value="class">수업 일정</option>
+          </select>
+        </label>
         <fieldset className="schedule-color-fieldset">
           <legend>색상</legend>
           <div>
@@ -98,11 +92,7 @@ export function ScheduleEditorDialog({
           <p>{categoryKind === "course" ? "같은 과목의 모든 일정에 적용돼요." : "모든 개인 일정에 적용돼요."}</p>
         </fieldset>
         {error && <p className="schedule-editor__error" role="alert">{error}</p>}
-        {readOnly ? (
-          <Link className="schedule-editor__primary" to="/upload">Upload에서 수정</Link>
-        ) : (
-          <button className="schedule-editor__primary" type="submit">저장</button>
-        )}
+        <button className="schedule-editor__primary" type="submit">저장</button>
       </form>
     </section>
   );

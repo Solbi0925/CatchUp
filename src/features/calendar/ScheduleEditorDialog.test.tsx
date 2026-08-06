@@ -23,7 +23,6 @@ describe("ScheduleEditorDialog", () => {
           initialDraft={draft}
           categoryKind="course"
           categoryColor="#C7B9FA"
-          readOnly={false}
           onSave={vi.fn()}
           onColorChange={vi.fn()}
           onClose={vi.fn()}
@@ -35,16 +34,16 @@ describe("ScheduleEditorDialog", () => {
     expect(screen.getByText("같은 과목의 모든 일정에 적용돼요.")).toBeInTheDocument();
   });
 
-  it("validates editable schedules and keeps upload details read-only", async () => {
+  it("validates schedules and lets Upload-derived schedules save in place", async () => {
     const user = userEvent.setup();
-    const { rerender } = render(
+    const onSave = vi.fn();
+    render(
       <MemoryRouter>
         <ScheduleEditorDialog
           initialDraft={draft}
           categoryKind="personal"
           categoryColor="#D9F0FF"
-          readOnly={false}
-          onSave={vi.fn()}
+          onSave={onSave}
           onColorChange={vi.fn()}
           onClose={vi.fn()}
         />
@@ -53,21 +52,9 @@ describe("ScheduleEditorDialog", () => {
     await user.clear(screen.getByRole("textbox", { name: "제목" }));
     await user.click(screen.getByRole("button", { name: "저장" }));
     expect(screen.getByRole("alert")).toHaveTextContent("일정 제목");
-
-    rerender(
-      <MemoryRouter>
-        <ScheduleEditorDialog
-          initialDraft={draft}
-          categoryKind="course"
-          categoryColor="#C7B9FA"
-          readOnly
-          onSave={vi.fn()}
-          onColorChange={vi.fn()}
-          onClose={vi.fn()}
-        />
-      </MemoryRouter>,
-    );
-    expect(screen.getByRole("textbox", { name: "제목" })).toBeDisabled();
-    expect(screen.getByRole("link", { name: "Upload에서 수정" })).toHaveAttribute("href", "/upload");
+    await user.type(screen.getByRole("textbox", { name: "제목" }), "수정된 일정");
+    await user.click(screen.getByRole("button", { name: "저장" }));
+    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ title: "수정된 일정" }));
+    expect(screen.queryByText("Upload에서 수정")).not.toBeInTheDocument();
   });
 });

@@ -110,6 +110,30 @@ describe("prototypeReducer", () => {
     expect(saved.documentsById["doc-1"].extractionStatus).toBe("complete");
   });
 
+  it("updates editable fields on one extracted schedule", () => {
+    const state = prototypeReducer(createInitialPrototypeState(), {
+      type: "extraction/applied",
+      payload: extraction,
+    });
+    const updated = prototypeReducer(state, {
+      type: "extraction/itemUpdated",
+      payload: {
+        id: "item-1",
+        title: "수정된 일정",
+        date: "2026-07-24",
+        time: "14:00",
+      },
+    });
+
+    expect(updated.extractedItemsById["item-1"]).toMatchObject({
+      title: "수정된 일정",
+      date: "2026-07-24",
+      time: "14:00",
+      documentId: "doc-1",
+      itemType: "assignment",
+    });
+  });
+
   it("creates, updates, and deletes a CatchUp event", () => {
     const created = prototypeReducer(createInitialPrototypeState(), {
       type: "calendar/eventCreated",

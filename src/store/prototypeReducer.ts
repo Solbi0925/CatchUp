@@ -22,6 +22,7 @@ type EditableCalendarEventFields = Pick<
   CalendarEvent,
   "title" | "date" | "startTime" | "endTime" | "isAllDay" | "eventType"
 >;
+type EditableExtractedItemFields = Pick<ExtractedItem, "title" | "date" | "time">;
 type ImmutableCalendarEventFields = {
   [Field in keyof Pick<CalendarEvent, "userId" | "source" | "updatedAt">]?: never;
 };
@@ -86,6 +87,10 @@ export type PrototypeAction =
     }
   | { type: "todo/completionSet"; payload: { todoId: TodoId; isCompleted: boolean } }
   | { type: "extraction/applied"; payload: ExtractionResult }
+  | {
+      type: "extraction/itemUpdated";
+      payload: { id: ExtractedItemId } & EditableExtractedItemFields;
+    }
   | {
       type: "extraction/confirmed";
       payload: { documentId: DocumentId; items: ExtractedItem[] };
@@ -249,6 +254,18 @@ export function prototypeReducer(
         appliedOperations: {
           ...state.appliedOperations,
           [operationId]: "extraction",
+        },
+      };
+    }
+    case "extraction/itemUpdated": {
+      const item = state.extractedItemsById[action.payload.id];
+      if (!item) return state;
+      const { id, ...editableFields } = action.payload;
+      return {
+        ...state,
+        extractedItemsById: {
+          ...state.extractedItemsById,
+          [id]: { ...item, ...editableFields, isUserEdited: true },
         },
       };
     }
