@@ -66,6 +66,8 @@ describe("Upload and AI Mate integrated prototype", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "AI Mate 열기" }));
     expect(screen.getByRole("dialog", { name: "AI Mate" })).toBeInTheDocument();
+    expect(screen.getByText("안녕하세요! 여러분의 AI Mate 캐치예요.")).toBeInTheDocument();
+    expect(screen.getByText(/개인 요구사항도 함께 알려주세요/)).toBeInTheDocument();
     expect(screen.getByText("조정 잔여 10회")).toBeInTheDocument();
 
     const composer = screen.getByPlaceholderText("메시지를 입력하세요...");
@@ -76,11 +78,12 @@ describe("Upload and AI Mate integrated prototype", () => {
     expect(screen.getByText("답변을 준비하고 있어요")).toBeInTheDocument();
     expect(
       await screen.findByText(
-        /업로드 자료와 캘린더를 반영해\s*이번 주 계획을 생성했어요./,
+        /업로드 자료와 캘린더를 반영해\s*이번 주 계획을 만들었어요./,
         {},
         { timeout: 2_000 },
       ),
     ).toBeInTheDocument();
+    expect(screen.getByText(/바꾸거나 추가하고 싶은 할 일/)).toBeInTheDocument();
 
     fireEvent.change(composer, { target: { value: "월요일 할 일을 줄여줘" } });
     fireEvent.click(screen.getByRole("button", { name: "메시지 보내기" }));

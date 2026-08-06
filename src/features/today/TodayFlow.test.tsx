@@ -12,9 +12,7 @@ describe("Today screen", () => {
   it("shows the Calendar connection empty state from the shared store", () => {
     render(<App initialEntries={["/today"]} />);
 
-    expect(
-      screen.getByRole("heading", { name: "오늘도 따라잡아볼까요? 👋" }),
-    ).toBeInTheDocument();
+    expect(screen.queryByText("오늘도 따라잡아볼까요? 👋")).not.toBeInTheDocument();
     expect(
       screen.getByText("개인 일정을 불러오려면 Google Calendar 연결이 필요해요."),
     ).toBeInTheDocument();
@@ -43,7 +41,7 @@ describe("Today screen", () => {
     );
   });
 
-  it("opens AI Mate with a plan-generation draft after an upload is confirmed", async () => {
+  it("shows the simplified plan and lets AI Mate handle plan changes", async () => {
     sessionStorage.setItem(
       "catchup:prototype:onboarding:v1",
       JSON.stringify({
@@ -68,15 +66,13 @@ describe("Today screen", () => {
     fireEvent.click(await screen.findByRole("link", { name: "Today" }));
 
     expect(screen.getByText("아직 이번 주 할 일이 없어요.")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "AI Mate에서 계획 생성" }));
+    fireEvent.click(screen.getByRole("button", { name: "AI Mate 열기" }));
 
     expect(screen.getByRole("dialog", { name: "AI Mate" })).toBeInTheDocument();
-    expect(screen.getByPlaceholderText("메시지를 입력하세요...")).toHaveValue(
-      "이번 주 계획을 생성해줘",
-    );
+    fireEvent.change(screen.getByPlaceholderText("메시지를 입력하세요..."), { target: { value: "이번 주 계획을 생성해줘" } });
     fireEvent.click(screen.getByRole("button", { name: "메시지 보내기" }));
     await screen.findByText(
-      /업로드 자료와 캘린더를 반영해\s*이번 주 계획을 생성했어요./,
+      /업로드 자료와 캘린더를 반영해\s*이번 주 계획을 만들었어요./,
       {},
       { timeout: 2_000 },
     );
@@ -84,13 +80,14 @@ describe("Today screen", () => {
 
     expect(screen.getByRole("heading", { name: "오늘의 할 일" })).toBeInTheDocument();
     expect(screen.getByText(/ERD 실습 준비/)).toBeInTheDocument();
+    expect(screen.queryByText(/우선순위/)).not.toBeInTheDocument();
+    expect(screen.queryByText("추천 이유 보기")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "일정 추가" })).toBeInTheDocument();
     expect(screen.getByText("팀 프로젝트 회의")).toBeInTheDocument();
 
     const completionCheckbox = screen.getAllByRole("checkbox")[0];
     fireEvent.click(completionCheckbox);
     expect(completionCheckbox).toBeChecked();
-    expect(screen.getByText(/조정 잔여 10회/)).toBeInTheDocument();
-
     fireEvent.click(screen.getByRole("button", { name: "AI Mate 열기" }));
     const adjustmentComposer = screen.getByPlaceholderText("메시지를 입력하세요...");
     fireEvent.change(adjustmentComposer, { target: { value: "월요일 할 일을 줄여줘" } });
@@ -102,7 +99,6 @@ describe("Today screen", () => {
     );
     fireEvent.click(screen.getByRole("button", { name: "AI Mate 닫기" }));
 
-    expect(screen.getByText(/조정 잔여 9회/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "7월 21일 화요일" }));
     expect(screen.getByText(/정규화 개념 퀴즈/)).toBeInTheDocument();
   });

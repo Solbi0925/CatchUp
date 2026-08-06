@@ -106,6 +106,7 @@ export function MonthPage() {
           setSelectedDate(demoTodayDate);
         }}
         onSelectDate={openDate}
+        categoryColorByKey={state.categoryColorByKey}
       />
       {sheetOpen && (
         <MonthScheduleDialog
@@ -116,6 +117,10 @@ export function MonthPage() {
           onSave={saveEvent}
           onDelete={(eventId) =>
             dispatch({ type: "calendar/eventDeleted", payload: { id: eventId } })
+          }
+          categoryColorByKey={state.categoryColorByKey}
+          onColorChange={(categoryKey, color) =>
+            dispatch({ type: "calendar/categoryColorSet", payload: { categoryKey, color } })
           }
         />
       )}

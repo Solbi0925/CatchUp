@@ -1,8 +1,6 @@
 import type { MonthGridCell } from "./monthModel";
-import {
-  getMonthDotCount,
-  type MonthScheduleItem,
-} from "./monthSelectors";
+import type { MonthScheduleItem } from "./monthSelectors";
+import { resolveCategoryColor, type CalendarCategoryColor } from "../calendar/calendarColors";
 import { CalendarIcon, ChevronRightIcon } from "../../ui/icons";
 import "./month.css";
 
@@ -55,6 +53,7 @@ export interface MonthCalendarProps {
   onNextMonth: () => void;
   onToday: () => void;
   onSelectDate: (date: string) => void;
+  categoryColorByKey: Readonly<Record<string, CalendarCategoryColor>>;
 }
 
 export function MonthCalendar({
@@ -67,6 +66,7 @@ export function MonthCalendar({
   onNextMonth,
   onToday,
   onSelectDate,
+  categoryColorByKey,
 }: MonthCalendarProps) {
   const weekCount = gridCells.length / 7;
 
@@ -119,7 +119,7 @@ export function MonthCalendar({
                   const isSelected = cell.date === selectedDate;
                   const isToday = cell.date === todayDate;
                   const scheduleCount = schedulesByDate.get(cell.date)?.length ?? 0;
-                  const dotCount = getMonthDotCount(scheduleCount);
+                  const schedules = schedulesByDate.get(cell.date) ?? [];
                   const className = [
                     "month-date",
                     !cell.isCurrentMonth && "is-adjacent",
@@ -146,13 +146,19 @@ export function MonthCalendar({
                       <span className="month-date__number">
                         {Number(cell.date.slice(-2))}
                       </span>
-                      {dotCount > 0 && (
-                        <span className="month-date__dots" aria-hidden="true">
-                          {Array.from({ length: dotCount }, (_, index) => (
-                            <span data-calendar-dot="" key={index} />
-                          ))}
-                        </span>
-                      )}
+                      <span className="month-date__events" aria-hidden="true">
+                        {schedules.slice(0, 2).map((schedule) => (
+                          <span
+                            className="month-date__event-chip"
+                            data-category-key={schedule.categoryKey}
+                            style={{ backgroundColor: resolveCategoryColor(schedule.categoryKey, categoryColorByKey) }}
+                            key={schedule.id}
+                          >
+                            {schedule.title}
+                          </span>
+                        ))}
+                        {schedules.length > 2 && <span className="month-date__more">+{schedules.length - 2}</span>}
+                      </span>
                     </button>
                   );
                 })}

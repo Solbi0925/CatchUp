@@ -31,6 +31,10 @@ import { classifyAiMateIntent } from "./classifyAiMateIntent";
 
 const DAILY_ADJUSTMENT_LIMIT = 10;
 const DEMO_USAGE_DATE = demoTodayDate;
+const INITIAL_MESSAGES: AiMateMessage[] = [
+  { id: "catch-introduction", role: "assistant", text: "안녕하세요! 여러분의 AI Mate 캐치예요.", createdAt: demoInteractionClock.now().toISOString(), status: "sent" },
+  { id: "catch-plan-guidance", role: "assistant", text: "이번 주 계획을 요청할 때 원하는 공부 방식이나 개인 요구사항도 함께 알려주세요. 계획에 반영해드릴게요.", createdAt: demoInteractionClock.now().toISOString(), status: "sent" },
+];
 
 interface FailedRequest {
   operationId: OperationId;
@@ -111,7 +115,7 @@ function prerequisiteMessage(
 export function AiMateProvider({ children }: { children: ReactNode }) {
   const { state, dispatch } = usePrototypeStore();
   const [isOpen, setOpen] = useState(false);
-  const [messages, setMessages] = useState<AiMateMessage[]>([]);
+  const [messages, setMessages] = useState<AiMateMessage[]>(() => INITIAL_MESSAGES.map((message) => ({ ...message })));
   const [draft, setDraft] = useState("");
   const [isResponding, setResponding] = useState(false);
   const [failedRequest, setFailedRequest] = useState<FailedRequest | null>(null);

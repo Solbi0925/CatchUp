@@ -12,6 +12,7 @@ import type {
   TodayViewModel,
   WeekDayViewModel,
 } from "./todayTypes";
+import { getCourseCategoryKey, PERSONAL_CATEGORY_KEY } from "../calendar/calendarColors";
 
 const weekdayLabels = ["월", "화", "수", "목", "금", "토", "일"] as const;
 
@@ -56,6 +57,7 @@ export function selectTodayViewModel(
           event.source === "google-calendar"
             ? ("Google Calendar" as const)
             : ("CatchUp 직접 입력" as const),
+        categoryKey: event.eventType === "personal" ? PERSONAL_CATEGORY_KEY : getCourseCategoryKey(event.title),
       })),
     ...confirmedItems
       .filter((item) => item.date === date)
@@ -65,6 +67,7 @@ export function selectTodayViewModel(
         timeLabel: item.time ?? "종일",
         type: academicScheduleType(item),
         sourceLabel: "업로드 자료" as const,
+        categoryKey: getCourseCategoryKey(item.courseName),
       })),
   ].sort((left, right) => left.timeLabel.localeCompare(right.timeLabel, "ko"));
 

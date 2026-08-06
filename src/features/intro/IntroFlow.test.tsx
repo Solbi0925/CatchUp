@@ -47,9 +47,7 @@ describe("Intro flow", () => {
 
     render(<App initialEntries={["/"]} />);
 
-    expect(
-      screen.getByRole("heading", { name: "오늘도 따라잡아볼까요? 👋" }),
-    ).toBeInTheDocument();
+    expect(screen.getByLabelText("이번 주 날짜 선택")).toBeInTheDocument();
   });
 
   it("clears the onboarding session when resetDemo is requested", () => {

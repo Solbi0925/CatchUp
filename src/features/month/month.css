@@ -73,14 +73,15 @@
 }
 
 .month-week:last-child { border-bottom: 0; }
-.month-week__dates { height: 52px; }
+.month-week__dates { height: 100%; }
 
 .month-date {
   display: flex;
   min-width: 0;
-  height: 50px;
-  padding: 0;
-  align-items: center;
+  min-height: 78px;
+  height: 100%;
+  padding: 0 2px;
+  align-items: stretch;
   flex-direction: column;
   border: 0;
   background: transparent;
@@ -95,6 +96,7 @@
   border-radius: 50%;
   font-size: 16px;
 }
+.month-date__number { align-self: center; flex: 0 0 38px; }
 
 .month-date.is-adjacent { color: #aaa9af; }
 .month-date.is-selected .month-date__number {
@@ -108,18 +110,10 @@
   outline-offset: -2px;
 }
 
-.month-date__dots {
-  display: flex;
-  gap: 2px;
-  margin-top: 3px;
-}
-
-.month-date__dots span {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: #957bf6;
-}
+.month-date__events { display: grid; min-width: 0; gap: 2px; }
+.month-date__event-chip { display: block; min-width: 0; padding: 3px 4px; overflow: hidden; border-radius: 4px; color: #292333; font-size: 9px; line-height: 12px; text-align: left; text-overflow: ellipsis; white-space: nowrap; }
+.month-date__more { color: #77717e; font-size: 9px; line-height: 11px; text-align: left; }
+.month-date.is-adjacent .month-date__events { opacity: .48; }
 
 .month-sheet-dialog {
   width: min(100%, 430px);
@@ -197,8 +191,7 @@
 }
 
 .month-schedule-list li {
-  display: grid;
-  grid-template-columns: 28px 1fr auto;
+  display: flex;
   min-height: 72px;
   padding: 12px 12px;
   align-items: center;
@@ -206,7 +199,7 @@
 }
 
 .month-schedule-list li:last-child { border-bottom: 0; }
-.month-schedule-list__flag { color: var(--color-purple); font-size: 22px; }
+.month-schedule-list__flag { display: block; width: 12px; height: 42px; border-radius: 6px; }
 .month-schedule-list strong,
 .month-schedule-list span { display: block; }
 .month-schedule-list strong { font-size: 15px; }
@@ -216,18 +209,10 @@
   font-size: 13px;
 }
 
-.month-schedule-list__actions { display: flex; }
-.month-schedule-list__actions button {
-  width: 40px;
-  height: 40px;
-  border: 0;
-  border-radius: 10px;
-  background: transparent;
-  color: #667080;
-  font-size: 20px;
-}
-
-.month-schedule-list__actions button:hover { background: var(--color-purple-pale); }
+.month-schedule-row { display: grid; grid-template-columns: 20px 1fr; width: 100%; padding: 0; align-items: center; gap: 10px; border: 0; background: transparent; text-align: left; }
+.month-schedule-row small { display: block; margin-top: 4px; color: var(--color-muted); }
+.month-schedule-delete { width: 40px; height: 40px; border: 0; background: transparent; color: #77717e; font-size: 22px; }
+.month-add-schedule { width: 100%; min-height: 52px; border: 0; border-radius: 13px; background: #8c6ef6; color: white; font-weight: 800; }
 
 .month-schedule-form {
   display: grid;

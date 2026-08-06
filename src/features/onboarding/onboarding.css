@@ -62,14 +62,7 @@
 
 .google-calendar-mark {
   left: 18px;
-  border: 9px solid #4285f4;
-  background:
-    linear-gradient(135deg, #ea4335 0 34%, transparent 34%),
-    linear-gradient(225deg, #fbbc04 0 34%, transparent 34%),
-    #fff;
-  color: #1a73e8;
-  font-size: 24px;
-  font-weight: 800;
+  object-fit: cover;
 }
 
 .catchup-calendar-mark {

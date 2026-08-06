@@ -1,8 +1,10 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { usePrototypeStore } from "../../store/PrototypeStore";
-import { useAiMate } from "../ai-mate/AiMateProvider";
 import { AiMateCharacter } from "../ai-mate/components/AiMateCharacter";
+import { ScheduleEditorDialog, type ScheduleDraft } from "../calendar/ScheduleEditorDialog";
+import { PERSONAL_CATEGORY_KEY, resolveCategoryColor } from "../calendar/calendarColors";
+import type { CalendarEvent } from "../../domain/types";
 import { selectTodayViewModel } from "./todaySelectors";
 import { demoTodayDate } from "../../application/clock";
 import "./today.css";
@@ -35,21 +37,28 @@ function formatDueDate(isoDate: string) {
 
 export function TodayPage() {
   const { state, dispatch } = usePrototypeStore();
-  const { openWithDraft } = useAiMate();
   const [selectedDate, setSelectedDate] = useState(demoTodayDate);
+  const [editingScheduleId, setEditingScheduleId] = useState<string>();
+  const [addingSchedule, setAddingSchedule] = useState(false);
+  const [eventOverrides, setEventOverrides] = useState<Record<string, CalendarEvent>>({});
   const hasDocuments = Object.keys(state.documentsById).length > 0;
   const hasPlan = Object.keys(state.weeklyPlansById).length > 0;
   const viewModel = useMemo(
-    () => selectTodayViewModel(state, selectedDate),
-    [selectedDate, state],
+    () => selectTodayViewModel({ ...state, calendarEventsById: { ...state.calendarEventsById, ...eventOverrides } }, selectedDate),
+    [eventOverrides, selectedDate, state],
   );
+  const editingSchedule = viewModel.schedules.find((item) => item.id === editingScheduleId);
+  const editingEvent = editingSchedule ? ({ ...state.calendarEventsById, ...eventOverrides })[editingSchedule.id] : undefined;
+  const editingItem = editingSchedule ? state.extractedItemsById[editingSchedule.id] : undefined;
+  const editorDraft: ScheduleDraft = editingEvent ? {
+    title: editingEvent.title, date: editingEvent.date, startTime: editingEvent.startTime, endTime: editingEvent.endTime, isAllDay: editingEvent.isAllDay, eventType: editingEvent.eventType,
+  } : editingItem ? {
+    title: editingItem.title, date: editingItem.date, startTime: editingItem.time, endTime: null, isAllDay: !editingItem.time, eventType: "class",
+  } : { title: "", date: selectedDate, startTime: "09:00", endTime: "10:00", isAllDay: false, eventType: "personal" };
+  const editorCategoryKey = editingSchedule?.categoryKey ?? PERSONAL_CATEGORY_KEY;
 
   return (
     <section className="today-page">
-      <header className="today-header">
-        <h1>오늘도 따라잡아볼까요? 👋</h1>
-      </header>
-
       <div className="today-week" aria-label="이번 주 날짜 선택">
         {viewModel.days.map((day) => (
           <button
@@ -101,17 +110,10 @@ export function TodayPage() {
           <section className="today-section">
             <div className="today-section-heading">
               <h2>오늘의 할 일</h2>
-              <span>0개</span>
             </div>
             <div className="today-zero-state">
               <strong>아직 이번 주 할 일이 없어요.</strong>
               <p>AI Mate에서 이번 주 계획을 생성해보세요.</p>
-              <button
-                type="button"
-                onClick={() => openWithDraft("이번 주 계획을 생성해줘")}
-              >
-                AI Mate에서 계획 생성
-              </button>
             </div>
           </section>
         </>
@@ -122,10 +124,7 @@ export function TodayPage() {
             <div>
               <span>AI Mate</span>
               <h2>4주 일정을 고려해 중요한 일부터 정리했어요.</h2>
-              <p>
-                오늘 집중하면 목표 달성이 더 쉬워요. 💪 · 조정 잔여{" "}
-                {viewModel.adjustmentRemaining}회
-              </p>
+              <p>우리 오늘도 같이 하나씩 따라잡아봐요!</p>
             </div>
             <AiMateCharacter size={72} />
           </article>
@@ -138,15 +137,7 @@ export function TodayPage() {
                     ? "오늘의 할 일"
                     : `${formatSelectedDate(selectedDate)} 할 일`}
                 </h2>
-                <span>{viewModel.todos.length}개</span>
               </div>
-              <button
-                type="button"
-                className="today-add-button"
-                onClick={() => openWithDraft(`${selectedDate} 할 일을 추가하고 싶어`)}
-              >
-                추가
-              </button>
             </div>
             {viewModel.todos.length === 0 ? (
               <div className="today-zero-state">
@@ -172,26 +163,10 @@ export function TodayPage() {
                       <span className="today-course">{todo.courseOrSource}</span>
                       <h3>{todo.title}</h3>
                       <div className="today-todo-meta">
-                        <span>
-                          ⚑ 우선순위{" "}
-                          {todo.priority === "high" ? "높음" : todo.priority === "medium" ? "보통" : "낮음"}
-                        </span>
+                        <span>{todo.estimatedMinutes < 60 ? `${todo.estimatedMinutes}M` : `${Number((todo.estimatedMinutes / 60).toFixed(1))}H`}</span>
                         {todo.dueAt && <span>▣ {formatDueDate(todo.dueAt)} 마감</span>}
                       </div>
-                      <details>
-                        <summary>추천 이유 보기</summary>
-                        <p>
-                          예상 {todo.estimatedMinutes}분 · {todo.recommendationSummary}
-                        </p>
-                      </details>
                     </div>
-                    <button
-                      type="button"
-                      aria-label={`${todo.title} AI Mate로 수정`}
-                      onClick={() => openWithDraft(`${todo.title} 계획을 조정해줘`)}
-                    >
-                      ✎
-                    </button>
                   </article>
                 ))}
               </div>
@@ -206,8 +181,8 @@ export function TodayPage() {
                     ? "오늘의 예정 일정"
                     : `${formatSelectedDate(selectedDate)} 예정 일정`}
                 </h2>
-                <span>{viewModel.schedules.length}개</span>
               </div>
+              <button type="button" className="today-add-button" onClick={() => setAddingSchedule(true)}>일정 추가</button>
             </div>
             {viewModel.schedules.length === 0 ? (
               <div className="today-zero-state">
@@ -216,7 +191,7 @@ export function TodayPage() {
             ) : (
               <div className="today-card-list">
                 {viewModel.schedules.map((schedule) => (
-                  <article className="today-schedule-card" key={schedule.id}>
+                  <button type="button" className="today-schedule-card" key={schedule.id} onClick={() => setEditingScheduleId(schedule.id)} aria-label={`${schedule.title} 일정 수정`}>
                     <time>{schedule.timeLabel}</time>
                     <div>
                       <h3>{schedule.title}</h3>
@@ -224,13 +199,29 @@ export function TodayPage() {
                         {scheduleTypeLabels[schedule.type]} · {schedule.sourceLabel}
                       </p>
                     </div>
-                  </article>
+                  </button>
                 ))}
               </div>
             )}
           </section>
         </>
       )}
+      {(editingSchedule || addingSchedule) && <div className="today-editor-backdrop">
+        <ScheduleEditorDialog
+          initialDraft={editorDraft}
+          categoryKind={editorCategoryKey === PERSONAL_CATEGORY_KEY ? "personal" : "course"}
+          categoryColor={resolveCategoryColor(editorCategoryKey, state.categoryColorByKey)}
+          readOnly={Boolean(editingItem)}
+          onColorChange={(color) => dispatch({ type: "calendar/categoryColorSet", payload: { categoryKey: editorCategoryKey, color } })}
+          onClose={() => { setEditingScheduleId(undefined); setAddingSchedule(false); }}
+          onSave={(draft) => {
+            if (editingEvent?.source === "google-calendar") setEventOverrides((current) => ({ ...current, [editingEvent.id]: { ...editingEvent, ...draft } }));
+            else if (editingEvent) dispatch({ type: "calendar/eventUpdated", payload: { id: editingEvent.id, ...draft } });
+            else dispatch({ type: "calendar/eventCreated", payload: { id: `catchup-${Date.now()}`, ...draft } });
+            setEditingScheduleId(undefined); setAddingSchedule(false);
+          }}
+        />
+      </div>}
     </section>
   );
 }

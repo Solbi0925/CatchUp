@@ -136,7 +136,7 @@ export function generateMockWeeklyPlan(command: GeneratePlanCommand): GeneratePl
     assistantMessage: {
       id: `assistant-${command.operationId}`,
       role: "assistant",
-      text: "업로드 자료와 캘린더를 반영해\n이번 주 계획을 생성했어요.",
+      text: "업로드 자료와 캘린더를 반영해\n이번 주 계획을 만들었어요. 요청한 공부 방식도 함께 반영했어요.\n바꾸거나 추가하고 싶은 할 일이 있으면 말씀해주세요. 각 할 일을 추천한 이유도 물어볼 수 있어요.",
       createdAt: command.requestedAt,
       status: "sent",
       intent: "generate-plan",

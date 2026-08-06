@@ -5,18 +5,6 @@
   color: #111014;
 }
 
-.today-header {
-  margin-bottom: 24px;
-}
-
-.today-header h1 {
-  margin: 0;
-  font-size: 24px;
-  font-weight: 850;
-  letter-spacing: -0.04em;
-  line-height: 1.35;
-}
-
 .today-week {
   display: grid;
   margin: 0 0 24px;
@@ -57,8 +45,8 @@
 }
 
 .today-week button.selected strong {
-  border-color: #151419;
-  background: #151419;
+  border-color: #8c6ef6;
+  background: #8c6ef6;
   color: white;
 }
 
@@ -253,7 +241,7 @@
 .today-todo-card {
   display: grid;
   padding: 18px 15px;
-  grid-template-columns: 26px minmax(0, 1fr) 38px;
+  grid-template-columns: 26px minmax(0, 1fr);
   gap: 12px;
   border: 1px solid #ebe8f1;
   border-radius: 14px;
@@ -343,6 +331,9 @@
   border: 1px solid #ebe8f1;
   border-radius: 18px;
   background: white;
+  width: 100%;
+  color: inherit;
+  text-align: left;
 }
 
 .today-schedule-card time {
@@ -350,3 +341,4 @@
   font-size: 13px;
   font-weight: 750;
 }
+.today-editor-backdrop { position: fixed; z-index: 50; inset: 0; display: grid; width: min(100%, 430px); margin: 0 auto; padding: 24px 20px calc(90px + env(safe-area-inset-bottom)); align-items: end; background: rgba(22,20,29,.36); }

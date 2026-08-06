@@ -1,4 +1,5 @@
 import type { CalendarEvent, ExtractedItem } from "../../domain/types";
+import { getCourseCategoryKey, PERSONAL_CATEGORY_KEY } from "../calendar/calendarColors";
 
 export interface MonthScheduleItem {
   id: string;
@@ -8,6 +9,9 @@ export interface MonthScheduleItem {
   startTime: string | null;
   endTime: string | null;
   source: "upload" | "google" | "catchup";
+  categoryKey: string;
+  courseName?: string;
+  eventType: CalendarEvent["eventType"];
 }
 
 export function buildMonthSchedules(
@@ -24,6 +28,9 @@ export function buildMonthSchedules(
         startTime: item.time,
         endTime: null,
         source: "upload" as const,
+        categoryKey: getCourseCategoryKey(item.courseName),
+        courseName: item.courseName,
+        eventType: "class" as const,
       })),
     ...calendarEvents.map((event) => ({
       id: `calendar-${event.id}`,
@@ -33,6 +40,8 @@ export function buildMonthSchedules(
       startTime: event.startTime,
       endTime: event.endTime,
       source: event.source === "catchup" ? ("catchup" as const) : ("google" as const),
+      categoryKey: event.eventType === "personal" ? PERSONAL_CATEGORY_KEY : getCourseCategoryKey(event.title),
+      eventType: event.eventType,
     })),
   ];
 
@@ -49,8 +58,4 @@ export function groupSchedulesByDate(items: readonly MonthScheduleItem[]) {
     grouped.set(item.date, [...(grouped.get(item.date) ?? []), item]);
   }
   return grouped;
-}
-
-export function getMonthDotCount(itemCount: number) {
-  return Math.min(itemCount, 3);
 }

@@ -6,6 +6,7 @@ import {
   type CalendarMockScenario,
 } from "./mockCalendarConnector";
 import "./onboarding.css";
+import googleCalendarIcon from "../../assets/google-calendar-blue.png";
 
 export function CalendarOnboardingPage() {
   const navigate = useNavigate();
@@ -55,17 +56,12 @@ export function CalendarOnboardingPage() {
     <main className="calendar-onboarding" aria-labelledby="calendar-onboarding-title">
       <header>
         <h1 id="calendar-onboarding-title">Google Calendar 연결</h1>
-        <p>
-          개인 일정과 수업 시간을
-          <br />
-          함께 반영해요
-        </p>
       </header>
       <section className="calendar-onboarding-card" aria-label="Google Calendar 연결 안내">
-        <div className="calendar-illustration" aria-hidden="true">
-          <span className="google-calendar-mark">31</span>
+        <div className="calendar-illustration">
+          <img className="google-calendar-mark" src={googleCalendarIcon} alt="Google Calendar" />
           <span className="calendar-link-line" />
-          <span className="catchup-calendar-mark" />
+          <span className="catchup-calendar-mark" aria-hidden="true" />
         </div>
         <ul>
           <li>개인 일정과 수업 시간을 같은 계획에 반영</li>

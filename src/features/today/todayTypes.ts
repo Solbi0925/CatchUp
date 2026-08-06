@@ -25,6 +25,7 @@ export interface TodayScheduleViewModel {
   timeLabel: string;
   type: "deadline" | "submission" | "exam" | "notice" | "personal";
   sourceLabel: "업로드 자료" | "Google Calendar" | "CatchUp 직접 입력";
+  categoryKey: string;
 }
 
 export interface TodayViewModel {

@@ -185,15 +185,6 @@ export function AiMateLayer({ showCoachmark }: { showCoachmark: boolean }) {
               aria-live="polite"
               aria-relevant="additions text"
             >
-              {messages.length === 0 && (
-                <div className="ai-empty">
-                  <AiMateCharacter size={44} />
-                  <p>
-                    무엇을 같이 정리해볼까요? 이번 주 계획 생성이나 계획 조정을 요청할 수
-                    있어요.
-                  </p>
-                </div>
-              )}
               {messages.map((message) => (
                 <MessageBubble
                   key={message.id}
