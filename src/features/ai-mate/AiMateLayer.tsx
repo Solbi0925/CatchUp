@@ -4,13 +4,6 @@ import type { AiMateMessage } from "../../domain/types";
 import { useAiMate } from "./AiMateProvider";
 import { AiMateCharacter } from "./components/AiMateCharacter";
 
-function formatTime(isoDate: string) {
-  return new Intl.DateTimeFormat("ko-KR", {
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(new Date(isoDate));
-}
-
 function SparkleIcon() {
   return (
     <svg viewBox="0 0 32 32" aria-hidden="true">
@@ -42,7 +35,6 @@ function MessageBubble({
       <article className="ai-message ai-message--user" aria-label="내 메시지">
         <div className="ai-bubble ai-bubble--user">
           <p>{message.text}</p>
-          <time dateTime={message.createdAt}>{formatTime(message.createdAt)}</time>
         </div>
       </article>
     );
@@ -52,7 +44,6 @@ function MessageBubble({
       <AiMateCharacter size={40} />
       <div className="ai-bubble ai-bubble--assistant">
         <p>{message.text}</p>
-        <time dateTime={message.createdAt}>{formatTime(message.createdAt)}</time>
         {message.actions?.map((action) =>
           action.href ? (
             <Link
@@ -86,6 +77,8 @@ export function AiMateLayer({ showCoachmark }: { showCoachmark: boolean }) {
     messages,
     draft,
     setDraft,
+    promptChips,
+    selectPromptChip,
     isResponding,
     adjustmentRemaining,
     sendMessage,
@@ -210,6 +203,19 @@ export function AiMateLayer({ showCoachmark }: { showCoachmark: boolean }) {
                 </article>
               )}
             </div>
+            {promptChips.length > 0 && (
+              <div className="ai-prompt-chips" aria-label="추천 프롬프트">
+                {promptChips.map((chip) => (
+                  <button
+                    key={`${chip.label}-${chip.draft}`}
+                    type="button"
+                    onClick={() => selectPromptChip(chip)}
+                  >
+                    {chip.label}
+                  </button>
+                ))}
+              </div>
+            )}
             <form
               className="ai-composer"
               onSubmit={(event) => {

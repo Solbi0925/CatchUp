@@ -36,6 +36,11 @@ const INITIAL_MESSAGES: AiMateMessage[] = [
   { id: "catch-plan-guidance", role: "assistant", text: "이번 주 계획을 요청할 때 원하는 공부 방식이나 개인 요구사항도 함께 알려주세요. 계획에 반영해드릴게요.", createdAt: demoInteractionClock.now().toISOString(), status: "sent" },
 ];
 
+export interface AiMatePromptChip {
+  label: string;
+  draft: string;
+}
+
 interface FailedRequest {
   operationId: OperationId;
   text: string;
@@ -44,10 +49,12 @@ interface FailedRequest {
 interface AiMateContextValue {
   isOpen: boolean;
   setOpen: (open: boolean) => void;
-  openWithDraft: (draft: string) => void;
+  openWithDraft: (draft: string, chips?: AiMatePromptChip[]) => void;
   messages: AiMateMessage[];
   draft: string;
   setDraft: (draft: string) => void;
+  promptChips: AiMatePromptChip[];
+  selectPromptChip: (chip: AiMatePromptChip) => void;
   isResponding: boolean;
   adjustmentRemaining: number;
   sendMessage: (event?: FormEvent) => void;
@@ -114,9 +121,10 @@ function prerequisiteMessage(
 
 export function AiMateProvider({ children }: { children: ReactNode }) {
   const { state, dispatch } = usePrototypeStore();
-  const [isOpen, setOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<AiMateMessage[]>(() => INITIAL_MESSAGES.map((message) => ({ ...message })));
   const [draft, setDraft] = useState("");
+  const [promptChips, setPromptChips] = useState<AiMatePromptChip[]>([]);
   const [isResponding, setResponding] = useState(false);
   const [failedRequest, setFailedRequest] = useState<FailedRequest | null>(null);
   const operationSequence = useRef(0);
@@ -128,9 +136,17 @@ export function AiMateProvider({ children }: { children: ReactNode }) {
   const appendAssistant = useCallback((message: AiMateMessage) => {
     setMessages((current) => [...current, message]);
   }, []);
-  const openWithDraft = useCallback((nextDraft: string) => {
+  const setOpen = useCallback((open: boolean) => {
+    setIsOpen(open);
+    if (!open) setPromptChips([]);
+  }, []);
+  const openWithDraft = useCallback((nextDraft: string, chips: AiMatePromptChip[] = []) => {
     setDraft(nextDraft);
-    setOpen(true);
+    setPromptChips(chips);
+    setIsOpen(true);
+  }, []);
+  const selectPromptChip = useCallback((chip: AiMatePromptChip) => {
+    setDraft(chip.draft);
   }, []);
 
   const execute = useCallback(
@@ -311,6 +327,8 @@ export function AiMateProvider({ children }: { children: ReactNode }) {
       messages,
       draft,
       setDraft,
+      promptChips,
+      selectPromptChip,
       isResponding,
       adjustmentRemaining,
       sendMessage,
@@ -322,8 +340,12 @@ export function AiMateProvider({ children }: { children: ReactNode }) {
       isOpen,
       isResponding,
       messages,
+      openWithDraft,
+      promptChips,
       retryFailed,
+      selectPromptChip,
       sendMessage,
+      setOpen,
     ],
   );
 

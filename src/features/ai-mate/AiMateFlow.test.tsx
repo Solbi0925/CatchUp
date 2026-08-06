@@ -1,6 +1,10 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { MemoryRouter } from "react-router-dom";
 import { App } from "../../app/App";
+import { PrototypeStoreProvider } from "../../store/PrototypeStore";
+import { AiMateLayer } from "./AiMateLayer";
+import { AiMateProvider, useAiMate } from "./AiMateProvider";
 
 afterEach(cleanup);
 beforeEach(() => {
@@ -25,7 +29,56 @@ async function prepareConfirmedUpload() {
   await screen.findByRole("heading", { name: "자료 업로드" });
 }
 
+function PromptChipHarness() {
+  const { openWithDraft } = useAiMate();
+  return (
+    <button
+      type="button"
+      onClick={() =>
+        openWithDraft("", [
+          {
+            label: "할 일 추천이유",
+            draft: "ERD 실습 준비를 추천한 이유를 알려줘",
+          },
+        ])
+      }
+    >
+      맥락 열기
+    </button>
+  );
+}
+
 describe("Upload and AI Mate integrated prototype", () => {
+  it("shows contextual chips that only update the composer", () => {
+    render(
+      <MemoryRouter>
+        <PrototypeStoreProvider>
+          <AiMateProvider>
+            <PromptChipHarness />
+            <AiMateLayer showCoachmark={false} />
+          </AiMateProvider>
+        </PrototypeStoreProvider>
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "맥락 열기" }));
+    fireEvent.click(screen.getByRole("button", { name: "할 일 추천이유" }));
+
+    expect(screen.getByRole("textbox", { name: "AI Mate 메시지" })).toHaveValue(
+      "ERD 실습 준비를 추천한 이유를 알려줘",
+    );
+    expect(screen.queryByLabelText("내 메시지")).not.toBeInTheDocument();
+  });
+
+  it("does not render timestamps below messages", () => {
+    render(<App initialEntries={["/today"]} />);
+    fireEvent.click(screen.getByRole("button", { name: "AI Mate 열기" }));
+
+    expect(
+      screen.getByRole("dialog", { name: "AI Mate" }).querySelector("time"),
+    ).toBeNull();
+  });
+
   it("offers Calendar onboarding after an upload when Calendar is disconnected", async () => {
     sessionStorage.clear();
     render(<App initialEntries={["/upload"]} />);
