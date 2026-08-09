@@ -153,7 +153,7 @@ isUserEdited: false
 
 **쉬운 설명**
 
-Google Calendar에서 가져오거나 CatchUp 안에서 사용자가 직접 추가한 개인 일정이다. Mock 단계에서는 실제 연동 대신 가짜 개인 일정을 사용한다.
+Google Calendar에서 가져오거나 CatchUp 안에서 사용자가 직접 추가·수정한 개인 일정이다. Mock 단계에서는 실제 연동 대신 가짜 개인 일정을 사용한다.
 
 **Mock 데이터에 필요한 핵심 정보**
 
@@ -167,6 +167,7 @@ Google Calendar에서 가져오거나 CatchUp 안에서 사용자가 직접 추�
 | `endTime` | 종료 시간 |
 | `isAllDay` | 하루 종일 일정인지 여부 |
 | `source` | 일정 출처: Google Calendar 또는 CatchUp 직접 입력 |
+| `updatedAt` | CatchUp에서 직접 추가·수정한 일정의 마지막 저장 시각 |
 
 **가짜 예시**
 
@@ -340,7 +341,7 @@ remainingCountToday: 9
 - 사용자는 설정한 요일과 시간에 주간 계획을 주 1회만 생성할 수 있다.
 - AI Mate를 통한 계획 조정은 하루에 최대 10회다.
 - 사용자는 Today의 할 일이나 주간 계획 항목의 내용, 날짜, 시간, 우선순위를 직접 수정하지 않는다. 변경은 AI Mate 요청으로만 한다.
-- 외부 일정은 Google Calendar만 사용하며, CatchUp 안에서 개인 일정을 직접 추가할 수 있다.
+- 외부 일정은 Google Calendar만 사용하며, CatchUp 안에서 개인 일정을 직접 추가·수정할 수 있다.
 - Mock 데이터와 예시에는 실제 개인정보, 실제 일정, API 키, OAuth 토큰을 넣지 않는다.
 - 초기 MVP에서 업로드 파일은 PDF와 이미지 형식을 모두 지원한다.
 
