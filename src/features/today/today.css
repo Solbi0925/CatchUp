@@ -50,6 +50,23 @@
   color: white;
 }
 
+.today-week button.outside-plan strong {
+  border-color: #dedee4;
+  background: #e9e9ed;
+  color: #9a9aa3;
+  box-shadow: none;
+}
+
+.today-week button.outside-plan span {
+  color: #a1a1aa;
+}
+
+.today-week button.selected.outside-plan strong {
+  border-color: #aaaab3;
+  background: #bcbcc4;
+  color: white;
+}
+
 .today-week button:not(.selected)[aria-label*="오늘"] strong {
   border: 2px solid #806cf2;
 }
@@ -128,8 +145,12 @@
 }
 
 .today-briefing > div {
+  display: flex;
   min-width: 0;
   flex: 1;
+  flex-direction: column;
+  align-self: stretch;
+  justify-content: center;
 }
 
 .today-briefing > img {
@@ -137,6 +158,8 @@
 }
 
 .today-briefing span {
+  display: block;
+  margin-top: -4px;
   color: #7259f3;
   font-size: 12px;
   font-weight: 800;
@@ -155,8 +178,8 @@
 }
 
 .today-briefing.with-plan > img {
-  width: 56px;
-  height: 56px;
+  width: 84px;
+  height: 84px;
 }
 
 .today-briefing p {
@@ -335,3 +358,34 @@
   font-weight: 750;
 }
 .today-editor-backdrop { position: fixed; z-index: 50; inset: 0; display: grid; width: min(100%, 430px); margin: 0 auto; padding: 24px 20px calc(90px + env(safe-area-inset-bottom)); align-items: end; background: rgba(22,20,29,.36); }
+.today-week-navigation {
+  display: grid;
+  margin: 0 0 8px;
+  grid-template-columns: 44px 1fr 44px;
+  align-items: center;
+}
+
+.today-week-navigation span {
+  color: #555867;
+  font-size: 13px;
+  font-weight: 750;
+  text-align: center;
+}
+
+.today-week-navigation button {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  place-items: center;
+  border: 0;
+  border-radius: 14px;
+  background: transparent;
+  color: #625d6d;
+  font: inherit;
+  font-size: 26px;
+}
+
+.today-week-navigation button:hover {
+  background: #f0ecfb;
+}

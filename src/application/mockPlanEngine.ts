@@ -1,4 +1,4 @@
-import { getPlanWeekWindow } from "../domain/policies";
+import { getPlanWindow } from "../domain/policies";
 import type {
   ExtractedItem,
   GeneratePlanCommand,
@@ -60,17 +60,38 @@ function capacityForDate(
     );
   let capacity = Math.max(30, 180 - Math.min(150, busyMinutes));
   const request = `${command.user.planGenerationRequest} ${command.requestText}`;
-  if (dayIndex === 2 && /수요일.*(가볍|줄)/.test(request)) capacity = Math.min(capacity, 60);
-  if (dayIndex === 6 && /일요일.*(쉬|가볍)/.test(request)) capacity = Math.min(capacity, 60);
+  const weekday = new Date(`${date}T00:00:00Z`).getUTCDay();
+  if (weekday === 3 && /수요일.*(가볍|줄)/.test(request)) capacity = Math.min(capacity, 60);
+  if (weekday === 0 && /일요일.*(쉬|가볍)/.test(request)) capacity = Math.min(capacity, 60);
   return capacity;
 }
 
 export function generateMockWeeklyPlan(command: GeneratePlanCommand): GeneratePlanResult {
-  const window = getPlanWeekWindow(new Date(command.requestedAt));
+  const window = getPlanWindow(new Date(command.requestedAt));
   const weeklyPlanId = `weekly-${command.operationId}`;
   const minutesByDate = new Map<string, number>();
   const todos: Todo[] = [];
-  const sortedItems = [...command.extractedItems].sort((left, right) => {
+  const carriedSourceIds = new Set(
+    command.existingIncompleteTodos.map((todo) => todo.sourceExtractedItemId),
+  );
+  command.existingIncompleteTodos.forEach((todo, index) => {
+    const scheduledDate = addDays(window.planStartDate, Math.min(index, 6));
+    minutesByDate.set(
+      scheduledDate,
+      (minutesByDate.get(scheduledDate) ?? 0) + todo.estimatedDurationMinutes,
+    );
+    todos.push({
+      ...todo,
+      id: `todo-${command.operationId}-carry-${index}`,
+      weeklyPlanId,
+      scheduledDate,
+      isCompleted: false,
+      recommendationReason: "이전 계획에서 완료되지 않아 새 일정과 함께 우선순위를 다시 계산했어요.",
+    });
+  });
+  const sortedItems = command.extractedItems
+    .filter((item) => !carriedSourceIds.has(item.id))
+    .sort((left, right) => {
     const dateOrder = left.date.localeCompare(right.date);
     if (dateOrder !== 0) return dateOrder;
     const difficultyOrder = { high: 0, medium: 1, low: 2 };
@@ -86,11 +107,11 @@ export function generateMockWeeklyPlan(command: GeneratePlanCommand): GeneratePl
       remaining -= chunkMinutes;
       const deadlineOffset = Math.max(
         0,
-        Math.min(6, differenceInDays(window.weekStartDate, item.date)),
+        Math.min(6, differenceInDays(window.planStartDate, item.date)),
       );
-      let scheduledDate = window.weekStartDate;
+      let scheduledDate = window.planStartDate;
       for (let dayIndex = 0; dayIndex <= deadlineOffset; dayIndex += 1) {
-        const candidateDate = addDays(window.weekStartDate, dayIndex);
+        const candidateDate = addDays(window.planStartDate, dayIndex);
         const used = minutesByDate.get(candidateDate) ?? 0;
         if (used + chunkMinutes <= capacityForDate(candidateDate, command, dayIndex)) {
           scheduledDate = candidateDate;
@@ -124,8 +145,8 @@ export function generateMockWeeklyPlan(command: GeneratePlanCommand): GeneratePl
     weeklyPlan: {
       id: weeklyPlanId,
       userId: command.user.id,
-      weekStartDate: window.weekStartDate,
-      weekEndDate: window.weekEndDate,
+      planStartDate: window.planStartDate,
+      planEndDate: window.planEndDate,
       status: "complete",
       createdAt: command.requestedAt,
       generationRequest: command.requestText,
@@ -136,7 +157,7 @@ export function generateMockWeeklyPlan(command: GeneratePlanCommand): GeneratePl
     assistantMessage: {
       id: `assistant-${command.operationId}`,
       role: "assistant",
-      text: "업로드 자료와 캘린더를 반영해\n이번 주 계획을 만들었어요. 요청한 공부 방식도 함께 반영했어요.\n바꾸거나 추가하고 싶은 할 일이 있으면 말씀해주세요. 각 할 일을 추천한 이유도 물어볼 수 있어요.",
+      text: "업로드 자료와 캘린더, 기존 미완료 할 일을 반영해\n오늘부터 7일 계획을 만들었어요.\n바꾸거나 추가하고 싶은 할 일이 있으면 말씀해주세요. 각 할 일을 추천한 이유도 물어볼 수 있어요.",
       createdAt: command.requestedAt,
       status: "sent",
       intent: "generate-plan",

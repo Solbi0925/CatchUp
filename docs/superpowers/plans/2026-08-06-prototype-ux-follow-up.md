@@ -11,7 +11,7 @@
 ## Global Constraints
 
 - Do not modify `DATA_MODEL.md` or `API_SPEC.md`.
-- Weekly plan generation remains limited to the configured time once per week.
+- Plan generation uses the user-requested date as Day 1 and covers exactly 7 days; no automatic weekly generation is used.
 - AI Mate plan adjustments remain limited to 10 per day.
 - Prompt shortcuts and Prompt Chips populate the composer but never send automatically.
 - Calendar colors remain limited to `#C7B9FA`, `#E9E0FF`, `#F8B1FB`, `#FEE8FF`, `#A5D1FF`, and `#D9F0FF`.

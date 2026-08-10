@@ -22,6 +22,12 @@ function addDays(isoDate: string, amount: number) {
   return date.toISOString().slice(0, 10);
 }
 
+export function getCalendarWeekStart(isoDate: string) {
+  const date = new Date(`${isoDate}T00:00:00Z`);
+  const weekday = date.getUTCDay();
+  return addDays(isoDate, weekday === 0 ? -6 : 1 - weekday);
+}
+
 function academicScheduleType(
   item: ExtractedItem,
 ): TodayScheduleViewModel["type"] {
@@ -34,10 +40,11 @@ function academicScheduleType(
 export function selectTodayViewModel(
   state: PrototypeState,
   selectedDate: string,
+  weekStartDate?: string,
   todayDate = demoTodayDate,
 ): TodayViewModel {
   const plan = selectCurrentWeeklyPlan(state);
-  const weekStart = plan?.weekStartDate ?? todayDate;
+  const weekStart = getCalendarWeekStart(weekStartDate ?? todayDate);
   const allTodos = selectTodosForCurrentPlan(state);
   const confirmedItems = selectAllExtractedItems(state).filter(
     (item) => item.reviewStatus === "confirmed",
@@ -79,6 +86,9 @@ export function selectTodayViewModel(
       dayOfMonth: Number(date.slice(8, 10)),
       isToday: date === todayDate,
       isSelected: date === selectedDate,
+      isWithinPlanRange: plan
+        ? date >= plan.planStartDate && date <= plan.planEndDate
+        : true,
       todoCount: allTodos.filter((todo) => todo.scheduledDate === date).length,
       scheduleCount: schedulesForDate(date).length,
     };
@@ -87,6 +97,9 @@ export function selectTodayViewModel(
   return {
     selectedDate,
     weekStart,
+    weekEnd: addDays(weekStart, 6),
+    planStartDate: plan?.planStartDate ?? null,
+    planEndDate: plan?.planEndDate ?? null,
     days,
     todos: allTodos
       .filter((todo) => todo.scheduledDate === selectedDate)

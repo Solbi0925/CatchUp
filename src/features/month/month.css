@@ -90,13 +90,14 @@
 
 .month-date__number {
   display: grid;
-  width: 38px;
-  height: 38px;
+  width: 34px;
+  height: 34px;
+  margin-bottom: 4px;
   place-items: center;
   border-radius: 50%;
-  font-size: 16px;
+  font-size: 15px;
 }
-.month-date__number { align-self: center; flex: 0 0 38px; }
+.month-date__number { align-self: center; flex: 0 0 34px; }
 
 .month-date.is-adjacent { color: #aaa9af; }
 .month-date.is-selected .month-date__number {

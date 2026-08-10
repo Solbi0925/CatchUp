@@ -6,7 +6,7 @@ import { useAiMate, type AiMatePromptChip } from "../ai-mate/AiMateProvider";
 import { ScheduleEditorDialog, type ScheduleDraft } from "../calendar/ScheduleEditorDialog";
 import { PERSONAL_CATEGORY_KEY, resolveCategoryColor } from "../calendar/calendarColors";
 import type { CalendarEvent } from "../../domain/types";
-import { selectTodayViewModel } from "./todaySelectors";
+import { getCalendarWeekStart, selectTodayViewModel } from "./todaySelectors";
 import { demoTodayDate } from "../../application/clock";
 import "./today.css";
 
@@ -41,18 +41,44 @@ function formatPromptDate(isoDate: string) {
   return `${month}/${day}`;
 }
 
+function addDays(isoDate: string, amount: number) {
+  const date = new Date(`${isoDate}T00:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + amount);
+  return date.toISOString().slice(0, 10);
+}
+
+function formatWeekRange(startDate: string, endDate: string) {
+  const [, startMonth, startDay] = startDate.split("-").map(Number);
+  const [, endMonth, endDay] = endDate.split("-").map(Number);
+  return startMonth === endMonth
+    ? `${startMonth}월 ${startDay}일–${endDay}일`
+    : `${startMonth}월 ${startDay}일–${endMonth}월 ${endDay}일`;
+}
+
+function formatDateAriaLabel(isoDate: string) {
+  const [, month, day] = isoDate.split("-").map(Number);
+  return `${month}월 ${day}일`;
+}
+
 export function TodayPage() {
   const { state, dispatch } = usePrototypeStore();
   const { openWithDraft } = useAiMate();
   const [selectedDate, setSelectedDate] = useState(demoTodayDate);
+  const [visibleWeekStart, setVisibleWeekStart] = useState(
+    getCalendarWeekStart(demoTodayDate),
+  );
   const [editingScheduleId, setEditingScheduleId] = useState<string>();
   const [addingSchedule, setAddingSchedule] = useState(false);
   const [eventOverrides, setEventOverrides] = useState<Record<string, CalendarEvent>>({});
   const hasDocuments = Object.keys(state.documentsById).length > 0;
   const hasPlan = Object.keys(state.weeklyPlansById).length > 0;
   const viewModel = useMemo(
-    () => selectTodayViewModel({ ...state, calendarEventsById: { ...state.calendarEventsById, ...eventOverrides } }, selectedDate),
-    [eventOverrides, selectedDate, state],
+    () => selectTodayViewModel(
+      { ...state, calendarEventsById: { ...state.calendarEventsById, ...eventOverrides } },
+      selectedDate,
+      visibleWeekStart,
+    ),
+    [eventOverrides, selectedDate, state, visibleWeekStart],
   );
   const editingSchedule = viewModel.schedules.find((item) => item.id === editingScheduleId);
   const editingEvent = editingSchedule ? ({ ...state.calendarEventsById, ...eventOverrides })[editingSchedule.id] : undefined;
@@ -63,18 +89,30 @@ export function TodayPage() {
     title: editingItem.title, date: editingItem.date, startTime: editingItem.time, endTime: null, isAllDay: !editingItem.time, eventType: "class",
   } : { title: "", date: selectedDate, startTime: "09:00", endTime: "10:00", isAllDay: false, eventType: "personal" };
   const editorCategoryKey = editingSchedule?.categoryKey ?? PERSONAL_CATEGORY_KEY;
+  const moveWeek = (amount: -7 | 7) => {
+    setVisibleWeekStart((current) => addDays(current, amount));
+    setSelectedDate((current) => addDays(current, amount));
+  };
 
   return (
     <section className="today-page">
-      <div className="today-week" aria-label="이번 주 날짜 선택">
+      <div className="today-week-navigation">
+        <button type="button" aria-label="이전 주" onClick={() => moveWeek(-7)}>‹</button>
+        <span>{formatWeekRange(viewModel.weekStart, viewModel.weekEnd)}</span>
+        <button type="button" aria-label="다음 주" onClick={() => moveWeek(7)}>›</button>
+      </div>
+      <div className="today-week" aria-label="월요일부터 일요일 날짜 선택">
         {viewModel.days.map((day) => (
           <button
             key={day.date}
             type="button"
-            className={day.isSelected ? "selected" : ""}
+            className={[
+              day.isSelected && "selected",
+              !day.isWithinPlanRange && "outside-plan",
+            ].filter(Boolean).join(" ")}
             aria-current={day.isSelected ? "date" : undefined}
             aria-pressed={day.isSelected}
-            aria-label={`7월 ${day.dayOfMonth}일 ${day.weekdayLabel}요일${day.isToday ? ", 오늘" : ""}${day.isSelected ? ", 선택됨" : ""}`}
+            aria-label={`${formatDateAriaLabel(day.date)} ${day.weekdayLabel}요일${day.isToday ? ", 오늘" : ""}${!day.isWithinPlanRange ? ", 현재 7일 계획 범위 밖" : ""}${day.isSelected ? ", 선택됨" : ""}`}
             onClick={() => setSelectedDate(day.date)}
           >
             <span>{day.weekdayLabel}</span>
@@ -109,21 +147,21 @@ export function TodayPage() {
           <article className="today-briefing">
             <div>
               <span>AI Mate</span>
-              <h2>아직 생성된 주간 계획이 없어요.</h2>
-              <p>확인한 학업 자료를 바탕으로 이번 주 계획을 만들어보세요.</p>
+              <h2>아직 생성된 7일 계획이 없어요.</h2>
+              <p>확인한 학업 자료를 바탕으로 오늘부터 계획을 만들어보세요.</p>
             </div>
-            <AiMateCharacter size={72} />
+            <AiMateCharacter size={84} />
           </article>
           <section className="today-section">
             <div className="today-section-heading">
               <h2>오늘의 할 일</h2>
             </div>
             <div className="today-zero-state">
-              <strong>아직 이번 주 할 일이 없어요.</strong>
-              <p>AI Mate에서 이번 주 계획을 생성해보세요.</p>
+              <strong>아직 계획된 할 일이 없어요.</strong>
+              <p>AI Mate에서 오늘부터 7일 계획을 생성해보세요.</p>
               <button
                 type="button"
-                onClick={() => openWithDraft("이번 주 계획을 생성해줘")}
+                onClick={() => openWithDraft("오늘부터 7일 계획을 생성해줘")}
               >
                 계획 생성하기
               </button>
@@ -139,7 +177,7 @@ export function TodayPage() {
               <h2>4주 일정을 고려해 중요한 일부터 정리했어요.</h2>
               <p>우리 오늘도 같이 하나씩 따라잡아봐요!</p>
             </div>
-            <AiMateCharacter size={72} />
+            <AiMateCharacter size={84} />
           </article>
 
           <section className="today-section">

@@ -10,9 +10,6 @@ export interface User {
   id: UserId;
   displayName: string;
   calendarConnectionStatus: "disconnected" | "connecting" | "connected" | "failed";
-  /** JavaScript weekday: 0 is Sunday. */
-  weeklyPlanGenerationDay: number;
-  weeklyPlanGenerationTime: `${number}:${number}`;
   planGenerationRequest: string;
 }
 
@@ -74,8 +71,8 @@ export interface CalendarEvent {
 export interface WeeklyPlan {
   id: WeeklyPlanId;
   userId: UserId;
-  weekStartDate: string;
-  weekEndDate: string;
+  planStartDate: string;
+  planEndDate: string;
   status: "complete";
   createdAt: string;
   generationRequest: string;
@@ -117,18 +114,16 @@ export interface AiMateMessage {
   actions?: AiMateMessageAction[];
 }
 
-export interface PlanWeekWindow {
-  weekStartDate: string;
-  weekEndDate: string;
+export interface PlanWindow {
+  planStartDate: string;
+  planEndDate: string;
   referenceWindowEndDate: string;
 }
 
 export type PlanPrerequisiteReason =
-  | "not-scheduled"
   | "no-upload"
   | "calendar-disconnected"
-  | "needs-review"
-  | "already-generated";
+  | "needs-review";
 
 export type PlanPrerequisiteResult =
   | { ok: true }
@@ -142,7 +137,7 @@ export interface GeneratePlanCommand {
   documents: UploadedDocument[];
   extractedItems: ExtractedItem[];
   calendarEvents: CalendarEvent[];
-  existingWeeklyPlan: WeeklyPlan | null;
+  existingIncompleteTodos: Todo[];
 }
 
 export interface GeneratePlanResult {

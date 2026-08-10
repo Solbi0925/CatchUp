@@ -22,7 +22,9 @@ export function selectCalendarEvents(state: PrototypeState) {
 }
 
 export function selectCurrentWeeklyPlan(state: PrototypeState): WeeklyPlan | null {
-  return Object.values(state.weeklyPlansById)[0] ?? null;
+  return Object.values(state.weeklyPlansById).sort((left, right) =>
+    right.createdAt.localeCompare(left.createdAt),
+  )[0] ?? null;
 }
 
 export function selectTodosForCurrentPlan(state: PrototypeState) {

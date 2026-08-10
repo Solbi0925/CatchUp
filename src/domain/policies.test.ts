@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  getPlanWeekWindow,
+  getPlanWindow,
   isSupportedAcademicFile,
   validatePlanPrerequisites,
 } from "./policies";
@@ -10,9 +10,7 @@ const user: User = {
   id: "user-demo-01",
   displayName: "테스트 학생",
   calendarConnectionStatus: "connected",
-  weeklyPlanGenerationDay: 0,
-  weeklyPlanGenerationTime: "20:00",
-  planGenerationRequest: "일요일에는 쉬는 시간을 많이 확보해줘.",
+  planGenerationRequest: "앞으로 7일 동안 쉬는 시간을 많이 확보해줘.",
 };
 
 const document: UploadedDocument = {
@@ -52,12 +50,12 @@ describe("academic file policy", () => {
   });
 });
 
-describe("weekly plan policy", () => {
-  it("creates the next Monday-to-Sunday window from the configured Sunday", () => {
-    expect(getPlanWeekWindow(new Date("2026-07-19T20:00:00+09:00"))).toEqual({
-      weekStartDate: "2026-07-20",
-      weekEndDate: "2026-07-26",
-      referenceWindowEndDate: "2026-08-16",
+describe("7-day plan policy", () => {
+  it("uses the request date as Day 1 and creates an exact seven-day window", () => {
+    expect(getPlanWindow(new Date("2026-07-22T09:00:00+09:00"))).toEqual({
+      planStartDate: "2026-07-22",
+      planEndDate: "2026-07-28",
+      referenceWindowEndDate: "2026-08-18",
     });
   });
 
@@ -66,20 +64,16 @@ describe("weekly plan policy", () => {
       user,
       documents: [document],
       extractedItems: [{ ...item, reviewStatus: "needs-review" }],
-      existingWeeklyPlan: null,
-      now: new Date("2026-07-19T20:00:00+09:00"),
     });
 
     expect(result).toEqual({ ok: false, reason: "needs-review" });
   });
 
-  it("allows generation when the schedule, upload, review and calendar checks pass", () => {
+  it("allows generation on any request day when upload, review and calendar checks pass", () => {
     const result = validatePlanPrerequisites({
       user,
       documents: [document],
       extractedItems: [item],
-      existingWeeklyPlan: null,
-      now: new Date("2026-07-19T20:00:00+09:00"),
     });
 
     expect(result).toEqual({ ok: true });

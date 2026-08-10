@@ -34,6 +34,6 @@ describe("Upload flow", () => {
       expect(screen.getByRole("heading", { name: "자료 업로드" })).toBeInTheDocument();
     });
     expect(screen.getByText("추출 완료")).toBeInTheDocument();
-    expect(screen.getByText("AI Mate에서 이번 주 계획을 만들어보세요")).toBeInTheDocument();
+    expect(screen.getByText("AI Mate에서 오늘부터 7일 계획을 만들어보세요")).toBeInTheDocument();
   });
 });
