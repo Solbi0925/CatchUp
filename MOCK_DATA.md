@@ -5,8 +5,8 @@
 - 이 문서는 `DATA_MODEL.md` 초안을 바탕으로 만든 화면 구현용 Mock 데이터다.
 - 모든 이름, 일정, 과목, 파일명은 가짜 데이터다.
 - 업로드 파일 형식은 초기 MVP 기준으로 `PDF`만 사용한다.
-- 주간 계획은 월요일부터 일요일까지를 한 주로 본다.
-- AI Mate 계획 조정은 같은 주에 최대 3회까지 가능하다.
+- Plan은 요청일부터 정확히 7일이며 Today의 Calendar Week(월~일)와 별도로 관리한다.
+- AI Mate 계획 조정은 KST 기준 하루 최대 10회까지 가능하다.
 - Today의 할 일은 사용자가 완료 체크만 할 수 있고, 내용·날짜·우선순위는 직접 수정하지 않는다.
 
 ## 2. 데이터 관계 요약
@@ -16,7 +16,7 @@ User: user-demo-01
 ├─ UploadedDocument: doc-demo-01, doc-demo-02, doc-demo-03, doc-demo-04
 │  └─ ExtractedItem: extracted-demo-01 ~ extracted-demo-09
 ├─ CalendarEvent: calendar-demo-01 ~ calendar-demo-07
-├─ WeeklyPlan: weekly-plan-demo-01
+├─ Plan: plan-demo-01
 │  └─ Todo: todo-demo-01 ~ todo-demo-14
 └─ PlanAdjustment: adjustment-demo-01, adjustment-demo-02
 ```
@@ -25,9 +25,9 @@ User: user-demo-01
 
 ## 3. 사용자
 
-| id | displayName | calendarConnectionStatus | weeklyPlanGenerationDay | weeklyPlanGenerationTime | planGenerationRequest |
+| id | displayName | calendarConnectionStatus | planStartDate | planEndDate | planGenerationRequest |
 | --- | --- | --- | --- | --- | --- |
-| user-demo-01 | 테스트 학생 | 연결 완료 | 일요일 | 20:00 | 일요일에는 쉬는 시간을 많이 확보해줘. 수요일은 개인 일정이 많으니 가벼운 할 일만 넣어줘. |
+| user-demo-01 | 테스트 학생 | 연결 완료 | 2026-07-22 | 2026-07-28 | 앞으로 7일 동안 쉬는 시간을 많이 확보해줘. 수요일은 개인 일정이 많으니 가벼운 할 일만 넣어줘. |
 
 ---
 
@@ -72,41 +72,41 @@ User: user-demo-01
 
 ---
 
-## 7. 이번 주 AI 계획
+## 7. 요청일 기준 7일 AI Plan
 
-| id | userId | weekStartDate | weekEndDate | status | createdAt | generationRequest | referenceWindow | summary |
+| id | userId | planStartDate | planEndDate | status | createdAt | generationRequest | referenceWindow | summary |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| weekly-plan-demo-01 | user-demo-01 | 2026-07-20 | 2026-07-26 | 생성 완료 | 2026-07-19 20:00 | 일요일에는 쉬는 시간을 많이 확보해줘. 수요일은 개인 일정이 많으니 가벼운 할 일만 넣어줘. | 2026-07-20부터 4주 | 알고리즘 과제와 통계학 제출을 먼저 처리하고, 데이터베이스 퀴즈는 주 후반에 집중 복습하는 계획입니다. |
+| plan-demo-01 | user-demo-01 | 2026-07-22 | 2026-07-28 | 생성 완료 | 2026-07-22 09:10 | 앞으로 7일 동안 쉬는 시간을 많이 확보해줘. 수요일은 개인 일정이 많으니 가벼운 할 일만 넣어줘. | 2026-07-22부터 약 4주 | 알고리즘 과제와 통계학 제출을 먼저 처리하고, 데이터베이스 퀴즈는 Plan 기간 안에서 집중 복습하는 계획입니다. |
 
 ---
 
 ## 8. 날짜별 할 일
 
-| id | weeklyPlanId | sourceExtractedItemId | scheduledDate | title | todoType | courseName | estimatedDuration | priority | isCompleted | recommendationReason |
+| id | planId | sourceExtractedItemId | scheduledDate | title | todoType | courseName | estimatedDuration | priority | isCompleted | recommendationReason |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| todo-demo-01 | weekly-plan-demo-01 | extracted-demo-01 | 2026-07-20 | 그래프 탐색 과제 요구사항 정리하기 | 과제 진행 | 알고리즘 | 1시간 | 높음 | false | 마감까지 시간이 짧고 구현 범위가 넓어 첫날에 요구사항을 정리하는 것을 추천합니다. |
-| todo-demo-02 | weekly-plan-demo-01 | extracted-demo-08 | 2026-07-20 | 표본분포 연습문제 풀이 초안 만들기 | 과제 진행 | 통계학 | 1시간 | 보통 | true | 다음 날 제출 마감이라 오늘 풀이 초안을 끝내두면 부담을 줄일 수 있습니다. |
-| todo-demo-03 | weekly-plan-demo-01 | extracted-demo-08 | 2026-07-21 | 표본분포 연습문제 최종 제출하기 | 과제 진행 | 통계학 | 30분 | 높음 | false | 오늘 23:59 제출 마감이므로 제출 확인까지 마치는 것을 추천합니다. |
-| todo-demo-04 | weekly-plan-demo-01 | extracted-demo-01 | 2026-07-21 | 그래프 탐색 기본 함수 구현하기 | 과제 진행 | 알고리즘 | 1시간 30분 | 높음 | false | 저녁 개인 일정 전에 핵심 구현을 나누어 진행하면 마감 전 수정 시간을 확보할 수 있습니다. |
-| todo-demo-05 | weekly-plan-demo-01 | extracted-demo-04 | 2026-07-22 | ERD 실습 파일 미리 열어보기 | 수업 준비 | 데이터베이스 | 30분 | 보통 | false | 수요일에는 개인 일정이 많아 짧은 준비 작업만 배치했습니다. |
-| todo-demo-06 | weekly-plan-demo-01 | extracted-demo-03 | 2026-07-22 | 정규화 핵심 개념 3개만 복습하기 | 시험 공부 | 데이터베이스 | 40분 | 보통 | false | 퀴즈 전 기본 개념을 가볍게 확인하는 정도가 적합한 날입니다. |
-| todo-demo-07 | weekly-plan-demo-01 | extracted-demo-01 | 2026-07-23 | 그래프 탐색 과제 테스트 케이스 작성하기 | 과제 진행 | 알고리즘 | 1시간 | 높음 | false | 오늘 과제 마감이므로 제출 전 오류를 줄이는 작업이 필요합니다. |
-| todo-demo-08 | weekly-plan-demo-01 | extracted-demo-02 | 2026-07-23 | 알고리즘 과제 제출 확인하기 | 과제 진행 | 알고리즘 | 30분 | 높음 | false | 같은 날 23:59 마감이라 파일 업로드와 제출 상태 확인을 분리했습니다. |
-| todo-demo-09 | weekly-plan-demo-01 | extracted-demo-05 | 2026-07-24 | 운영체제 보강 공지 내용 확인하기 | 수업 준비 | 운영체제 | 30분 | 낮음 | false | 공지 확인이 필요한 항목이라 짧게 확인 시간을 배치했습니다. |
-| todo-demo-10 | weekly-plan-demo-01 | extracted-demo-03 | 2026-07-24 | 정규화 예제 문제 5개 풀기 | 시험 공부 | 데이터베이스 | 1시간 20분 | 높음 | false | 다음 날 퀴즈가 있어 실제 문제 풀이 시간을 확보했습니다. |
-| todo-demo-11 | weekly-plan-demo-01 | extracted-demo-03 | 2026-07-25 | 데이터베이스 퀴즈 전 오답 노트 훑기 | 시험 공부 | 데이터베이스 | 40분 | 높음 | false | 오전 퀴즈 직전에 짧게 복습하도록 배치했습니다. |
-| todo-demo-12 | weekly-plan-demo-01 | extracted-demo-07 | 2026-07-25 | 통계학 미니 리포트 자료 모으기 | 과제 진행 | 통계학 | 1시간 | 보통 | false | 다음 주 마감 과제라 주말에 자료 수집만 가볍게 시작하도록 추천합니다. |
-| todo-demo-13 | weekly-plan-demo-01 | extracted-demo-07 | 2026-07-26 | 통계학 리포트 분석 방향 메모하기 | 과제 진행 | 통계학 | 40분 | 낮음 | false | 일요일은 휴식 요청이 있어 부담이 적은 메모 작업만 배치했습니다. |
-| todo-demo-14 | weekly-plan-demo-01 | extracted-demo-06 | 2026-07-26 | 운영체제 복습 자료 목록만 정리하기 | 복습 | 운영체제 | 30분 | 낮음 | false | 다음 주 복습을 준비하되 휴식 시간을 해치지 않도록 짧게 배치했습니다. |
+| todo-demo-01 | plan-demo-01 | extracted-demo-01 | 2026-07-22 | 그래프 탐색 과제 요구사항 정리하기 | 과제 진행 | 알고리즘 | 1시간 | 높음 | false | 마감까지 시간이 짧고 구현 범위가 넓어 Plan Day 1에 요구사항을 정리하는 것을 추천합니다. |
+| todo-demo-02 | plan-demo-01 | extracted-demo-08 | 2026-07-20 | 표본분포 연습문제 풀이 초안 만들기 | 과제 진행 | 통계학 | 1시간 | 보통 | true | 다음 날 제출 마감이라 오늘 풀이 초안을 끝내두면 부담을 줄일 수 있습니다. |
+| todo-demo-03 | plan-demo-01 | extracted-demo-08 | 2026-07-21 | 표본분포 연습문제 최종 제출하기 | 과제 진행 | 통계학 | 30분 | 높음 | false | 오늘 23:59 제출 마감이므로 제출 확인까지 마치는 것을 추천합니다. |
+| todo-demo-04 | plan-demo-01 | extracted-demo-01 | 2026-07-21 | 그래프 탐색 기본 함수 구현하기 | 과제 진행 | 알고리즘 | 1시간 30분 | 높음 | false | 저녁 개인 일정 전에 핵심 구현을 나누어 진행하면 마감 전 수정 시간을 확보할 수 있습니다. |
+| todo-demo-05 | plan-demo-01 | extracted-demo-04 | 2026-07-22 | ERD 실습 파일 미리 열어보기 | 수업 준비 | 데이터베이스 | 30분 | 보통 | false | 수요일에는 개인 일정이 많아 짧은 준비 작업만 배치했습니다. |
+| todo-demo-06 | plan-demo-01 | extracted-demo-03 | 2026-07-22 | 정규화 핵심 개념 3개만 복습하기 | 시험 공부 | 데이터베이스 | 40분 | 보통 | false | 퀴즈 전 기본 개념을 가볍게 확인하는 정도가 적합한 날입니다. |
+| todo-demo-07 | plan-demo-01 | extracted-demo-01 | 2026-07-23 | 그래프 탐색 과제 테스트 케이스 작성하기 | 과제 진행 | 알고리즘 | 1시간 | 높음 | false | 오늘 과제 마감이므로 제출 전 오류를 줄이는 작업이 필요합니다. |
+| todo-demo-08 | plan-demo-01 | extracted-demo-02 | 2026-07-23 | 알고리즘 과제 제출 확인하기 | 과제 진행 | 알고리즘 | 30분 | 높음 | false | 같은 날 23:59 마감이라 파일 업로드와 제출 상태 확인을 분리했습니다. |
+| todo-demo-09 | plan-demo-01 | extracted-demo-05 | 2026-07-24 | 운영체제 보강 공지 내용 확인하기 | 수업 준비 | 운영체제 | 30분 | 낮음 | false | 공지 확인이 필요한 항목이라 짧게 확인 시간을 배치했습니다. |
+| todo-demo-10 | plan-demo-01 | extracted-demo-03 | 2026-07-24 | 정규화 예제 문제 5개 풀기 | 시험 공부 | 데이터베이스 | 1시간 20분 | 높음 | false | 다음 날 퀴즈가 있어 실제 문제 풀이 시간을 확보했습니다. |
+| todo-demo-11 | plan-demo-01 | extracted-demo-03 | 2026-07-25 | 데이터베이스 퀴즈 전 오답 노트 훑기 | 시험 공부 | 데이터베이스 | 40분 | 높음 | false | 오전 퀴즈 직전에 짧게 복습하도록 배치했습니다. |
+| todo-demo-12 | plan-demo-01 | extracted-demo-07 | 2026-07-25 | 통계학 미니 리포트 자료 모으기 | 과제 진행 | 통계학 | 1시간 | 보통 | false | 다음 주 마감 과제라 주말에 자료 수집만 가볍게 시작하도록 추천합니다. |
+| todo-demo-13 | plan-demo-01 | extracted-demo-07 | 2026-07-26 | 통계학 리포트 분석 방향 메모하기 | 과제 진행 | 통계학 | 40분 | 낮음 | false | 일요일은 휴식 요청이 있어 부담이 적은 메모 작업만 배치했습니다. |
+| todo-demo-14 | plan-demo-01 | extracted-demo-06 | 2026-07-26 | 운영체제 복습 자료 목록만 정리하기 | 복습 | 운영체제 | 30분 | 낮음 | false | 다음 주 복습을 준비하되 휴식 시간을 해치지 않도록 짧게 배치했습니다. |
 
 ---
 
 ## 9. AI Mate 계획 조정 요청
 
-| id | userId | weeklyPlanId | requestText | requestedAt | status | usedCountThisWeek | remainingCountThisWeek |
+| id | userId | planId | requestText | requestedAt | status | usedCountToday | remainingCountToday |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| adjustment-demo-01 | user-demo-01 | weekly-plan-demo-01 | 수요일에 개인 일정이 많으니 그날 할 일을 줄여줘. | 2026-07-20 21:10 | 조정 완료 | 1 | 2 |
-| adjustment-demo-02 | user-demo-01 | weekly-plan-demo-01 | 일요일에는 오래 걸리는 과제 말고 가벼운 정리만 하고 싶어. | 2026-07-24 19:30 | 조정 완료 | 2 | 1 |
+| adjustment-demo-01 | user-demo-01 | plan-demo-01 | 수요일에 개인 일정이 많으니 그날 할 일을 줄여줘. | 2026-07-20 21:10 | 조정 완료 | 1 | 2 |
+| adjustment-demo-02 | user-demo-01 | plan-demo-01 | 일요일에는 오래 걸리는 과제 말고 가벼운 정리만 하고 싶어. | 2026-07-24 19:30 | 조정 완료 | 2 | 1 |
 
 ---
 
@@ -191,7 +191,7 @@ User: user-demo-01
 | --- | --- | --- |
 | Upload | 추출 완료 자료 | doc-demo-01, doc-demo-02, doc-demo-04 |
 | Upload | 사용자 확인이 필요한 자료 | doc-demo-03, extracted-demo-05, extracted-demo-06 |
-| AI Mate | 주간 계획 생성 완료 | weekly-plan-demo-01 |
+| AI Mate | 주간 계획 생성 완료 | plan-demo-01 |
 | AI Mate | 계획 조정 가능 횟수 1회 남음 | adjustment-demo-02 |
 | Today | 완료된 할 일이 섞인 날짜 | 2026-07-20, todo-demo-02 |
 | Today | 개인 일정이 많아 짧은 할 일만 있는 날짜 | 2026-07-22 |
