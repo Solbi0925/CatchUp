@@ -122,7 +122,7 @@ export function AiMateLayer({ showCoachmark }: { showCoachmark: boolean }) {
         <div className="ai-mate-launcher">
           {showCoachmark && (
             <div className="ai-coachmark" role="status">
-              AI Mate에서 이번 주 계획을 만들어보세요
+              AI Mate에서 오늘부터 7일 계획을 만들어보세요
             </div>
           )}
           <button

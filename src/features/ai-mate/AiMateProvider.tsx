@@ -33,7 +33,7 @@ const DAILY_ADJUSTMENT_LIMIT = 10;
 const DEMO_USAGE_DATE = demoTodayDate;
 const INITIAL_MESSAGES: AiMateMessage[] = [
   { id: "catch-introduction", role: "assistant", text: "안녕하세요! 여러분의 AI Mate 캐치예요.", createdAt: demoInteractionClock.now().toISOString(), status: "sent" },
-  { id: "catch-plan-guidance", role: "assistant", text: "이번 주 계획을 요청할 때 원하는 공부 방식이나 개인 요구사항도 함께 알려주세요. 계획에 반영해드릴게요.", createdAt: demoInteractionClock.now().toISOString(), status: "sent" },
+  { id: "catch-plan-guidance", role: "assistant", text: "원하는 날에 계획을 요청하면 그날부터 7일을 정리해드려요. 공부 방식이나 개인 요구사항도 함께 알려주세요.", createdAt: demoInteractionClock.now().toISOString(), status: "sent" },
 ];
 
 export interface AiMatePromptChip {
@@ -95,9 +95,6 @@ function prerequisiteMessage(
     PlanPrerequisiteReason,
     { text: string; actions?: AiMateMessageAction[] }
   > = {
-    "not-scheduled": {
-      text: "주간 계획은 설정한 일요일 오후 8시부터 한 번 만들 수 있어요.",
-    },
     "no-upload": {
       text: "계획을 만들려면 먼저 학업 자료가 필요해요.",
       actions: [{ label: "Upload로 이동", href: "/upload" }],
@@ -109,10 +106,6 @@ function prerequisiteMessage(
     "needs-review": {
       text: "확인이 필요한 추출 결과가 있어요. 내용을 확인하고 저장해주세요.",
       actions: [{ label: "Upload로 이동", href: "/upload" }],
-    },
-    "already-generated": {
-      text:
-        "이번 주 계획은 이미 생성했어요.\n변경할 내용이 있다면 원하는 방식으로 조정을 요청해주세요.",
     },
   };
   const response = messages[reason];
@@ -170,8 +163,6 @@ export function AiMateProvider({ children }: { children: ReactNode }) {
             user: state.user,
             documents,
             extractedItems,
-            existingWeeklyPlan,
-            now: demoClock.now(),
           });
           if (!prerequisite.ok) {
             appendAssistant(prerequisiteMessage(operationId, prerequisite.reason));
@@ -185,7 +176,9 @@ export function AiMateProvider({ children }: { children: ReactNode }) {
             documents,
             extractedItems,
             calendarEvents: selectCalendarEvents(state),
-            existingWeeklyPlan,
+            existingIncompleteTodos: existingWeeklyPlan
+              ? selectTodosForCurrentPlan(state).filter((todo) => !todo.isCompleted)
+              : [],
           });
           dispatch({ type: "plan/applied", payload: result });
           appendAssistant(result.assistantMessage);
@@ -198,7 +191,7 @@ export function AiMateProvider({ children }: { children: ReactNode }) {
             appendAssistant(
               assistantMessage(
                 operationId,
-                "먼저 이번 주 계획을 만들어주세요.",
+                "먼저 오늘부터 7일 계획을 만들어주세요.",
                 intent,
               ),
             );
@@ -218,7 +211,7 @@ export function AiMateProvider({ children }: { children: ReactNode }) {
             operationId,
             requestText: text,
             requestedAt: demoInteractionClock.now().toISOString(),
-            weekStartDate: existingWeeklyPlan.weekStartDate,
+            planStartDate: existingWeeklyPlan.planStartDate,
             todos: selectTodosForCurrentPlan(state),
           });
           dispatch({
@@ -240,7 +233,7 @@ export function AiMateProvider({ children }: { children: ReactNode }) {
             assistantMessage(
               operationId,
               todos[0]?.recommendationReason ??
-                "아직 생성된 계획이 없어요. 자료를 확인한 뒤 이번 주 계획 생성을 요청해주세요.",
+                "아직 생성된 계획이 없어요. 자료를 확인한 뒤 오늘부터 7일 계획 생성을 요청해주세요.",
               intent,
             ),
           );
@@ -251,7 +244,7 @@ export function AiMateProvider({ children }: { children: ReactNode }) {
           appendAssistant(
             assistantMessage(
               operationId,
-              "PDF 또는 이미지 자료를 올린 뒤 이번 주 계획 생성이나 계획 조정을 요청할 수 있어요.",
+              "PDF 또는 이미지 자료를 올린 뒤 원하는 날부터 7일 계획 생성이나 계획 조정을 요청할 수 있어요.",
               intent,
               [{ label: "Upload로 이동", href: "/upload" }],
             ),
@@ -262,7 +255,7 @@ export function AiMateProvider({ children }: { children: ReactNode }) {
         appendAssistant(
           assistantMessage(
             operationId,
-            "이번 주 계획 생성, 특정 요일의 계획 조정, 추천 이유를 물어볼 수 있어요.",
+            "오늘부터 7일 계획 생성, 특정 날짜의 계획 조정, 추천 이유를 물어볼 수 있어요.",
             intent,
           ),
         );

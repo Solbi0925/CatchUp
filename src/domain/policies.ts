@@ -1,10 +1,9 @@
 import type {
   ExtractedItem,
   PlanPrerequisiteResult,
-  PlanWeekWindow,
+  PlanWindow,
   UploadedDocument,
   User,
-  WeeklyPlan,
 } from "./types";
 
 const TIME_ZONE = "Asia/Seoul";
@@ -42,59 +41,23 @@ export function isSupportedAcademicFile(file: Pick<File, "type">) {
   return file.type === "application/pdf" || file.type.startsWith("image/");
 }
 
-export function getPlanWeekWindow(now: Date): PlanWeekWindow {
+export function getPlanWindow(now: Date): PlanWindow {
   const parts = dateParts(now);
-  const weekdayMap: Record<string, number> = {
-    Sun: 0,
-    Mon: 1,
-    Tue: 2,
-    Wed: 3,
-    Thu: 4,
-    Fri: 5,
-    Sat: 6,
-  };
-  const weekday = weekdayMap[parts.weekday] ?? 0;
   const localMidnightAsUtc = new Date(
     Date.UTC(Number(parts.year), Number(parts.month) - 1, Number(parts.day)),
   );
-  const daysUntilMonday = weekday === 0 ? 1 : 8 - weekday;
-  const monday = addUtcDays(localMidnightAsUtc, daysUntilMonday);
   return {
-    weekStartDate: toIsoDate(monday),
-    weekEndDate: toIsoDate(addUtcDays(monday, 6)),
-    referenceWindowEndDate: toIsoDate(addUtcDays(monday, 27)),
+    planStartDate: toIsoDate(localMidnightAsUtc),
+    planEndDate: toIsoDate(addUtcDays(localMidnightAsUtc, 6)),
+    referenceWindowEndDate: toIsoDate(addUtcDays(localMidnightAsUtc, 27)),
   };
-}
-
-function isAtConfiguredGenerationTime(user: User, now: Date) {
-  const parts = dateParts(now);
-  const weekdayMap: Record<string, number> = {
-    Sun: 0,
-    Mon: 1,
-    Tue: 2,
-    Wed: 3,
-    Thu: 4,
-    Fri: 5,
-    Sat: 6,
-  };
-  const [scheduledHour, scheduledMinute] = user.weeklyPlanGenerationTime
-    .split(":")
-    .map(Number);
-  const currentMinutes = Number(parts.hour) * 60 + Number(parts.minute);
-  const scheduledMinutes = scheduledHour * 60 + scheduledMinute;
-  return weekdayMap[parts.weekday] === user.weeklyPlanGenerationDay && currentMinutes >= scheduledMinutes;
 }
 
 export function validatePlanPrerequisites(input: {
   user: User;
   documents: UploadedDocument[];
   extractedItems: ExtractedItem[];
-  existingWeeklyPlan: WeeklyPlan | null;
-  now: Date;
 }): PlanPrerequisiteResult {
-  if (!isAtConfiguredGenerationTime(input.user, input.now)) {
-    return { ok: false, reason: "not-scheduled" };
-  }
   if (input.documents.length === 0 || input.extractedItems.length === 0) {
     return { ok: false, reason: "no-upload" };
   }
@@ -103,9 +66,6 @@ export function validatePlanPrerequisites(input: {
   }
   if (input.extractedItems.some((item) => item.reviewStatus === "needs-review")) {
     return { ok: false, reason: "needs-review" };
-  }
-  if (input.existingWeeklyPlan) {
-    return { ok: false, reason: "already-generated" };
   }
   return { ok: true };
 }

@@ -4,6 +4,7 @@ export interface WeekDayViewModel {
   dayOfMonth: number;
   isToday: boolean;
   isSelected: boolean;
+  isWithinPlanRange: boolean;
   todoCount: number;
   scheduleCount: number;
 }
@@ -31,6 +32,9 @@ export interface TodayScheduleViewModel {
 export interface TodayViewModel {
   selectedDate: string;
   weekStart: string;
+  weekEnd: string;
+  planStartDate: string | null;
+  planEndDate: string | null;
   days: WeekDayViewModel[];
   todos: TodayTodoViewModel[];
   schedules: TodayScheduleViewModel[];

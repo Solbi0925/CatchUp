@@ -4,7 +4,7 @@ interface AdjustPlanInput {
   operationId: OperationId;
   requestText: string;
   requestedAt: string;
-  weekStartDate?: string;
+  planStartDate?: string;
   todos: Todo[];
 }
 
@@ -14,20 +14,21 @@ function addDays(isoDate: string, amount: number) {
   return date.toISOString().slice(0, 10);
 }
 
-function createDayTargets(weekStartDate: string) {
-  return [
-    { pattern: /월요일/, date: addDays(weekStartDate, 0), nextDate: addDays(weekStartDate, 1) },
-    { pattern: /화요일/, date: addDays(weekStartDate, 1), nextDate: addDays(weekStartDate, 2) },
-    { pattern: /수요일/, date: addDays(weekStartDate, 2), nextDate: addDays(weekStartDate, 3) },
-    { pattern: /목요일/, date: addDays(weekStartDate, 3), nextDate: addDays(weekStartDate, 4) },
-    { pattern: /금요일/, date: addDays(weekStartDate, 4), nextDate: addDays(weekStartDate, 5) },
-    { pattern: /토요일/, date: addDays(weekStartDate, 5), nextDate: addDays(weekStartDate, 6) },
-    { pattern: /일요일/, date: addDays(weekStartDate, 6), nextDate: addDays(weekStartDate, 5) },
-  ];
+function createDayTargets(planStartDate: string) {
+  const weekdayPatterns = [/일요일/, /월요일/, /화요일/, /수요일/, /목요일/, /금요일/, /토요일/];
+  return Array.from({ length: 7 }, (_, index) => {
+    const date = addDays(planStartDate, index);
+    const weekday = new Date(`${date}T00:00:00Z`).getUTCDay();
+    return {
+      pattern: weekdayPatterns[weekday],
+      date,
+      nextDate: addDays(planStartDate, index === 6 ? 5 : index + 1),
+    };
+  });
 }
 
 export function adjustMockPlan(input: AdjustPlanInput): AdjustmentResult {
-  const dayTargets = createDayTargets(input.weekStartDate ?? "2026-07-20");
+  const dayTargets = createDayTargets(input.planStartDate ?? "2026-07-22");
   const target = dayTargets.find(({ pattern }) => pattern.test(input.requestText));
   const candidate = target
     ? [...input.todos]

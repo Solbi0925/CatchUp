@@ -4,14 +4,12 @@ import type { GeneratePlanCommand } from "../domain/types";
 
 const command: GeneratePlanCommand = {
   operationId: "op-generate-1",
-  requestedAt: "2026-07-19T20:00:00+09:00",
+  requestedAt: "2026-07-22T09:00:00+09:00",
   requestText: "수요일은 가볍게, 일요일에는 쉬는 시간을 많이 확보해줘.",
   user: {
     id: "user-demo-01",
     displayName: "테스트 학생",
     calendarConnectionStatus: "connected",
-    weeklyPlanGenerationDay: 0,
-    weeklyPlanGenerationTime: "20:00",
     planGenerationRequest: "",
   },
   documents: [
@@ -59,7 +57,7 @@ const command: GeneratePlanCommand = {
       updatedAt: "2026-07-01T00:00:00+09:00",
     },
   ],
-  existingWeeklyPlan: null,
+  existingIncompleteTodos: [],
 };
 
 describe("generateMockWeeklyPlan", () => {
@@ -71,6 +69,26 @@ describe("generateMockWeeklyPlan", () => {
     expect(first.todos).toHaveLength(2);
     expect(first.todos.every((todo) => todo.sourceExtractedItemId === "item-runtime-1")).toBe(true);
     expect(first.todos.every((todo) => todo.weeklyPlanId === first.weeklyPlan.id)).toBe(true);
+    expect(first.weeklyPlan.planStartDate).toBe("2026-07-22");
+    expect(first.weeklyPlan.planEndDate).toBe("2026-07-28");
+  });
+
+  it("carries incomplete todos into a newly requested plan", () => {
+    const previousTodo = {
+      ...generateMockWeeklyPlan(command).todos[0],
+      id: "unfinished-1",
+      title: "이전 계획에서 남은 보고서",
+      isCompleted: false,
+    };
+    const result = generateMockWeeklyPlan({
+      ...command,
+      operationId: "op-generate-2",
+      existingIncompleteTodos: [previousTodo],
+    });
+
+    expect(result.todos.some((todo) => todo.title === previousTodo.title)).toBe(true);
+    expect(result.todos.find((todo) => todo.title === previousTodo.title)?.recommendationReason)
+      .toContain("이전 계획에서 완료되지 않아");
   });
 
   it("keeps a calendar-heavy Wednesday light", () => {

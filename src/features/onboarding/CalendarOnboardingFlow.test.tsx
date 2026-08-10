@@ -38,7 +38,7 @@ describe("Calendar onboarding flow", () => {
       await vi.advanceTimersByTimeAsync(700);
     });
 
-    expect(screen.getByLabelText("이번 주 날짜 선택")).toBeInTheDocument();
+    expect(screen.getByLabelText("월요일부터 일요일 날짜 선택")).toBeInTheDocument();
   });
 
   it("shows a retry action after a deterministic first failure", async () => {
@@ -55,7 +55,7 @@ describe("Calendar onboarding flow", () => {
       await vi.advanceTimersByTimeAsync(700);
     });
 
-    expect(screen.getByLabelText("이번 주 날짜 선택")).toBeInTheDocument();
+    expect(screen.getByLabelText("월요일부터 일요일 날짜 선택")).toBeInTheDocument();
   });
 
   it("allows the user to skip and explore Today without Calendar data", () => {
@@ -63,6 +63,6 @@ describe("Calendar onboarding flow", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "나중에 할게요" }));
 
-    expect(screen.getByLabelText("이번 주 날짜 선택")).toBeInTheDocument();
+    expect(screen.getByLabelText("월요일부터 일요일 날짜 선택")).toBeInTheDocument();
   });
 });
