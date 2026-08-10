@@ -112,7 +112,7 @@ export function TodayPage() {
               <h2>아직 생성된 주간 계획이 없어요.</h2>
               <p>확인한 학업 자료를 바탕으로 이번 주 계획을 만들어보세요.</p>
             </div>
-            <AiMateCharacter size={72} />
+            <AiMateCharacter size={84} />
           </article>
           <section className="today-section">
             <div className="today-section-heading">
@@ -139,7 +139,7 @@ export function TodayPage() {
               <h2>4주 일정을 고려해 중요한 일부터 정리했어요.</h2>
               <p>우리 오늘도 같이 하나씩 따라잡아봐요!</p>
             </div>
-            <AiMateCharacter size={72} />
+            <AiMateCharacter size={84} />
           </article>
 
           <section className="today-section">

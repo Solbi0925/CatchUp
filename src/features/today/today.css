@@ -128,8 +128,12 @@
 }
 
 .today-briefing > div {
+  display: flex;
   min-width: 0;
   flex: 1;
+  flex-direction: column;
+  align-self: stretch;
+  justify-content: center;
 }
 
 .today-briefing > img {
@@ -137,6 +141,8 @@
 }
 
 .today-briefing span {
+  display: block;
+  margin-top: -4px;
   color: #7259f3;
   font-size: 12px;
   font-weight: 800;
@@ -155,8 +161,8 @@
 }
 
 .today-briefing.with-plan > img {
-  width: 56px;
-  height: 56px;
+  width: 84px;
+  height: 84px;
 }
 
 .today-briefing p {
