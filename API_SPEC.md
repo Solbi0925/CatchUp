@@ -2,7 +2,7 @@
 
 ## 1. 문서 목적과 범위
 
-이 문서는 현재 목 데이터 기반 프로토타입의 화면 코드와 `DATA_MODEL.md`를 바탕으로, MVP 구현에 실제 필요한 REST API만 정의한다. 대상 화면은 Google Calendar 온보딩, Today, Month, Upload, 전역 AI Mate이다.
+이 문서는 현재 목 데이터 기반 프로토타입의 화면 코드와 `DATA_MODEL.md`를 바탕으로, localhost MVP에 필요한 Frontend-Local Backend/Bridge HTTP 계약을 정의한다. 대상 화면은 Google Calendar 온보딩, Today, Month, Upload, 전역 AI Mate이다.
 
 - API 기본 경로: `/api/v1`
 - 날짜: `YYYY-MM-DD`, 시간: `HH:mm`, 시각: ISO 8601 문자열(예: `2026-07-19T20:00:00+09:00`)
@@ -11,9 +11,17 @@
 - `eventType`은 현재 Month 화면에서 사용하는 `CalendarEvent`의 보조 분류(`personal`, `class`)다.
 - 모든 예시는 익명화된 목 데이터다. API 키, OAuth 토큰, 실제 학생 정보는 응답에 포함하지 않는다.
 
-### 공통 인증과 오류 형식
+### 로컬 실행 경계
 
-온보딩의 Google OAuth 시작·콜백을 제외한 API는 로그인 세션(예: HttpOnly 쿠키) 인증이 필요하다. 클라이언트는 사용자 ID를 path/body에 보내지 않으며, 서버가 인증 세션에서 사용자 ID를 결정한다.
+- 이 API는 발표용 노트북에서 실행되는 `backend/` Local Backend/Bridge만 제공하며, Vercel·클라우드 백엔드·퍼블릭 URL에 배포하지 않는다.
+- `frontend/`는 localhost의 Bridge에만 요청한다. 화면 표시와 재사용에 필요한 최소 결과는 Frontend Local Storage에 저장한다.
+- 파일은 Bridge가 로컬에서 임시 처리하고, AI 추출 또는 계획 생성에 필요한 최소 문맥만 AI 실행 어댑터에 전달한다. 임시 원본 파일은 처리 완료 또는 실패 뒤 보존하지 않는다.
+- AI 관련 엔드포인트는 Local Backend/Bridge의 분리된 AI 실행 어댑터를 통해 `codex exec`를 호출한다. 이는 제공된 ChatGPT Pro Codex 구독 인증을 사용하며, 브라우저·Backend 어디에서도 OpenAI API Key를 직접 사용하거나 저장하지 않는다.
+- Google OAuth와 Calendar 읽기 연동은 Upload·AI·계획 핵심 기능이 완료된 뒤 localhost 환경에서 적용한다. 배포 URL 기반 OAuth 순서는 사용하지 않는다.
+
+### 공통 로컬 호출·OAuth 보호와 오류 형식
+
+이번 발표용 localhost MVP에서는 별도 CatchUp 계정 로그인이나 클라우드 사용자 세션을 전제하지 않는다. Frontend가 로컬 프로필/데모 상태를 관리하고 Bridge는 localhost origin 요청만 수신한다. 아래 API의 `인증 여부: 필요`는 외부 사용자 로그인 요구가 아니라 localhost Frontend 요청 범위 확인을 뜻한다. Google OAuth 시작·콜백에서는 Bridge가 CSRF 방지 `state`와 로컬 보안 세션을 사용한다. 클라이언트는 Google OAuth 비밀값을 path/body에 보내지 않는다.
 
 ```json
 {
@@ -80,9 +88,9 @@
 - 에러 코드: `UNAUTHORIZED`
 - 사용하는 화면: Today, AI Mate, Google Calendar 연동
 
-### 2. Google Calendar OAuth 연결 시작
+### 2. Google Calendar OAuth 연결 시작 (핵심 기능 완성 후)
 
-- 목적: Google Calendar 권한 승인 화면으로 이동할 수 있는 일회성 URL을 만든다. OAuth access/refresh token은 서버에만 보관한다.
+- 목적: localhost 리디렉션 URI로 Google Calendar 권한 승인 화면에 이동할 일회성 URL을 만든다. OAuth access/refresh token은 Local Backend/Bridge의 로컬 보안 세션 또는 운영체제 보안 저장소에서만 관리한다.
 - HTTP Method / Endpoint: `POST /api/v1/calendar-connections/google/authorize`
 - 인증 여부: 필요
 - Request Body
@@ -103,7 +111,7 @@
 - 에러 코드: `UNAUTHORIZED`, `GOOGLE_CALENDAR_CONNECTION_FAILED`
 - 사용하는 화면: Google Calendar 연동
 
-### 3. Google Calendar OAuth 콜백 및 연결 완료
+### 3. Google Calendar OAuth 콜백 및 연결 완료 (핵심 기능 완성 후)
 
 - 목적: Google 인증 후 권한 코드 검증, 연결 상태 저장, 개인 일정 초기 동기화를 수행한 뒤 앱으로 되돌린다.
 - HTTP Method / Endpoint: `GET /api/v1/calendar-connections/google/callback`
@@ -124,7 +132,7 @@
 }
 ```
 
-실제 브라우저 동작에서는 서버가 위 결과를 저장한 후 `returnPath`로 302 리다이렉트해도 된다.
+실제 브라우저 동작에서는 Local Backend/Bridge가 위 결과를 로컬에 반영한 후 localhost의 `returnPath`로 302 리다이렉트해도 된다. 퍼블릭 배포 URL은 사용하지 않는다.
 
 - 에러 코드: `VALIDATION_ERROR`, `GOOGLE_CALENDAR_CONNECTION_FAILED`
 - 사용하는 화면: Google Calendar 연동
@@ -459,7 +467,7 @@ Google Calendar에서 온 일정은 이 API로 수정·삭제할 수 없으며 `
 }
 ```
 
-서버는 파일 내용을 분석해 `documentType`을 정하고, 파일과 필요한 문맥을 Codex Exec에 전달해 추출 결과를 얻는다. 이후 결과를 검증·저장한다. Codex Exec에 전달하는 프롬프트는 이 명세의 범위에 포함하지 않는다.
+Local Backend/Bridge는 파일 내용을 분석해 `documentType`을 정하고, 파일과 필요한 문맥을 분리된 AI 실행 어댑터를 통해 `codex exec`에 전달해 추출 결과를 얻는다. 이후 결과를 검증해 Frontend에 반환하며, 화면에 필요한 최소 결과만 Local Storage에 저장한다. `codex exec`는 ChatGPT Pro Codex 구독 인증을 사용하고 OpenAI API Key를 사용하지 않는다. Codex Exec에 전달하는 프롬프트는 이 명세의 범위에 포함하지 않는다.
 
 - 에러 코드: `VALIDATION_ERROR`, `UNAUTHORIZED`, `FILE_TOO_LARGE`, `UNSUPPORTED_FILE_TYPE`, `AI_PROCESSING_FAILED`
 - 사용하는 화면: Upload
@@ -623,7 +631,7 @@ Google Calendar에서 온 일정은 이 API로 수정·삭제할 수 없으며 `
 
 주간 계획 생성 의도일 때 같은 응답에 `weeklyPlan`과 전체 `todos`를 포함한다. 추천 근거·도움말 의도일 때는 데이터 변경 없이 `assistantMessage`만 반환한다.
 
-서버는 사용자 자료, 확정된 추출 결과, Google Calendar/CatchUp 개인 일정, 현재 주간 계획과 완료 상태를 모아 Codex Exec에 전달하고, 반환된 구조화 결과를 검증한 뒤 저장한다. OpenAI API를 브라우저나 백엔드에서 직접 호출하지 않으며, Codex Exec 프롬프트는 이 명세에 포함하지 않는다.
+Local Backend/Bridge는 사용자 자료, 확정된 추출 결과, Google Calendar/CatchUp 개인 일정, 현재 주간 계획과 완료 상태를 모아 분리된 AI 실행 어댑터를 통해 `codex exec`에 전달하고, 반환된 구조화 결과를 검증해 Frontend에 반환한다. Frontend는 필요한 계획 결과만 Local Storage에 저장한다. OpenAI API를 브라우저나 Backend에서 직접 호출하지 않으며, `codex exec`는 ChatGPT Pro Codex 구독 인증을 사용한다. Codex Exec 프롬프트는 이 명세에 포함하지 않는다.
 
 추가 도메인 오류 코드는 다음과 같다.
 

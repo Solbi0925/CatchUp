@@ -2,7 +2,7 @@
 
 ## 1. 목적
 
-CatchUp은 먼저 가짜 데이터(Mock data)로 핵심 사용자 흐름을 끝까지 확인한 뒤, 실제 로그인, 데이터 저장, Google Calendar, AI 기능을 단계적으로 연결한다.
+CatchUp은 먼저 가짜 데이터(Mock data)로 핵심 사용자 흐름을 끝까지 확인한 뒤, localhost의 실제 Local Storage, Local Backend/Bridge, `codex exec`를 단계적으로 연결한다. 이번 MVP는 Vercel이나 별도 클라우드 백엔드에 배포하지 않고 발표용 노트북에서만 시연한다.
 
 이 문서는 팀이 지금 무엇을 만들고 있는지, 다음 단계로 넘어가도 되는 기준이 무엇인지 함께 확인하기 위한 작업 계획이다. 계획은 구현 과정에서 발견한 내용에 따라 수정할 수 있다.
 
@@ -11,6 +11,8 @@ CatchUp은 먼저 가짜 데이터(Mock data)로 핵심 사용자 흐름을 끝�
 - 앱 전체의 방향은 `PRD.md`, `USER_FLOW.md`, `SCREEN_SPEC.md`를 기준으로 한다.
 - 화면 하나를 완벽하게 다듬기 전에, `Upload -> AI 추출 -> AI Mate 계획 생성 -> Today/Month 확인`의 핵심 흐름을 Mock 데이터로 먼저 연결한다.
 - 실제 개인정보, 실제 학생 자료, API 키, Google OAuth 토큰은 문서나 GitHub에 올리지 않는다.
+- 실행 구조는 `frontend/`의 `CatchUp Frontend(localhost) -> backend/`의 `Local Backend/Bridge -> codex exec`로 고정한다. `codex exec`는 ChatGPT Pro의 Codex 구독 인증을 사용하며 OpenAI API Key를 사용하지 않는다.
+- Frontend의 UI·비즈니스 로직과 Backend의 AI 실행 어댑터를 분리해, 향후 AI 실행 방식을 교체할 수 있게 한다.
 - Plan은 요청일 기준 7일이며 자동 생성하지 않고, AI Mate 계획 조정은 하루 10회라는 MVP 제한을 처음부터 화면과 데이터에 반영한다.
 
 ## 3. 전체 구현 순서
@@ -19,10 +21,11 @@ CatchUp은 먼저 가짜 데이터(Mock data)로 핵심 사용자 흐름을 끝�
 1단계. 공통 설계와 Mock 데이터 준비
 -> 2단계. Mock 핵심 흐름 연결
 -> 3단계. 화면과 상태 검증
--> 4단계. 실제 데이터 구조와 서버 요청 설계
--> 5단계. 로그인과 데이터 저장 연결
--> 6단계. 업로드, AI, Google Calendar 실제 기능 연결
--> 7단계. 전체 데모와 사용자 테스트
+-> 4단계. 로컬 데이터 구조와 Bridge 요청 설계
+-> 5단계. Local Storage와 Local Backend/Bridge 연결
+-> 6단계. 업로드와 AI 실제 기능 연결
+-> 7단계. localhost Google Calendar 연동
+-> 8단계. 전체 데모와 사용자 테스트
 ```
 
 ---
@@ -133,21 +136,22 @@ Mock으로 확인한 흐름을 실제 데이터로 바꾸기 전에, 저장할 �
 
 ---
 
-## 5단계. 로그인과 데이터 저장 연결
+## 5단계. Local Storage와 Local Backend/Bridge 연결
 
 ### 목표
 
-가짜 데이터 대신 사용자별 데이터를 실제로 저장하고 다시 불러올 수 있게 만든다.
+가짜 데이터 대신 발표용 노트북에 필요한 데이터만 Local Storage로 저장하고 다시 불러올 수 있게 만든다.
 
 ### 구현 순서
 
-1. Auth 연결: 사용자를 구분하는 로그인 기능을 연결한다.
-2. DB 연결: 사용자, 업로드 자료, 추출 결과, 일정, 주간 계획, 할 일을 저장한다.
-3. Today와 Month가 저장된 데이터를 읽어 표시하도록 연결한다.
+1. `frontend/`와 `backend/` 폴더 경계를 만들고 localhost에서 함께 실행한다.
+2. Frontend Local Storage에 추출 결과, 일정, 주간 계획, 할 일 등 화면에 필요한 최소 데이터를 저장한다.
+3. Local Backend/Bridge가 프론트 요청을 받고, 파일을 임시 처리하며, 결과만 Frontend로 돌려주도록 연결한다.
+4. Today와 Month가 Local Storage의 데이터를 읽어 표시하도록 연결한다.
 
 ### 완료 기준
 
-테스트 사용자가 로그인한 뒤 만든 데이터가 저장되고, 앱을 다시 열어도 같은 사용자 데이터로 확인된다.
+발표용 노트북에서 만든 익명 샘플 데이터가 앱을 다시 열어도 확인되고, Local Backend/Bridge가 외부 공개 없이 localhost 요청만 처리한다.
 
 ---
 
@@ -161,25 +165,19 @@ Mock 기능을 실제 업로드, AI, Google Calendar 데이터로 교체한다.
 
 1. 파일 업로드와 저장 기능을 연결한다. 최초 MVP에서는 PDF와 이미지 파일 형식을 모두 지원한다.
 2. AI 정보 추출 기능을 연결하고, 추출 결과를 사용자가 확인 및 수정한 뒤 저장하게 만든다.
-3. Google Calendar 실제 연동을 연결한다.
-4. CatchUp 안에서 개인 일정을 직접 추가·수정하고 저장하는 기능을 연결한다.
-5. AI가 업로드 자료, 저장된 학업 일정, Google Calendar 개인 일정과 CatchUp에서 직접 추가·수정한 개인 일정, 기존 미완료 과제, 향후 약 4주 일정을 참고해 요청일부터 7일 계획을 만들게 한다.
+3. Local Backend/Bridge가 `codex exec`를 실행해 구조화된 추출 결과를 받고 검증·반환하게 한다. OpenAI API Key 직접 호출은 사용하지 않는다.
+4. CatchUp 안에서 개인 일정을 직접 추가·수정하고 Local Storage에 저장하는 기능을 연결한다.
+5. AI가 업로드 자료, 저장된 학업 일정, CatchUp 직접 입력 개인 일정, 기존 미완료 과제, 향후 약 4주 일정을 참고해 요청일부터 7일 계획을 만들게 한다.
 6. AI Mate 계획 조정과 추천 근거 설명 기능을 연결한다.
 7. 자동 생성 없이 요청일 기준 7일 Plan 범위와 하루 10회 조정 제한을 실제 저장 데이터 기준으로 적용한다.
 
-### Google Calendar 진행 방식
+## 7단계. localhost Google Calendar 연동
 
-Google Calendar는 두 번 나누어 진행한다.
+핵심 업로드·AI·계획 기능이 완성된 뒤에만 localhost 리디렉션 URI를 사용하는 Google OAuth와 실제 Calendar 읽기 연동을 진행한다. 기존의 “배포 URL을 먼저 만들고 OAuth를 연결한다”는 순서는 사용하지 않는다.
 
-1. **2단계와 병행하는 간단한 기술 확인**
-   - Google 로그인 권한 허용(OAuth)이 가능한지 확인한다.
-   - 테스트용 Calendar에서 일정 목록을 한 번 읽어올 수 있는지 확인한다.
-   - API 키나 OAuth 토큰은 GitHub와 문서에 올리지 않는다.
-
-2. **6단계의 실제 화면 연동**
-   - Mock 개인 일정을 실제 Google Calendar 일정으로 교체한다.
-   - 가져온 일정이 Today와 Month에 표시되는지 확인한다.
-   - AI Mate의 주간 계획 생성에 개인 일정이 반영되는지 확인한다.
+1. 발표용 노트북의 localhost에서 Google 로그인 권한 허용(OAuth)과 테스트용 익명 Calendar 읽기를 확인한다.
+2. Mock 개인 일정을 실제 Google Calendar 일정으로 교체하고 Today·Month·AI Mate 입력에 반영되는지 확인한다.
+3. OAuth 토큰은 Frontend Local Storage·문서·GitHub에 저장하지 않으며, Local Backend/Bridge의 로컬 보안 세션 또는 운영체제 보안 저장소에서만 최소 범위로 관리한다.
 
 ### 완료 기준
 
@@ -187,7 +185,7 @@ Google Calendar는 두 번 나누어 진행한다.
 
 ---
 
-## 7단계. 전체 데모와 사용자 테스트
+## 8단계. 전체 데모와 사용자 테스트
 
 ### 목표
 
@@ -215,6 +213,7 @@ Google Calendar는 두 번 나누어 진행한다.
 - 추출 실패 또는 확인 필요 항목을 사용자가 수정할 수 있는지
 - 추천 이유가 수치형 완료 확률이 아니라 이해하기 쉬운 근거로 표시되는지
 - 테스트 사용자에게 "오늘 무엇을 해야 하는지 빠르게 알 수 있었는지"를 묻고 의견을 기록하는지
+- 발표용 노트북의 localhost에서 네트워크 공개 배포 없이 전체 데모가 실행되는지
 
 ## 4. 문서 수정 원칙
 

@@ -2,7 +2,9 @@
 
 ## 1. 문서 목적과 적용 범위
 
-이 문서는 CatchUp MVP의 실제 API와 관계형 DB 구현에 사용할 **논리 데이터 모델**이다. 화면에서 사용하는 API 필드명은 `API_SPEC.md`를 따르고, DB는 아래의 `snake_case` 테이블·컬럼명으로 저장한다. 예시는 모두 익명화된 목 데이터다.
+이 문서는 CatchUp MVP의 **논리 데이터 모델**이다. 화면에서 사용하는 API 필드명은 `API_SPEC.md`를 따르며, 이번 발표용 localhost 구현에서는 화면에 필요한 최소 데이터를 Frontend Local Storage에 저장한다. 아래 테이블·컬럼은 데이터 관계와 검증 규칙을 설명하기 위한 논리 이름이며, 클라우드 DB 도입을 뜻하지 않는다. 예시는 모두 익명화된 목 데이터다.
+
+실행 경로는 `frontend/ -> backend/ Local Backend/Bridge -> codex exec`다. Frontend는 UI·사용자 상호작용·Local Storage를, Bridge는 요청 수신·파일 임시 처리·AI 실행 결과 반환을 담당한다. Bridge의 AI 실행 어댑터는 계획 비즈니스 로직과 분리하며, ChatGPT Pro Codex 구독 인증으로 `codex exec`를 실행한다. OpenAI API Key와 Vercel·클라우드 백엔드는 사용하지 않는다.
 
 이 모델은 다음 MVP만 다룬다.
 
@@ -13,18 +15,18 @@
 - AI Mate를 통한 계획 조정(사용자당 KST 기준 하루 최대 10회)
 - Today 완료 체크와 Month/Today 일정 조회
 
-Google OAuth access/refresh token, API 키, 실제 파일 원문은 일반 DB 응답이나 클라이언트에 저장·반환하지 않는다. OAuth 비밀값은 암호화된 비밀 저장소에, 파일은 접근 제어된 객체 스토리지에 보관하고 DB에는 참조 키만 둔다.
+Google OAuth access/refresh token, API 키, 실제 파일 원문은 Local Storage·API 응답·로그에 저장하거나 반환하지 않는다. OAuth 비밀값은 핵심 기능 완성 후 localhost OAuth를 적용할 때 Local Backend/Bridge의 로컬 보안 세션 또는 운영체제 보안 저장소에만 최소 범위로 관리한다. 업로드 파일은 Bridge가 처리 중에만 로컬 임시 저장하고 처리 뒤 폐기한다.
 
 ## 2. 공통 규칙
 
 | 항목 | 규칙 |
 | --- | --- |
 | PK | 모든 `id`는 UUID 또는 충돌 없는 문자열 ID를 사용한다. |
-| 소유권 | 사용자 소유 리소스는 모두 `user_id`를 가져야 하며, API는 인증 세션의 사용자와 일치하는 행만 조회·변경한다. |
+| 소유권 | 논리적으로 사용자 소유 리소스는 `user_id`를 가진다. localhost MVP에서는 Frontend의 로컬 프로필 범위로 격리하며, Bridge는 localhost 요청만 처리한다. |
 | 시각 | 생성·수정·동기화 시각은 `timestamptz`(UTC 저장)로, 화면에서는 사용자 시간대(초기값 `Asia/Seoul`)로 변환한다. |
 | 날짜/시간 | 날짜는 `date`, 시간만 있는 값은 `time`, 실제 일정의 시작·종료는 `timestamptz`를 사용한다. 종일 일정은 시간 값을 `NULL`로 둔다. |
 | 열거형 | DB enum 또는 `CHECK` 제약으로 제한한다. API는 `API_SPEC.md`의 kebab-case 값을, DB는 snake_case 값을 사용해도 된다. |
-| 삭제 | 계획·조정·추출 근거는 감사와 재현성을 위해 물리 삭제하지 않는다. CatchUp 직접 일정은 `deleted_at` 소프트 삭제를 권장한다. |
+| 삭제 | 발표용 Local Storage에는 화면에 필요한 최신 데이터만 저장한다. CatchUp 직접 일정은 `deleted_at` 논리 상태를 사용할 수 있다. |
 | 개인정보 | 실제 학생 정보·일정은 최소 범위로 저장한다. 로그, AI 프롬프트, 오류 메시지에 OAuth 비밀값이나 원문 파일을 남기지 않는다. |
 
 ## 3. 관계 개요
@@ -48,17 +50,17 @@ users
 
 ### 4.1 `users`
 
-인증 공급자가 식별한 사용자와 화면 기본 정보를 저장한다.
+로컬 프로필과 화면 기본 정보를 나타내는 논리 엔터티다. 별도 CatchUp 로그인 또는 클라우드 인증 공급자는 이번 MVP에 포함하지 않는다.
 
 | 컬럼 | 타입 | 제약/설명 |
 | --- | --- | --- |
 | `id` | uuid | PK |
-| `auth_subject` | text | 인증 시스템의 안정적인 사용자 식별자, `UNIQUE` |
+| `auth_subject` | text | 향후 인증 확장용 선택 식별자. localhost MVP에서는 사용하지 않음 |
 | `display_name` | text | 화면 표시명, 선택값 |
 | `time_zone` | text | 기본값 `Asia/Seoul` |
-| `created_at`, `updated_at` | timestamptz | 서버가 기록 |
+| `created_at`, `updated_at` | timestamptz | Local Storage 기록 시각 |
 
-API의 `GET /me`에 쓰이는 `calendarConnectionStatus`, 기본 계획 요청사항, 조정 잔여 횟수는 각각 아래 테이블에서 조합한다. 클라이언트가 `userId`를 요청 본문으로 보내지 않는다.
+`GET /me`에 쓰이는 `calendarConnectionStatus`, 기본 계획 요청사항, 조정 잔여 횟수는 아래 논리 엔터티에서 조합한다. Frontend는 내부 Local Storage 키를 사용하며, Google OAuth 비밀값을 요청 본문에 보내지 않는다.
 
 ### 4.2 `plan_generation_preferences`
 
@@ -83,7 +85,7 @@ Google Calendar 연결 상태와 동기화 메타데이터다. Google 외 공급
 | `provider` | text | `google_calendar`만 허용 |
 | `status` | text | `disconnected`, `connecting`, `connected`, `failed`, `revoked` |
 | `external_account_id` | text | Google 계정의 공급자 식별자, 토큰 아님 |
-| `secret_ref` | text | 암호화된 토큰이 있는 비밀 저장소 참조. API로 반환 금지 |
+| `secret_ref` | text | Local Backend/Bridge의 로컬 보안 세션 또는 운영체제 보안 저장소 참조. API·Local Storage로 반환 금지 |
 | `sync_cursor` | text | 증분 동기화 토큰/커서, API로 반환 금지 |
 | `last_synced_at`, `created_at`, `updated_at` | timestamptz | 서버가 기록 |
 
@@ -121,14 +123,14 @@ Google에서 읽어온 일정과 CatchUp에서 직접 만든 개인·수업 일�
 | `file_name` | text | 화면에 보여 줄 원본 파일명 |
 | `mime_type` | text | `application/pdf` 또는 허용 이미지 MIME |
 | `size_bytes` | bigint | `> 0` |
-| `storage_key` | text | 객체 스토리지 키, `UNIQUE`, 클라이언트에 직접 공개 금지 |
+| `storage_key` | text | 로컬 임시 파일 참조, 처리 완료·실패 후 폐기, 클라이언트에 직접 공개 금지 |
 | `document_type` | text | `syllabus`, `lms_notice`, `assignment_brief`, `other` |
 | `upload_status` | text | `uploading`, `complete`, `failed` |
 | `extraction_status` | text | `pending`, `processing`, `complete`, `needs_review`, `failed` |
 | `extraction_error_code` | text | 실패 시 안전한 코드만 저장, 선택값 |
 | `uploaded_at`, `created_at`, `updated_at` | timestamptz | 서버가 기록 |
 
-PDF와 이미지 이외에는 업로드 전에 거절한다. `storage_key`의 실제 파일은 소유권 확인이 된 짧은 만료 URL로만 내려준다.
+PDF와 이미지 이외에는 업로드 전에 거절한다. 원본 파일은 화면에 다시 내려주지 않고, 추출·검토에 필요한 구조화 결과만 Local Storage에 저장한다.
 
 ### 4.6 `extracted_items`와 `extracted_item_revisions`
 
@@ -201,7 +203,7 @@ AI Mate 입력과 실행 결과, 그리고 조정 10회 제한을 분리한다. 
 - 완료 체크되지 않은 이전 Todo는 다음 Plan 생성 입력에 다시 포함한다.
 - `review_status=needs_review`인 추출 항목은 Today/Month의 일반 일정과 계획 생성 입력에서 제외한다.
 - AI 결과는 저장 전에 사용자 소유권, enum, 날짜·시간, Plan 범위, 예상 시간, 참조 학업 항목을 검증한다.
-- AI는 직접 SQL·파일 경로·OAuth 비밀값에 접근하지 않는다. 서버가 최소 필요 입력을 제공하고 구조화 결과만 검증해 저장한다.
+- AI는 직접 Local Storage·파일 경로·OAuth 비밀값에 접근하지 않는다. Local Backend/Bridge의 분리된 AI 실행 어댑터가 최소 필요 입력만 `codex exec`에 제공하고 구조화 결과를 검증해 반환한다.
 
 ### 권장 인덱스
 
@@ -218,12 +220,12 @@ daily_adjustment_usages(user_id, usage_date) PRIMARY KEY
 
 ## 7. 구현 순서와 검증 체크리스트
 
-1. 인증 세션과 `users`, 주간 설정, Google 연결 상태를 먼저 구현한다.
-2. 파일 스토리지 참조·문서·추출 항목·revision을 구현하고 사용자 수정/확정을 검증한다.
-3. Google 읽기 동기화와 CatchUp 직접 일정 CRUD를 구현한다.
-4. 요청일 기준 7일 Plan 생성 트랜잭션과 중복 요청 제어를 구현한다.
-5. AI Mate 조정의 idempotency(`client_request_id`), revision 저장, 일일 사용량 잠금/제한을 구현한다.
-6. Today/Month 조회가 소유권·확정 상태·시간대를 올바르게 반영하는지 확인한다.
+1. `frontend/` Local Storage 모델과 `backend/` Local Backend/Bridge 경계를 먼저 구현한다.
+2. 로컬 임시 파일·문서·추출 항목·revision을 구현하고 사용자 수정/확정을 검증한다.
+3. CatchUp 직접 일정 CRUD와 요청일 기준 7일 Plan 생성 규칙을 구현한다.
+4. 분리된 AI 실행 어댑터가 `codex exec` 결과를 검증해 반환하도록 구현한다.
+5. AI Mate 조정의 idempotency(`client_request_id`), Local Storage revision, 일일 사용량 제한을 구현한다.
+6. 핵심 기능 후 localhost Google OAuth 읽기 동기화를 연결하고, Today/Month 조회가 확정 상태·시간대를 올바르게 반영하는지 확인한다.
 
 다음은 실제 연결 전 최소 검증 항목이다.
 
@@ -233,4 +235,4 @@ daily_adjustment_usages(user_id, usage_date) PRIMARY KEY
 - Google 일정은 읽기 전용이고 CatchUp 직접 일정만 수정·삭제되는가?
 - 확인 필요 추출 항목이 계획 생성·Today·Month 조회에 섞이지 않는가?
 - 종일/시간 일정, KST 자정, Plan 범위 경계와 월요일 Calendar Week 경계에서 날짜가 바르게 표시되는가?
-- OAuth 토큰, `secret_ref`, `storage_key`, 실제 원문이 API 응답·로그에 노출되지 않는가?
+- OAuth 토큰, `secret_ref`, `storage_key`, 실제 원문이 Local Storage·API 응답·로그에 노출되지 않는가?

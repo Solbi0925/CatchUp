@@ -2,7 +2,9 @@
 
 ## 0. 서비스 형태
 
-CatchUp은 데스크톱과 모바일 웹 브라우저에서 이용하는 웹앱으로 구현한다.
+CatchUp은 데스크톱과 모바일 웹 브라우저에서 이용하는 웹앱으로 구현한다. 이번 MVP는 공모전 발표용 노트북의 `localhost`에서만 실행하며, 퍼블릭 배포를 하지 않는다. Vercel, 별도 클라우드 백엔드 서버, 배포 URL을 전제로 한 기능은 사용하지 않는다.
+
+기본 실행 경로는 `CatchUp Frontend(localhost) -> Local Backend/Bridge -> codex exec`이다. Frontend는 UI·사용자 상호작용·필요한 Local Storage를 담당하고, Local Backend/Bridge는 프론트 요청 수신, 업로드 파일의 임시 처리, `codex exec` 실행과 결과 반환을 담당한다. AI 실행 어댑터는 UI 및 계획 비즈니스 로직과 분리한다. `codex exec`는 제공된 ChatGPT Pro의 Codex 구독 인증을 사용하며 OpenAI API Key를 사용하지 않는다.
 
 ## 1. 해결하려는 문제
 
@@ -219,6 +221,8 @@ MVP에서는 실제 예측 모델 없이 “완료 확률 38%”처럼 정확한
 - 추출 실패 사례와 계획 생성 오류 보완
 - 요청일 기준 7일 생성, 미완료 이월, Today 주차 이동과 챗봇 조정 하루 10회 제한 검증
 - 데모 시나리오와 성공 기준 결과 정리
+- 발표용 노트북의 localhost에서 Frontend, Local Backend/Bridge, `codex exec` 연동이 정상 동작하는지 검증
+- Vercel 또는 클라우드 백엔드 없이 실행되는지 확인
 
 ## 8. 다음 Codex 작업 요청문
 
@@ -229,7 +233,7 @@ MVP에서는 실제 예측 모델 없이 “완료 확률 38%”처럼 정확한
 - 화면 구성: 파일 업로드, 추출 결과 확인/수정, Today Calendar Week, 7일 Plan 생성 요청, 계획 생성 요구사항 입력, AI 챗봇
 - 데이터 모델: 사용자 일정, 학업 일정, 과제, 시험, 계획 항목, 추천 근거, 주간 계획 생성 설정, 챗봇 조정 요청 사용량
 - AI 프롬프트 초안: 정보 추출, 향후 약 4주 참고 기반 7일 계획 생성, 미완료 이월, 계획 조정, 추천 근거 설명
-- Google Calendar 연결 방식
+- localhost 기반 Google Calendar 연결 방식(핵심 기능 완성 후 진행)
 - 10주 개발 일정
 - 가장 먼저 구현할 작업 순서
 

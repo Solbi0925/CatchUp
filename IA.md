@@ -4,6 +4,8 @@
 
 CatchUp의 MVP 정보 구조는 Google Calendar를 사용하는 사용자가 학업 자료와 Google Calendar 개인 일정, CatchUp에서 직접 추가·수정한 개인 일정, 기존 미완료 과제를 바탕으로 현재부터 7일 동안 해야 할 학습 항목을 확인하도록 구성한다. Today는 이 Plan 기간과 분리된 월~일 Calendar Week 단위로 표시한다.
 
+이번 MVP는 발표용 노트북의 localhost에서만 동작한다. `frontend/`는 화면과 필요한 Local Storage를, `backend/` Local Backend/Bridge는 파일 임시 처리와 `codex exec` 결과 반환을 담당한다. Google Calendar 실제 OAuth 연결은 핵심 Upload·AI·계획 흐름을 완성한 뒤 localhost에서 진행한다.
+
 AI Mate는 하단 네비게이션의 개별 탭으로 두지 않고, 어떤 화면에 있어도 접근할 수 있는 전역 플로팅 탭으로 제공한다. 사용자는 Upload 화면에 올린 학업 자료와 일정, 기존 미완료 과제를 바탕으로 원하는 날짜에 AI Mate에게 7일 Plan 생성을 요청하고, 계획 생성 시 요청사항을 자연어로 입력할 수 있다. 계획 생성 후 수정하고 싶은 부분이 있으면 같은 플로팅 AI Mate를 통해 계획 조정을 요청한다.
 
 ## 2. 전체 구조
@@ -30,7 +32,7 @@ AI Mate는 하단 네비게이션의 개별 탭으로 두지 않고, 어떤 화�
 
 - 첫 사용자는 온보딩을 본 뒤 Google Calendar 연동 화면으로 이동한다.
 - 온보딩은 워드마크 중심의 짧은 브랜드 인트로이며, 일정 시간 노출 후 Google Calendar 연동 화면으로 자동 전환한다.
-- Google Calendar 연동이 완료되면 메인 앱으로 진입한다.
+- Google Calendar 연동을 완료하면 메인 앱으로 진입한다. 핵심 기능 완성 전에는 Mock 연결 상태로 같은 화면 흐름을 검증한다.
 - 메인 앱의 기본 진입 탭은 `Today`이다.
 
 ### 3.2 메인 네비게이션

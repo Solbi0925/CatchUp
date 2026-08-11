@@ -4,6 +4,8 @@
 
 이 문서는 `IA.md`와 `USER_FLOW.md`를 바탕으로 CatchUp MVP의 화면별 구성 요소, 표시 정보, 사용자 행동, 상태를 정의한다.
 
+화면은 발표용 노트북의 localhost에서 동작한다. UI는 `frontend/`, 파일 임시 처리와 `codex exec` 결과 반환은 `backend/` Local Backend/Bridge가 담당하며, 화면에는 필요한 결과만 Local Storage에서 표시한다. Google Calendar 실제 OAuth는 핵심 기능 완성 후 localhost 환경에서 연결한다.
+
 현재 화면 구조는 아래를 기준으로 한다.
 
 ```text
@@ -131,6 +133,8 @@
 - 권한 승인
 - 연결 실패 시 재시도
 - 연결 완료 후 메인 앱 진입
+
+실제 OAuth는 Upload·AI·계획 핵심 기능 완성 후 localhost 리디렉션 URI로 진행한다. 그 전에는 Mock 연결 상태로 화면과 계획 흐름을 검증한다.
 
 ### 오류 상태
 
