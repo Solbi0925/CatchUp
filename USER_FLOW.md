@@ -1,5 +1,9 @@
 # CatchUp User Flow
 
+## 로컬 시연 실행 전제
+
+이번 MVP는 발표용 노트북의 localhost에서만 실행한다. Frontend의 AI 요청은 Local Backend/Bridge를 거쳐 ChatGPT Pro Codex 구독으로 인증된 `codex exec`에 전달되고, 정리된 결과만 화면과 필요한 Local Storage에 반영된다. Google Calendar 실제 OAuth·읽기 연동은 핵심 Upload·AI·계획 흐름을 완성한 뒤 localhost에서 진행하며, 배포 URL을 먼저 만드는 흐름은 사용하지 않는다.
+
 ## 1. 문서 목적
 
 이 문서는 `IA.md`를 바탕으로 CatchUp MVP의 핵심 사용자 흐름을 정의한다.
@@ -27,6 +31,8 @@ AI Mate는 하단 네비게이션의 개별 탭이 아니라, 모든 메인 화�
 ### 목적
 
 Google Calendar를 사용하는 사용자가 CatchUp의 핵심 기능을 이해하고, Google Calendar를 연결해 주간 계획 생성에 필요한 기본 상태를 만든다.
+
+실제 OAuth가 아직 연결되지 않은 단계에서는 같은 화면을 Mock 연결 상태로 검증하며, 핵심 기능 완성 후 localhost OAuth로 전환한다.
 
 ### 흐름
 
