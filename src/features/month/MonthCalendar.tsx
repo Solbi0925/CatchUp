@@ -149,7 +149,9 @@ export function MonthCalendar({
                       <span className="month-date__events" aria-hidden="true">
                         {schedules.slice(0, 2).map((schedule) => (
                           <span
-                            className="month-date__event-chip"
+                            className={`month-date__event-chip${schedule.isProvisional ? " is-provisional" : ""}`}
+                            data-temporal-precision={schedule.temporalPrecision}
+                            data-range-position={schedule.rangePosition}
                             data-category-key={schedule.categoryKey}
                             style={{ backgroundColor: resolveCategoryColor(schedule.categoryKey, categoryColorByKey) }}
                             key={schedule.id}

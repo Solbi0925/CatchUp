@@ -68,3 +68,21 @@ Google Calendar를 사용하는 대학생의 강의계획서, LMS 공지, 과제
 1. `SCREEN_SPEC.md`를 바탕으로 화면별 와이어프레임을 작성해줘.
 2. MVP 구현을 위한 데이터 모델과 API 구조 초안을 작성해줘.
 3. AI 정보 추출, 4주 윈도우 기반 주간 계획 생성, 챗봇 기반 계획 조정, 추천 근거 설명에 사용할 프롬프트 초안을 작성해줘.
+
+## 로컬 실행 및 검증
+
+Node.js, pnpm, 로그인된 `codex` CLI가 필요하다. OpenAI API Key는 사용하지 않는다.
+
+```bash
+pnpm dev
+```
+
+`pnpm dev`는 Vite 화면 서버와 Local Bridge를 함께 실행한다. 따로 실행해야 할 때만 `pnpm dev:frontend`와 `pnpm dev:bridge`를 각각 사용한다. Bridge 상태는 `http://127.0.0.1:4318/health`에서 확인한다. Frontend 프록시와 Bridge는 기본 포트 `4318`을 함께 사용한다.
+
+```bash
+pnpm typecheck
+pnpm test
+pnpm build
+```
+
+업로드 파일은 OS 임시 디렉터리에서 처리 후 삭제되며, 구조화된 확정·미확정 학업 이벤트와 원본 출처 정보만 브라우저 Local Storage에 저장된다. 이후 자료 분석 시 기존 미확정 이벤트를 함께 비교해 동일 이벤트의 부족한 정보를 보완한다.

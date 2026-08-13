@@ -112,6 +112,7 @@
 
 .month-date__events { display: grid; min-width: 0; gap: 2px; }
 .month-date__event-chip { display: block; min-width: 0; padding: 3px 4px; overflow: hidden; border-radius: 4px; color: #292333; font-size: 9px; line-height: 12px; text-align: left; text-overflow: ellipsis; white-space: nowrap; }
+.month-date__event-chip.is-provisional { border: 1px dashed rgba(83, 58, 179, .55); opacity: .82; }
 .month-date__more { color: #77717e; font-size: 9px; line-height: 11px; text-align: left; }
 .month-date.is-adjacent .month-date__events { opacity: .48; }
 

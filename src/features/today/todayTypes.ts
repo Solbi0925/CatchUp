@@ -6,6 +6,7 @@ export interface WeekDayViewModel {
   isSelected: boolean;
   todoCount: number;
   scheduleCount: number;
+  isInPlanRange: boolean;
 }
 
 export interface TodayTodoViewModel {
@@ -23,9 +24,10 @@ export interface TodayScheduleViewModel {
   id: string;
   title: string;
   timeLabel: string;
-  type: "deadline" | "submission" | "exam" | "notice" | "personal";
+  type: "deadline" | "submission" | "exam" | "notice" | "class" | "personal";
   sourceLabel: "업로드 자료" | "Google Calendar" | "CatchUp 직접 입력";
   categoryKey: string;
+  isProvisional: boolean;
 }
 
 export interface TodayViewModel {

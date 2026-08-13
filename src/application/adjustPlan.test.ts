@@ -15,6 +15,8 @@ const todos: Todo[] = [
     priority: "high",
     isCompleted: false,
     recommendationReason: "마감이 가까워요.",
+    durationRationale: [],
+    carriedOverFromTodoId: null,
   },
   {
     id: "todo-thu",
@@ -28,6 +30,8 @@ const todos: Todo[] = [
     priority: "medium",
     isCompleted: false,
     recommendationReason: "검토 시간이 필요해요.",
+    durationRationale: [],
+    carriedOverFromTodoId: null,
   },
 ];
 

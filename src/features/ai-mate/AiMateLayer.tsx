@@ -83,10 +83,14 @@ export function AiMateLayer({ showCoachmark }: { showCoachmark: boolean }) {
     adjustmentRemaining,
     sendMessage,
     retryFailed,
+    openForPlanGeneration,
+    openDefault,
+    updateCoachmark,
   } = useAiMate();
   const launcherRef = useRef<HTMLButtonElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
   const logRef = useRef<HTMLDivElement>(null);
+  const composerRef = useRef<HTMLTextAreaElement>(null);
   const isComposingRef = useRef(false);
 
   useEffect(() => {
@@ -101,6 +105,16 @@ export function AiMateLayer({ showCoachmark }: { showCoachmark: boolean }) {
     if (!isOpen) return;
     if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight;
   }, [isOpen, isResponding, messages]);
+
+  useEffect(() => {
+    if (!isOpen || !draft) return;
+    window.requestAnimationFrame(() => {
+      const composer = composerRef.current;
+      if (!composer) return;
+      composer.focus();
+      composer.setSelectionRange(draft.length, draft.length);
+    });
+  }, [draft, isOpen]);
 
   const onComposerKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
     if (
@@ -120,9 +134,9 @@ export function AiMateLayer({ showCoachmark }: { showCoachmark: boolean }) {
     <>
       {!isOpen && (
         <div className="ai-mate-launcher">
-          {showCoachmark && (
+          {(updateCoachmark || showCoachmark) && (
             <div className="ai-coachmark" role="status">
-              AI Mate에서 이번 주 계획을 만들어보세요
+              {updateCoachmark ?? "주간계획 생성해봐요!"}
             </div>
           )}
           <button
@@ -130,7 +144,7 @@ export function AiMateLayer({ showCoachmark }: { showCoachmark: boolean }) {
             className="ai-fab"
             type="button"
             aria-label="AI Mate 열기"
-            onClick={() => setOpen(true)}
+            onClick={() => showCoachmark && !updateCoachmark ? openForPlanGeneration() : openDefault()}
           >
             <AiMateCharacter size={68} />
           </button>
@@ -227,6 +241,7 @@ export function AiMateLayer({ showCoachmark }: { showCoachmark: boolean }) {
               }}
             >
               <textarea
+                ref={composerRef}
                 rows={1}
                 value={draft}
                 placeholder="메시지를 입력하세요..."

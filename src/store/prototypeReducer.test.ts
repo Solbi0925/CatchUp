@@ -1,10 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { createInitialPrototypeState, prototypeReducer } from "./prototypeReducer";
 import type { ExtractionResult, GeneratePlanResult } from "../domain/types";
+import { academicEventFixture } from "../test/academicEventFixture";
 
 const extraction: ExtractionResult = {
   operationId: "extract-1",
-  document: {
+  documents: [{
     id: "doc-1",
     userId: "user-demo-01",
     fileName: "강의계획서.pdf",
@@ -15,8 +16,8 @@ const extraction: ExtractionResult = {
     uploadStatus: "complete",
     extractionStatus: "needs-review",
     uploadedAt: "2026-07-19T20:00:00+09:00",
-  },
-  extractedItems: [{
+  }],
+  extractedItems: [academicEventFixture({
     id: "item-1",
     documentId: "doc-1",
     title: "보고서",
@@ -30,7 +31,7 @@ const extraction: ExtractionResult = {
     estimatedDurationMinutes: 180,
     reviewStatus: "needs-review",
     isUserEdited: false,
-  }],
+  })],
 };
 
 const plan: GeneratePlanResult = {
@@ -58,6 +59,8 @@ const plan: GeneratePlanResult = {
     priority: "high",
     isCompleted: false,
     recommendationReason: "마감이 가까워요.",
+    durationRationale: [],
+    carriedOverFromTodoId: null,
   }],
   assistantMessage: {
     id: "assistant-plan-1",
@@ -83,7 +86,7 @@ describe("prototypeReducer", () => {
       type: "extraction/applied",
       payload: extraction,
     });
-    expect(state.documentsById["doc-1"]).toEqual(extraction.document);
+    expect(state.documentsById["doc-1"]).toEqual(extraction.documents[0]);
     expect(state.extractedItemIdsByDocumentId["doc-1"]).toEqual(["item-1"]);
   });
 
@@ -103,10 +106,24 @@ describe("prototypeReducer", () => {
     const saved = prototypeReducer(state, {
       type: "extraction/confirmed",
       payload: {
-        documentId: "doc-1",
         items: [{ ...extraction.extractedItems[0], reviewStatus: "confirmed" }],
       },
     });
+    expect(saved.documentsById["doc-1"].extractionStatus).toBe("complete");
+  });
+
+  it("deletes reviewed extracted items and their document relations", () => {
+    const state = prototypeReducer(createInitialPrototypeState(), {
+      type: "extraction/applied",
+      payload: extraction,
+    });
+    const saved = prototypeReducer(state, {
+      type: "extraction/confirmed",
+      payload: { items: [], deletedItemIds: ["item-1"] },
+    });
+
+    expect(saved.extractedItemsById["item-1"]).toBeUndefined();
+    expect(saved.extractedItemIdsByDocumentId["doc-1"]).toEqual([]);
     expect(saved.documentsById["doc-1"].extractionStatus).toBe("complete");
   });
 

@@ -44,25 +44,13 @@ export function isSupportedAcademicFile(file: Pick<File, "type">) {
 
 export function getPlanWeekWindow(now: Date): PlanWeekWindow {
   const parts = dateParts(now);
-  const weekdayMap: Record<string, number> = {
-    Sun: 0,
-    Mon: 1,
-    Tue: 2,
-    Wed: 3,
-    Thu: 4,
-    Fri: 5,
-    Sat: 6,
-  };
-  const weekday = weekdayMap[parts.weekday] ?? 0;
   const localMidnightAsUtc = new Date(
     Date.UTC(Number(parts.year), Number(parts.month) - 1, Number(parts.day)),
   );
-  const daysUntilMonday = weekday === 0 ? 1 : 8 - weekday;
-  const monday = addUtcDays(localMidnightAsUtc, daysUntilMonday);
   return {
-    weekStartDate: toIsoDate(monday),
-    weekEndDate: toIsoDate(addUtcDays(monday, 6)),
-    referenceWindowEndDate: toIsoDate(addUtcDays(monday, 27)),
+    weekStartDate: toIsoDate(localMidnightAsUtc),
+    weekEndDate: toIsoDate(addUtcDays(localMidnightAsUtc, 6)),
+    referenceWindowEndDate: toIsoDate(addUtcDays(localMidnightAsUtc, 27)),
   };
 }
 
@@ -92,19 +80,16 @@ export function validatePlanPrerequisites(input: {
   existingWeeklyPlan: WeeklyPlan | null;
   now: Date;
 }): PlanPrerequisiteResult {
-  if (!isAtConfiguredGenerationTime(input.user, input.now)) {
-    return { ok: false, reason: "not-scheduled" };
-  }
-  if (input.documents.length === 0 || input.extractedItems.length === 0) {
+  // Explicit AI Mate requests can start the first seven-day plan immediately.
+  // Confirmed events can be restored from Local Storage without retaining original files.
+  if (input.extractedItems.length === 0) {
     return { ok: false, reason: "no-upload" };
-  }
-  if (input.user.calendarConnectionStatus !== "connected") {
-    return { ok: false, reason: "calendar-disconnected" };
   }
   if (input.extractedItems.some((item) => item.reviewStatus === "needs-review")) {
     return { ok: false, reason: "needs-review" };
   }
-  if (input.existingWeeklyPlan) {
+  const currentDate = `${dateParts(input.now).year}-${dateParts(input.now).month}-${dateParts(input.now).day}`;
+  if (input.existingWeeklyPlan && currentDate >= input.existingWeeklyPlan.weekStartDate && currentDate <= input.existingWeeklyPlan.weekEndDate) {
     return { ok: false, reason: "already-generated" };
   }
   return { ok: true };

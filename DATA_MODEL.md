@@ -13,14 +13,15 @@
 ```text
 User(사용자)
 ├─ UploadedDocument(업로드 자료)
-│  └─ ExtractedItem(AI 추출 학업 정보)
+├─ AcademicEvent(AI가 여러 자료에서 통합한 학업 이벤트)
+│  └─ SourceReference(이벤트를 구성한 원본 자료 근거)
 ├─ CalendarEvent(Google Calendar 또는 CatchUp 직접 입력 개인 일정)
 ├─ WeeklyPlan(이번 주 AI 계획)
 │  └─ Todo(Today에 표시할 날짜별 할 일)
 └─ PlanAdjustment(AI Mate 계획 조정 요청)
 ```
 
-- `ExtractedItem`과 `CalendarEvent`는 AI Mate가 주간 계획을 만들 때 참고한다.
+- `AcademicEvent`와 `CalendarEvent`는 AI Mate가 주간 계획을 만들 때 참고한다. 코드에서는 기존 호환을 위해 `ExtractedItem` 타입 이름을 유지한다.
 - `WeeklyPlan`은 한 주의 AI 계획 묶음이고, 그 안에 여러 개의 `Todo`가 들어간다.
 - `Todo`는 Today 화면의 날짜별 할 일로 보인다.
 - `PlanAdjustment`는 하루에 AI Mate 계획 조정을 몇 번 요청했는지 확인하는 데 사용한다.
@@ -97,39 +98,54 @@ uploadedAt: 2026-07-17
 
 **다른 데이터와의 관계**
 
-업로드 자료 하나에서는 여러 개의 `ExtractedItem`이 나올 수 있다.
+여러 업로드 자료가 하나 이상의 `AcademicEvent`를 함께 구성할 수 있다.
 
 ---
 
-### 3.3 ExtractedItem - AI가 추출한 학업 정보
+### 3.3 AcademicEvent(코드명 `ExtractedItem`) - AI가 통합한 학업 이벤트
 
 **쉬운 설명**
 
-AI가 업로드 자료에서 찾아낸 과제, 시험, 마감일, 제출 방식, 준비물, 중요 공지, 수업 일정 정보다. 사용자는 Upload 화면에서 이 정보를 확인하고 수정할 수 있다.
+AI가 파일 하나에서 바로 만든 일정이 아니라, 여러 자료를 분류하고 과목별로 묶은 뒤 동일 과제·시험·팀 프로젝트 정보를 합친 최종 이벤트다. 사용자는 Upload 화면에서 이벤트 단위로 확인하고 수정한다.
 
 **Mock 데이터에 필요한 핵심 정보**
 
 | 항목 이름 | 쉬운 뜻 |
 | --- | --- |
 | `id` | 추출 정보 하나를 구분하는 번호 또는 이름표 |
-| `documentId` | 어떤 업로드 자료에서 나온 정보인지 |
+| `sourceDocumentIds` | 통합에 사용한 모든 업로드 자료 ID |
+| `sourceReferences` | 파일명, 자료 종류, 근거 요약을 포함한 출처 목록 |
 | `title` | 과제명, 시험명, 공지 제목 등 |
 | `itemType` | 과제, 시험, 마감, 제출, 중요 공지, 수업 일정 중 하나 |
 | `courseName` | 관련 과목명 또는 자료 출처 |
 | `date` | 일정 날짜 또는 마감 날짜 |
 | `time` | 시간이 있으면 표시, 없으면 종일 |
+| `scheduledWeek` / `scheduledWeekLabel` | 모든 학업 이벤트에 자료가 명시한 예정 주차 숫자와 원문 표기. 정확한 날짜와 구분 |
+| `weekOneStartDate` | 업로드 자료에 명시된 1주차 시작일 또는 이에 준하는 주차-날짜 기준. 근거가 없으면 `null` |
+| `classMeetingTimes` | 시간표에서 추출한 반복 수업 목록. 각 항목은 요일, 시작·종료 시간, 강의실을 가짐 |
 | `submissionMethod` | 제출 방식이 있으면 표시 |
 | `requiredMaterials` | 준비물이 있으면 표시 |
 | `difficulty` | 난이도: 높음, 보통, 낮음 |
 | `estimatedDuration` | 예상 소요 시간 |
 | `reviewStatus` | 사용자 확인 상태: 확인 완료, 확인 필요 |
+| `confirmationStatus` | 핵심 정보 충분성: 확정, 미확정 |
+| `confirmationIssues` | 확정에 부족한 정보: 날짜, 세부사항, 시험 범위 등 |
+| `updatedAt` | 새 자료 병합 또는 사용자 수정으로 마지막 변경된 시각 |
 | `isUserEdited` | 사용자가 AI 결과를 수정했는지 여부 |
+| `courseCode` | 과목 코드. 없으면 `null` |
+| `assignmentType` / `examType` | 과제 또는 시험 세부 유형. 없으면 `null` |
+| `workload` / `requirements` | 분량과 요구사항. 없으면 `null` |
+| `researchNeeded` | 조사량: 없음, 적음, 보통, 많음, 확인 필요 |
+| `deliverableComplexity` | 결과물 복잡도. 없으면 `null` |
+| `examScope` / `gradingMethod` | 시험 범위와 평가 방식. 없으면 `null` |
+| `confidence` / `uncertaintyNotes` | AI 판단 신뢰도와 사용자 확인 메모 |
 
 **가짜 예시**
 
 ```text
 id: extracted-demo-01
-documentId: doc-demo-01
+sourceDocumentIds: [doc-demo-01, doc-demo-02]
+sourceReferences: [강의계획서 일정 근거, LMS 마감 변경 근거]
 title: 그래프 탐색 구현 과제
 itemType: 과제
 courseName: 알고리즘
@@ -142,6 +158,12 @@ estimatedDuration: 4시간
 reviewStatus: 확인 완료
 isUserEdited: false
 ```
+
+확정 판정은 이벤트명과 과목명을 기본으로 하며, 과제 계열은 정확한 날짜와 요구사항·분량·제출 방식 중 하나, 시험·퀴즈는 정확한 날짜와 시험 범위를 핵심 정보로 본다. 예정 주차만 확인된 시험은 주차를 보존하되 미확정으로 유지한다.
+
+새 자료 분석 시 기존 미확정 이벤트를 함께 비교한다. 같은 이벤트로 연결되면 기존 ID를 유지하고 새 자료의 구체적 값을 우선 보완하며 `sourceDocumentIds`와 `sourceReferences`는 합집합으로 보존한다. 사용자 직접 수정 뒤에도 같은 확정 판정을 다시 실행한다.
+
+일정 화면은 정보 충분성과 시간 정확도를 분리한다. `date`가 있으면 해당 날짜에만 표시하고, `date` 없이 `scheduledWeek`와 신뢰할 수 있는 1주차 시작일이 있으면 같은 이벤트를 저장소에서 복제하지 않은 채 Month/Today 조회 시 해당 7일 범위에 임시 투영한다. 업로드 근거가 없을 때 사용자가 답한 1주차 시작일은 `PlanningProfile.semesterWeekOneStartDate`에 저장한다. 날짜와 주차 기준이 모두 없으면 임의 배치하지 않는다.
 
 **다른 데이터와의 관계**
 
@@ -192,7 +214,7 @@ source: Google Calendar
 
 **쉬운 설명**
 
-AI Mate가 한 주 동안 무엇을 언제 하면 좋을지 정리한 계획 묶음이다. 한 주는 언제나 월요일부터 일요일까지다.
+AI Mate가 최초 요청일부터 7일 동안 무엇을 언제 하면 좋을지 정리한 계획 묶음이다. Today의 월요일~일요일 주차 표시와 Plan 기간은 별도 개념이다.
 
 **Mock 데이터에 필요한 핵심 정보**
 
@@ -200,13 +222,15 @@ AI Mate가 한 주 동안 무엇을 언제 하면 좋을지 정리한 계획 묶
 | --- | --- |
 | `id` | 주간 계획을 구분하는 번호 또는 이름표 |
 | `userId` | 이 계획의 사용자 |
-| `weekStartDate` | 해당 주의 월요일 날짜 |
-| `weekEndDate` | 해당 주의 일요일 날짜 |
+| `weekStartDate` | 최초 계획을 요청한 날짜 |
+| `weekEndDate` | 요청일부터 6일 뒤 날짜 |
 | `status` | 계획 상태: 생성 전, 생성 완료, 생성 제한 |
 | `createdAt` | 계획이 만들어진 날짜와 시간 |
 | `generationRequest` | 계획을 만들 때 반영한 자연어 요청 |
 | `referenceWindow` | 계획 생성 시 참고한 일정 범위. 앞으로 4주 |
 | `summary` | 이번 주 계획의 짧은 요약 |
+| `academicEventSnapshot` | 생성·업데이트 당시 반영한 학업 이벤트의 갱신 시각 |
+| `lastAdjustedAt` | 마지막으로 수정 또는 업데이트된 시각 |
 
 **가짜 예시**
 
@@ -249,6 +273,9 @@ summary: 마감이 가까운 알고리즘 과제를 먼저 나누어 진행하�
 | `priority` | 우선순위: 높음, 보통, 낮음 |
 | `isCompleted` | 완료 체크 여부 |
 | `recommendationReason` | 왜 이 날 이 할 일을 추천하는지에 대한 짧은 이유 |
+| `durationRationale` | 자료 특성과 개인화 답변 중 예상 소요시간에 사용한 근거 목록 |
+| `carriedOverFromTodoId` | 과거 미완료 할 일을 다시 반영했다면 원래 Todo ID |
+| `recommendationDetails` | 필요성·날짜 배치·우선순위·소요시간·개인화·사용자 요청의 구조화된 실제 근거 |
 
 **가짜 예시**
 
@@ -276,20 +303,19 @@ recommendationReason: 마감일까지 시간이 짧고 예상 소요 시간이 �
 
 **쉬운 설명**
 
-사용자가 AI Mate에게 "오늘 할 일을 줄여줘"처럼 계획 변경을 요청한 기록이다. 하루에 최대 10번까지만 가능하다.
+주간계획이 실제로 변경된 기록이다. `USER_REQUEST` 수정과 `NEW_ACADEMIC_INFORMATION` 업데이트를 구분하며 둘을 합쳐 하루에 최대 10번까지만 가능하다. 실패하거나 변경이 없으면 기록·차감하지 않는다.
 
 **Mock 데이터에 필요한 핵심 정보**
 
 | 항목 이름 | 쉬운 뜻 |
 | --- | --- |
 | `id` | 조정 요청 하나를 구분하는 번호 또는 이름표 |
-| `userId` | 요청한 사용자 |
 | `weeklyPlanId` | 조정하려는 주간 계획 |
-| `requestText` | 사용자가 AI Mate에 입력한 요청 문장 |
-| `requestedAt` | 요청한 날짜와 시간 |
-| `status` | 조정 상태: 요청 전, 조정 완료, 조정 제한 |
-| `usedCountToday` | 오늘 사용한 조정 횟수 |
-| `remainingCountToday` | 오늘 남은 조정 횟수 |
+| `trigger` | 사용자 요청 수정 또는 새 학업 정보 업데이트 |
+| `requestText` | 수정 요청 문장. 업데이트는 `null` |
+| `relatedAcademicEventIds` | 조정의 원인이 된 실제 학업 이벤트 |
+| `changedTodoIds` | 실제로 변경된 WeeklyPlanTask |
+| `createdAt` | 변경 성공 시각 |
 
 **가짜 예시**
 
@@ -317,7 +343,7 @@ remainingCountToday: 9
 | 화면 또는 기능 | 반드시 사용할 데이터 이름 |
 | --- | --- |
 | Upload의 파일 목록 | `UploadedDocument` |
-| Upload의 AI 추출 결과 | `ExtractedItem` |
+| Upload의 AI 통합 결과 | `AcademicEvent` (코드명 `ExtractedItem`) |
 | Google Calendar 또는 CatchUp 직접 입력 개인 일정 | `CalendarEvent` |
 | AI Mate가 만든 이번 주 계획 | `WeeklyPlan` |
 | Today의 날짜별 할 일 | `Todo` |
@@ -329,6 +355,7 @@ remainingCountToday: 9
 - 일정 날짜: `date`
 - Today에 배치된 날짜: `scheduledDate`
 - 자료를 구분하는 값: `documentId`
+- 이벤트 출처를 연결하는 값: `sourceDocumentIds`, `sourceReferences`
 - 주간 계획을 구분하는 값: `weeklyPlanId`
 - 관련 과목명 또는 자료 출처: `courseName`
 - 예상 소요 시간: `estimatedDuration`

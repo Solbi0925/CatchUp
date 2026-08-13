@@ -15,6 +15,8 @@ import {
   type PrototypeState,
   prototypeReducer,
 } from "./prototypeReducer";
+import { readAcademicEvents, writeAcademicEvents } from "./academicEventsStorage";
+import { readPlanningState, writePlanningState } from "./planningStorage";
 
 interface PrototypeStoreValue {
   state: PrototypeState;
@@ -25,10 +27,23 @@ const PrototypeStoreContext = createContext<PrototypeStoreValue | null>(null);
 
 function createStoreInitialState() {
   const state = createInitialPrototypeState();
-  const session = readOnboardingSession();
-  if (!session) return state;
-  return {
+  const confirmedItems = readAcademicEvents();
+  const planning = readPlanningState();
+  const stateWithConfirmedItems = {
     ...state,
+    extractedItemsById: Object.fromEntries(confirmedItems.map((item) => [item.id, item])),
+    weeklyPlansById: Object.fromEntries(planning.weeklyPlans.map((plan) => [plan.id, plan])),
+    todosById: Object.fromEntries(planning.todos.map((todo) => [todo.id, todo])),
+    todoIdsByWeeklyPlanId: planning.todoIdsByWeeklyPlanId,
+    planningProfile: planning.profile,
+    adjustmentUsageByDate: planning.adjustmentUsageByDate,
+    planAdjustmentsById: Object.fromEntries(planning.planAdjustments.map((adjustment) => [adjustment.id, adjustment])),
+    pendingPlanUpdate: planning.pendingPlanUpdate,
+  };
+  const session = readOnboardingSession();
+  if (!session) return stateWithConfirmedItems;
+  return {
+    ...stateWithConfirmedItems,
     user: {
       ...state.user,
       calendarConnectionStatus: session.calendarConnected ? "connected" : "disconnected",
@@ -53,6 +68,20 @@ export function PrototypeStoreProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     writeOnboardingSession(state);
   }, [state.onboarding, state.user.calendarConnectionStatus]);
+  useEffect(() => {
+    writeAcademicEvents(Object.values(state.extractedItemsById));
+  }, [state.extractedItemsById]);
+  useEffect(() => {
+    writePlanningState({
+      weeklyPlans: Object.values(state.weeklyPlansById),
+      todos: Object.values(state.todosById),
+      todoIdsByWeeklyPlanId: state.todoIdsByWeeklyPlanId,
+      profile: state.planningProfile,
+      adjustmentUsageByDate: state.adjustmentUsageByDate,
+      planAdjustments: Object.values(state.planAdjustmentsById),
+      pendingPlanUpdate: state.pendingPlanUpdate,
+    });
+  }, [state.adjustmentUsageByDate, state.pendingPlanUpdate, state.planAdjustmentsById, state.planningProfile, state.todoIdsByWeeklyPlanId, state.todosById, state.weeklyPlansById]);
   const value = useMemo(() => ({ state, dispatch }), [state]);
   return (
     <PrototypeStoreContext.Provider value={value}>{children}</PrototypeStoreContext.Provider>

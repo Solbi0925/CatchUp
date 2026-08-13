@@ -1,12 +1,12 @@
-import { NavLink, Outlet, useLocation } from "react-router-dom";
+import { NavLink, Outlet } from "react-router-dom";
 import { AiMateLayer } from "../features/ai-mate/AiMateLayer";
+import { usePrototypeStore } from "../store/PrototypeStore";
 import { CalendarIcon, HomeIcon, TabUploadIcon } from "../ui/icons";
 
 export function AppShell() {
-  const location = useLocation();
-  const showCoachmark = Boolean(
-    (location.state as { showAiMateCoachmark?: boolean } | null)?.showAiMateCoachmark,
-  );
+  const { state } = usePrototypeStore();
+  const items = Object.values(state.extractedItemsById);
+  const showCoachmark = items.length > 0 && items.every((item) => item.reviewStatus === "confirmed") && Object.keys(state.weeklyPlansById).length === 0;
   return (
     <div className="app-shell">
       <main className="app-main">

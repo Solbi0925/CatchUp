@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState } from "react";
 import { demoTodayDate } from "../../application/clock";
+import { selectScheduleAcademicItems } from "../../domain/selectors";
 import type { CalendarEvent } from "../../domain/types";
 import { demoCalendarEvents } from "../../mocks/templates";
 import { usePrototypeStore } from "../../store/PrototypeStore";
@@ -31,10 +32,11 @@ export function MonthPage() {
   const schedules = useMemo(
     () =>
       buildMonthSchedules(
-        Object.values(state.extractedItemsById),
+        selectScheduleAcademicItems(state),
         Object.values(calendarEventsById),
+        state.planningProfile,
       ),
-    [calendarEventsById, state.extractedItemsById],
+    [calendarEventsById, state],
   );
   const schedulesByDate = useMemo(
     () => groupSchedulesByDate(schedules),

@@ -2,11 +2,12 @@ import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { usePrototypeStore } from "../../store/PrototypeStore";
 import { AiMateCharacter } from "../ai-mate/components/AiMateCharacter";
-import { useAiMate, type AiMatePromptChip } from "../ai-mate/AiMateProvider";
+import { useAiMate } from "../ai-mate/AiMateProvider";
 import { ScheduleEditorDialog, type ScheduleDraft } from "../calendar/ScheduleEditorDialog";
 import { PERSONAL_CATEGORY_KEY, resolveCategoryColor } from "../calendar/calendarColors";
 import type { CalendarEvent } from "../../domain/types";
 import { selectTodayViewModel } from "./todaySelectors";
+import type { TodayScheduleViewModel } from "./todayTypes";
 import { demoTodayDate } from "../../application/clock";
 import "./today.css";
 
@@ -15,6 +16,7 @@ const scheduleTypeLabels = {
   submission: "제출",
   exam: "시험",
   notice: "중요 공지",
+  class: "수업",
   personal: "개인 일정",
 } as const;
 
@@ -36,19 +38,45 @@ function formatDueDate(isoDate: string) {
   return `${month}/${day} (${weekday})`;
 }
 
-function formatPromptDate(isoDate: string) {
-  const [, month, day] = isoDate.split("-").map(Number);
-  return `${month}/${day}`;
+function addDays(isoDate: string, amount: number) {
+  const date = new Date(`${isoDate}T00:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + amount);
+  return date.toISOString().slice(0, 10);
+}
+
+function TodayScheduleSection({
+  selectedDate,
+  schedules,
+  onAdd,
+  onEdit,
+}: {
+  selectedDate: string;
+  schedules: TodayScheduleViewModel[];
+  onAdd: () => void;
+  onEdit: (id: string) => void;
+}) {
+  return <section className="today-section">
+    <div className="today-section-heading">
+      <div><h2>{selectedDate === demoTodayDate ? "오늘의 예정 일정" : `${formatSelectedDate(selectedDate)} 예정 일정`}</h2></div>
+      <button type="button" className="today-add-button" onClick={onAdd}>추가</button>
+    </div>
+    {schedules.length === 0 ? <div className="today-zero-state"><strong>예정된 일정이 없어요.</strong></div> : <div className="today-card-list">
+      {schedules.map((schedule) => <button type="button" className={`today-schedule-card${schedule.isProvisional ? " is-provisional" : ""}`} key={schedule.id} disabled={schedule.type === "class" || schedule.isProvisional} onClick={() => onEdit(schedule.id)} aria-label={schedule.type === "class" || schedule.isProvisional ? `${schedule.timeLabel} ${schedule.title}` : `${schedule.title} 일정 수정`}>
+        <time>{schedule.timeLabel}</time>
+        <div><h3>{schedule.title}</h3><p>{schedule.isProvisional ? "미확정 학업 일정" : scheduleTypeLabels[schedule.type]} · {schedule.sourceLabel}</p></div>
+      </button>)}
+    </div>}
+  </section>;
 }
 
 export function TodayPage() {
   const { state, dispatch } = usePrototypeStore();
-  const { openWithDraft } = useAiMate();
+  const { openWithDraft, openForTodo } = useAiMate();
   const [selectedDate, setSelectedDate] = useState(demoTodayDate);
   const [editingScheduleId, setEditingScheduleId] = useState<string>();
   const [addingSchedule, setAddingSchedule] = useState(false);
   const [eventOverrides, setEventOverrides] = useState<Record<string, CalendarEvent>>({});
-  const hasDocuments = Object.keys(state.documentsById).length > 0;
+  const hasDocuments = Object.keys(state.documentsById).length > 0 || Object.keys(state.extractedItemsById).length > 0;
   const hasPlan = Object.keys(state.weeklyPlansById).length > 0;
   const viewModel = useMemo(
     () => selectTodayViewModel({ ...state, calendarEventsById: { ...state.calendarEventsById, ...eventOverrides } }, selectedDate),
@@ -60,18 +88,23 @@ export function TodayPage() {
   const editorDraft: ScheduleDraft = editingEvent ? {
     title: editingEvent.title, date: editingEvent.date, startTime: editingEvent.startTime, endTime: editingEvent.endTime, isAllDay: editingEvent.isAllDay, eventType: editingEvent.eventType,
   } : editingItem ? {
-    title: editingItem.title, date: editingItem.date, startTime: editingItem.time, endTime: null, isAllDay: !editingItem.time, eventType: "class",
+    title: editingItem.title, date: editingItem.date ?? selectedDate, startTime: editingItem.time, endTime: null, isAllDay: !editingItem.time, eventType: "class",
   } : { title: "", date: selectedDate, startTime: "09:00", endTime: "10:00", isAllDay: false, eventType: "personal" };
   const editorCategoryKey = editingSchedule?.categoryKey ?? PERSONAL_CATEGORY_KEY;
 
   return (
     <section className="today-page">
+      <div className="today-week-navigation">
+        <button type="button" aria-label="이전 주" onClick={() => setSelectedDate((date) => addDays(date, -7))}>‹</button>
+        <strong>{viewModel.weekStart.slice(5).replace("-", ".")} 주</strong>
+        <button type="button" aria-label="다음 주" onClick={() => setSelectedDate((date) => addDays(date, 7))}>›</button>
+      </div>
       <div className="today-week" aria-label="이번 주 날짜 선택">
         {viewModel.days.map((day) => (
           <button
             key={day.date}
             type="button"
-            className={day.isSelected ? "selected" : ""}
+            className={`${day.isSelected ? "selected" : ""} ${hasPlan && !day.isInPlanRange ? "outside-plan" : ""}`.trim()}
             aria-current={day.isSelected ? "date" : undefined}
             aria-pressed={day.isSelected}
             aria-label={`7월 ${day.dayOfMonth}일 ${day.weekdayLabel}요일${day.isToday ? ", 오늘" : ""}${day.isSelected ? ", 선택됨" : ""}`}
@@ -93,8 +126,7 @@ export function TodayPage() {
           </div>
         </article>
       )}
-      {state.user.calendarConnectionStatus === "connected" &&
-        !hasDocuments && (
+      {!hasDocuments && (
           <article className="today-empty-card">
             <span className="today-empty-icon upload" aria-hidden="true">↑</span>
             <div>
@@ -104,7 +136,7 @@ export function TodayPage() {
             </div>
           </article>
         )}
-      {state.user.calendarConnectionStatus === "connected" && hasDocuments && !hasPlan && (
+      {hasDocuments && !hasPlan && (
         <>
           <article className="today-briefing">
             <div>
@@ -123,7 +155,7 @@ export function TodayPage() {
               <p>AI Mate에서 이번 주 계획을 생성해보세요.</p>
               <button
                 type="button"
-                onClick={() => openWithDraft("이번 주 계획을 생성해줘")}
+                onClick={() => openWithDraft("", [{ label: "주간계획 생성", draft: "주간계획 생성해줘. 다음의 요청사항을 반영해: " }])}
               >
                 계획 생성하기
               </button>
@@ -131,7 +163,7 @@ export function TodayPage() {
           </section>
         </>
       )}
-      {state.user.calendarConnectionStatus === "connected" && hasPlan && (
+      {hasPlan && (
         <>
           <article className="today-briefing with-plan">
             <div>
@@ -159,7 +191,7 @@ export function TodayPage() {
                 <button
                   type="button"
                   onClick={() =>
-                    openWithDraft(`${formatPromptDate(selectedDate)}일 계획을 조정해줘`)
+                    openWithDraft("현재 주간계획을 다음의 요청사항을 반영해서 조정해줘: ")
                   }
                 >
                   계획 조정
@@ -184,24 +216,7 @@ export function TodayPage() {
                       type="button"
                       className="today-todo-content"
                       aria-label={`${todo.title} AI Mate에서 보기`}
-                      onClick={() => {
-                        const promptDate = formatPromptDate(selectedDate);
-                        const chips: AiMatePromptChip[] = [
-                          {
-                            label: "할 일 추천이유",
-                            draft: `${todo.title}을 추천한 이유를 알려줘`,
-                          },
-                          {
-                            label: "할 일 조정",
-                            draft: `${todo.title} 할 일을 조정해줘`,
-                          },
-                          {
-                            label: `${promptDate}일 할 일 추가`,
-                            draft: `${promptDate}일 할 일을 추가해줘`,
-                          },
-                        ];
-                        openWithDraft("", chips);
-                      }}
+                      onClick={() => openForTodo(todo.id)}
                     >
                       <span className="today-course">{todo.courseOrSource}</span>
                       <h3>{todo.title}</h3>
@@ -216,39 +231,14 @@ export function TodayPage() {
             )}
           </section>
 
-          <section className="today-section">
-            <div className="today-section-heading">
-              <div>
-                <h2>
-                  {selectedDate === demoTodayDate
-                    ? "오늘의 예정 일정"
-                    : `${formatSelectedDate(selectedDate)} 예정 일정`}
-                </h2>
-              </div>
-              <button type="button" className="today-add-button" onClick={() => setAddingSchedule(true)}>추가</button>
-            </div>
-            {viewModel.schedules.length === 0 ? (
-              <div className="today-zero-state">
-                <strong>예정된 일정이 없어요.</strong>
-              </div>
-            ) : (
-              <div className="today-card-list">
-                {viewModel.schedules.map((schedule) => (
-                  <button type="button" className="today-schedule-card" key={schedule.id} onClick={() => setEditingScheduleId(schedule.id)} aria-label={`${schedule.title} 일정 수정`}>
-                    <time>{schedule.timeLabel}</time>
-                    <div>
-                      <h3>{schedule.title}</h3>
-                      <p>
-                        {scheduleTypeLabels[schedule.type]} · {schedule.sourceLabel}
-                      </p>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            )}
-          </section>
         </>
       )}
+      {hasDocuments && <TodayScheduleSection
+        selectedDate={selectedDate}
+        schedules={viewModel.schedules}
+        onAdd={() => setAddingSchedule(true)}
+        onEdit={setEditingScheduleId}
+      />}
       {(editingSchedule || addingSchedule) && <div className="today-editor-backdrop">
         <ScheduleEditorDialog
           initialDraft={editorDraft}

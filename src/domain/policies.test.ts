@@ -5,6 +5,7 @@ import {
   validatePlanPrerequisites,
 } from "./policies";
 import type { ExtractedItem, UploadedDocument, User } from "./types";
+import { academicEventFixture } from "../test/academicEventFixture";
 
 const user: User = {
   id: "user-demo-01",
@@ -28,7 +29,7 @@ const document: UploadedDocument = {
   uploadedAt: "2026-07-19T20:00:00+09:00",
 };
 
-const item: ExtractedItem = {
+const item: ExtractedItem = academicEventFixture({
   id: "item-1",
   documentId: document.id,
   title: "UX 리서치 보고서",
@@ -42,7 +43,7 @@ const item: ExtractedItem = {
   estimatedDurationMinutes: 180,
   reviewStatus: "confirmed",
   isUserEdited: false,
-};
+});
 
 describe("academic file policy", () => {
   it("accepts PDF and image MIME types without imposing a size limit", () => {
@@ -53,11 +54,11 @@ describe("academic file policy", () => {
 });
 
 describe("weekly plan policy", () => {
-  it("creates the next Monday-to-Sunday window from the configured Sunday", () => {
+  it("creates a seven-day window starting on the request date", () => {
     expect(getPlanWeekWindow(new Date("2026-07-19T20:00:00+09:00"))).toEqual({
-      weekStartDate: "2026-07-20",
-      weekEndDate: "2026-07-26",
-      referenceWindowEndDate: "2026-08-16",
+      weekStartDate: "2026-07-19",
+      weekEndDate: "2026-07-25",
+      referenceWindowEndDate: "2026-08-15",
     });
   });
 
