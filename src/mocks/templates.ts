@@ -4,7 +4,9 @@ export const demoUser: User = {
   id: "user-demo-01",
   displayName: "테스트 학생",
   calendarConnectionStatus: "disconnected",
-  planGenerationRequest: "앞으로 7일 동안 휴식 시간을 확보하고 수요일은 가볍게 계획해줘.",
+  weeklyPlanGenerationDay: 0,
+  weeklyPlanGenerationTime: "20:00",
+  planGenerationRequest: "일요일에는 쉬는 시간을 많이 확보하고 수요일은 가볍게 계획해줘.",
 };
 
 export const demoCalendarEvents: CalendarEvent[] = [

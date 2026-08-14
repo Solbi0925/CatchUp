@@ -15,6 +15,8 @@ const todos: Todo[] = [
     priority: "high",
     isCompleted: false,
     recommendationReason: "마감이 가까워요.",
+    durationRationale: [],
+    carriedOverFromTodoId: null,
   },
   {
     id: "todo-thu",
@@ -28,6 +30,8 @@ const todos: Todo[] = [
     priority: "medium",
     isCompleted: false,
     recommendationReason: "검토 시간이 필요해요.",
+    durationRationale: [],
+    carriedOverFromTodoId: null,
   },
 ];
 
@@ -63,7 +67,7 @@ describe("adjustMockPlan", () => {
       operationId: "adjust-august",
       requestText: "수요일 할 일을 줄여줘",
       requestedAt: "2026-08-03T09:00:00+09:00",
-      planStartDate: "2026-08-03",
+      weekStartDate: "2026-08-03",
       todos: augustTodos,
     };
 

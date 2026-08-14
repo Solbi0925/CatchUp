@@ -11,6 +11,9 @@
   grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 0;
 }
+.today-week-navigation { display: flex; margin-bottom: 12px; align-items: center; justify-content: space-between; }
+.today-week-navigation > button { display: grid; width: 36px; height: 36px; padding: 0; place-items: center; border: 1px solid #e5e0ef; border-radius: 50%; background: white; color: #625b70; font-size: 24px; }
+.today-week-navigation > strong { font-size: 14px; color: #625b70; }
 
 .today-week button {
   display: flex;
@@ -49,6 +52,8 @@
   background: #8c6ef6;
   color: white;
 }
+.today-week button.outside-plan strong { border-color: #eceaf0; background: #ebe9ef; color: #9995a2; }
+.today-week button.outside-plan.selected strong { border-color: #aaa4b5; background: #aaa4b5; color: white; }
 
 .today-week button.outside-plan strong {
   border-color: #dedee4;
@@ -357,6 +362,8 @@
   font-size: 13px;
   font-weight: 750;
 }
+.today-schedule-card.is-provisional { border-style: dashed; background: #faf8ff; opacity: 1; }
+.today-schedule-card.is-provisional time { color: #8a67d4; }
 .today-editor-backdrop { position: fixed; z-index: 50; inset: 0; display: grid; width: min(100%, 430px); margin: 0 auto; padding: 24px 20px calc(90px + env(safe-area-inset-bottom)); align-items: end; background: rgba(22,20,29,.36); }
 .today-week-navigation {
   display: grid;

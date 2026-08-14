@@ -37,7 +37,7 @@ const routes = [
     ],
   },
   {
-    path: "/upload/:documentId/extraction",
+    path: "/upload/extraction",
     element: <ExtractionReviewPage />,
   },
   {

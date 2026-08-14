@@ -97,15 +97,15 @@ describe("MonthPage", () => {
         files: [new File(["demo"], "강의계획서.pdf", { type: "application/pdf" })],
       },
     });
-    await user.click(screen.getByRole("button", { name: "자료 분석하기" }));
+    await user.click(screen.getByRole("button", { name: "모든 자료 통합 분석하기" }));
     await user.click(
       await screen.findByRole(
         "link",
-        { name: /추출 결과 확인 및 수정/ },
+        { name: "학업 이벤트 전체 확인 및 수정" },
         { timeout: 2_000 },
       ),
     );
-    await user.click(screen.getByRole("button", { name: "변경사항 저장" }));
+    await user.click(screen.getByRole("button", { name: "학업 이벤트 저장" }));
     await user.click(await screen.findByRole("link", { name: "Month" }));
 
     await user.click(screen.getByRole("button", { name: /2026년 7월 23일/ }));

@@ -5,15 +5,26 @@ export type CalendarEventId = string;
 export type WeeklyPlanId = string;
 export type TodoId = string;
 export type OperationId = string;
+export type SourceReferenceId = string;
 
 export interface User {
   id: UserId;
   displayName: string;
   calendarConnectionStatus: "disconnected" | "connecting" | "connected" | "failed";
+  /** JavaScript weekday: 0 is Sunday. */
+  weeklyPlanGenerationDay: number;
+  weeklyPlanGenerationTime: `${number}:${number}`;
   planGenerationRequest: string;
 }
 
-export type DocumentType = "syllabus" | "lms-notice" | "assignment-brief";
+export type DocumentType =
+  | "syllabus"
+  | "assignment-brief"
+  | "lms-notice"
+  | "exam-notice"
+  | "email-notice"
+  | "timetable"
+  | "other";
 export type UploadStatus = "uploading" | "complete" | "failed";
 export type ExtractionStatus = "extracting" | "complete" | "needs-review" | "failed";
 
@@ -33,24 +44,82 @@ export interface UploadedDocument {
 export type ExtractedItemType =
   | "assignment"
   | "exam"
+  | "team-project"
+  | "presentation"
+  | "quiz"
   | "deadline"
   | "submission"
   | "notice"
-  | "class-schedule";
-export type Difficulty = "high" | "medium" | "low";
+  | "class-schedule"
+  | "other";
+export type Difficulty = "high" | "medium" | "low" | "unknown";
+export type AcademicEventConfirmationStatus = "confirmed" | "unconfirmed";
+export type AcademicEventConfirmationIssue =
+  | "missing-title"
+  | "missing-course"
+  | "missing-date"
+  | "missing-details"
+  | "missing-exam-scope"
+  | "missing-class-time";
+
+export type ClassWeekday = 1 | 2 | 3 | 4 | 5 | 6 | 0;
+
+export interface ClassMeetingTime {
+  id: string;
+  /** JavaScript weekday: 0 is Sunday, 1 is Monday. */
+  weekday: ClassWeekday;
+  startTime: string;
+  endTime: string;
+  location: string | null;
+}
+
+export interface SourceReference {
+  id: SourceReferenceId;
+  documentId: DocumentId;
+  fileName: string;
+  documentType: DocumentType;
+  evidence: string | null;
+}
 
 export interface ExtractedItem {
   id: ExtractedItemId;
+  /** Kept for the existing plan/calendar adapters; the full provenance is in sourceReferences. */
   documentId: DocumentId;
+  sourceDocumentIds: DocumentId[];
+  sourceReferences: SourceReference[];
   title: string;
   itemType: ExtractedItemType;
   courseName: string;
-  date: string;
+  courseCode: string | null;
+  date: string | null;
   time: string | null;
+  /** Source-stated academic week, kept separately from an exact calendar date. */
+  scheduledWeek: number | null;
+  /** Original source expression such as `8주차` or `Week 8`. */
+  scheduledWeekLabel: string | null;
+  /** Source-backed first day of academic week 1. Never inferred from the week number alone. */
+  weekOneStartDate: string | null;
+  /** Repeating weekly class meetings extracted from timetable materials. */
+  classMeetingTimes: ClassMeetingTime[];
+  assignmentType: "problem-set" | "coding" | "report" | "essay" | "presentation" | "team-project" | "other" | null;
+  examType: string | null;
+  workload: string | null;
+  requirements: string | null;
+  researchNeeded: "none" | "low" | "medium" | "high" | "unknown";
+  deliverableComplexity: string | null;
+  examScope: string | null;
+  gradingMethod: string | null;
   submissionMethod: string | null;
   requiredMaterials: string | null;
   difficulty: Difficulty;
-  estimatedDurationMinutes: number;
+  estimatedDurationMinutes: number | null;
+  confidence: number;
+  uncertaintyNotes: string[];
+  /** Whether the event has enough source-backed core information to be used as a final event. */
+  confirmationStatus: AcademicEventConfirmationStatus;
+  confirmationIssues: AcademicEventConfirmationIssue[];
+  updatedAt: string;
+  /** Human review state, separate from information completeness. */
   reviewStatus: "confirmed" | "needs-review";
   isUserEdited: boolean;
 }
@@ -71,13 +140,30 @@ export interface CalendarEvent {
 export interface WeeklyPlan {
   id: WeeklyPlanId;
   userId: UserId;
-  planStartDate: string;
-  planEndDate: string;
+  weekStartDate: string;
+  weekEndDate: string;
   status: "complete";
   createdAt: string;
   generationRequest: string;
   referenceWindowEndDate: string;
   summary: string;
+  /** Academic-event versions reflected by the latest generation/update. */
+  academicEventSnapshot?: Record<ExtractedItemId, string>;
+  lastAdjustedAt?: string;
+}
+
+export type PlanningConfidence = "low" | "medium" | "high";
+export type PlanningPace = "slow" | "average" | "fast";
+export type PreparationLevel = "ready" | "review-needed" | "restart-needed";
+export type ExamGoal = "pass" | "c" | "b" | "a";
+
+export interface PlanningProfile {
+  /** User-supplied fallback when uploaded materials do not map academic weeks to dates. */
+  semesterWeekOneStartDate: string | null;
+  confidenceByCourse: Record<string, PlanningConfidence>;
+  pace: PlanningPace | null;
+  preparationByEventId: Record<ExtractedItemId, PreparationLevel>;
+  examGoalByEventId: Record<ExtractedItemId, ExamGoal>;
 }
 
 export interface Todo {
@@ -92,9 +178,49 @@ export interface Todo {
   priority: "high" | "medium" | "low";
   isCompleted: boolean;
   recommendationReason: string;
+  /** Source-backed and personalized inputs used for this estimate. */
+  durationRationale: string[];
+  carriedOverFromTodoId: TodoId | null;
+  recommendationDetails?: RecommendationReason;
 }
 
-export type AiMateIntent = "generate-plan" | "adjust-plan" | "explain" | "help" | "unknown";
+export interface RecommendationReason {
+  relatedAcademicEventId: ExtractedItemId;
+  needReasons: string[];
+  placementReasons: string[];
+  priorityReasons: string[];
+  durationReasons: string[];
+  personalizationReasons: string[];
+  userRequestReasons: string[];
+  carriedOver: boolean;
+  provisionalExamStudy: boolean;
+}
+
+export type PlanAdjustmentTrigger = "USER_REQUEST" | "NEW_ACADEMIC_INFORMATION";
+
+export interface PlanAdjustment {
+  id: string;
+  weeklyPlanId: WeeklyPlanId;
+  trigger: PlanAdjustmentTrigger;
+  requestText: string | null;
+  relatedAcademicEventIds: ExtractedItemId[];
+  changedTodoIds: TodoId[];
+  createdAt: string;
+}
+
+export type PlanUpdateReasonKind = "new-academic-event" | "exam-updated" | "assignment-updated" | "schedule-updated";
+
+export interface PlanUpdateRecommendation {
+  id: string;
+  reasonKind: PlanUpdateReasonKind;
+  academicEventIds: ExtractedItemId[];
+  message: string;
+  detectedAt: string;
+  /** Schedule representation kept until the user accepts the update. */
+  previousAcademicEvents?: ExtractedItem[];
+}
+
+export type AiMateIntent = "generate-plan" | "adjust-plan" | "update-plan" | "explain" | "help" | "unknown";
 export type AiMateMessageStatus = "sent" | "pending" | "failed";
 
 export interface AiMateMessageAction {
@@ -114,16 +240,18 @@ export interface AiMateMessage {
   actions?: AiMateMessageAction[];
 }
 
-export interface PlanWindow {
-  planStartDate: string;
-  planEndDate: string;
+export interface PlanWeekWindow {
+  weekStartDate: string;
+  weekEndDate: string;
   referenceWindowEndDate: string;
 }
 
 export type PlanPrerequisiteReason =
+  | "not-scheduled"
   | "no-upload"
   | "calendar-disconnected"
-  | "needs-review";
+  | "needs-review"
+  | "already-generated";
 
 export type PlanPrerequisiteResult =
   | { ok: true }
@@ -137,7 +265,9 @@ export interface GeneratePlanCommand {
   documents: UploadedDocument[];
   extractedItems: ExtractedItem[];
   calendarEvents: CalendarEvent[];
+  existingWeeklyPlan: WeeklyPlan | null;
   existingIncompleteTodos: Todo[];
+  planningProfile: PlanningProfile;
 }
 
 export interface GeneratePlanResult {
@@ -152,10 +282,11 @@ export interface AdjustmentResult {
   todos: Todo[];
   changed: boolean;
   assistantMessage: AiMateMessage;
+  changedTodoIds?: TodoId[];
 }
 
 export interface ExtractionResult {
   operationId: OperationId;
-  document: UploadedDocument;
+  documents: UploadedDocument[];
   extractedItems: ExtractedItem[];
 }

@@ -5,7 +5,9 @@
   "packageManager": "pnpm@11.9.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "node server/dev.mjs",
+    "dev:frontend": "vite",
+    "dev:bridge": "node server/index.mjs",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "typecheck": "tsc -b --pretty false",

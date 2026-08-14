@@ -1,5 +1,6 @@
 import {
   selectAllExtractedItems,
+  selectScheduleAcademicItems,
   selectCalendarEvents,
   selectCurrentWeeklyPlan,
   selectTodosForCurrentPlan,
@@ -13,6 +14,8 @@ import type {
   WeekDayViewModel,
 } from "./todayTypes";
 import { getCourseCategoryKey, PERSONAL_CATEGORY_KEY } from "../calendar/calendarColors";
+import { provisionalAcademicEventTitle, resolveAcademicWeekRange } from "../../domain/academicWeek";
+import { adjustmentUsageDate } from "../../domain/adjustmentUsage";
 
 const weekdayLabels = ["월", "화", "수", "목", "금", "토", "일"] as const;
 
@@ -22,10 +25,13 @@ function addDays(isoDate: string, amount: number) {
   return date.toISOString().slice(0, 10);
 }
 
-export function getCalendarWeekStart(isoDate: string) {
-  const date = new Date(`${isoDate}T00:00:00Z`);
-  const weekday = date.getUTCDay();
-  return addDays(isoDate, weekday === 0 ? -6 : 1 - weekday);
+function weekdayOf(isoDate: string) {
+  return new Date(`${isoDate}T00:00:00Z`).getUTCDay();
+}
+
+function mondayOf(isoDate: string) {
+  const weekday = weekdayOf(isoDate);
+  return addDays(isoDate, -(weekday === 0 ? 6 : weekday - 1));
 }
 
 function academicScheduleType(
@@ -40,14 +46,24 @@ function academicScheduleType(
 export function selectTodayViewModel(
   state: PrototypeState,
   selectedDate: string,
-  weekStartDate?: string,
   todayDate = demoTodayDate,
 ): TodayViewModel {
   const plan = selectCurrentWeeklyPlan(state);
-  const weekStart = getCalendarWeekStart(weekStartDate ?? todayDate);
+  const weekStart = mondayOf(selectedDate);
   const allTodos = selectTodosForCurrentPlan(state);
-  const confirmedItems = selectAllExtractedItems(state).filter(
+  const reviewedItems = selectScheduleAcademicItems(state).filter(
     (item) => item.reviewStatus === "confirmed",
+  );
+  const confirmedItems = reviewedItems.filter(
+    (item): item is ExtractedItem & { date: string } => item.date !== null,
+  );
+  const provisionalWeekItems = reviewedItems.flatMap((item) => {
+    if (item.itemType === "class-schedule" || item.date !== null) return [];
+    const range = resolveAcademicWeekRange(item, state.planningProfile);
+    return range ? [{ item, range }] : [];
+  });
+  const classScheduleItems = reviewedItems.filter(
+    (item) => item.itemType === "class-schedule" && item.classMeetingTimes.length > 0,
   );
   const calendarEvents = selectCalendarEvents(state);
   const schedulesForDate = (date: string): TodayScheduleViewModel[] => [
@@ -65,6 +81,7 @@ export function selectTodayViewModel(
             ? ("Google Calendar" as const)
             : ("CatchUp 직접 입력" as const),
         categoryKey: event.eventType === "personal" ? PERSONAL_CATEGORY_KEY : getCourseCategoryKey(event.title),
+        isProvisional: false,
       })),
     ...confirmedItems
       .filter((item) => item.date === date)
@@ -75,7 +92,30 @@ export function selectTodayViewModel(
         type: academicScheduleType(item),
         sourceLabel: "업로드 자료" as const,
         categoryKey: getCourseCategoryKey(item.courseName),
+        isProvisional: false,
       })),
+    ...provisionalWeekItems
+      .filter(({ range }) => date >= range.startDate && date <= range.endDate)
+      .map(({ item }) => ({
+        id: `${item.id}:academic-week:${date}`,
+        title: provisionalAcademicEventTitle(item.title),
+        timeLabel: "미확정 일정",
+        type: academicScheduleType(item),
+        sourceLabel: "업로드 자료" as const,
+        categoryKey: getCourseCategoryKey(item.courseName),
+        isProvisional: true,
+      })),
+    ...classScheduleItems.flatMap((item) => item.classMeetingTimes
+      .filter((meeting) => meeting.weekday === weekdayOf(date))
+      .map((meeting) => ({
+        id: `${item.id}:${meeting.id}`,
+        title: meeting.location ? `${item.title} · ${meeting.location}` : item.title,
+        timeLabel: `${meeting.startTime}–${meeting.endTime}`,
+        type: "class" as const,
+        sourceLabel: "업로드 자료" as const,
+        categoryKey: getCourseCategoryKey(item.courseName),
+        isProvisional: false,
+      }))),
   ].sort((left, right) => left.timeLabel.localeCompare(right.timeLabel, "ko"));
 
   const days: WeekDayViewModel[] = weekdayLabels.map((weekdayLabel, index) => {
@@ -86,20 +126,15 @@ export function selectTodayViewModel(
       dayOfMonth: Number(date.slice(8, 10)),
       isToday: date === todayDate,
       isSelected: date === selectedDate,
-      isWithinPlanRange: plan
-        ? date >= plan.planStartDate && date <= plan.planEndDate
-        : true,
       todoCount: allTodos.filter((todo) => todo.scheduledDate === date).length,
       scheduleCount: schedulesForDate(date).length,
+      isInPlanRange: Boolean(plan && date >= plan.weekStartDate && date <= plan.weekEndDate),
     };
   });
 
   return {
     selectedDate,
     weekStart,
-    weekEnd: addDays(weekStart, 6),
-    planStartDate: plan?.planStartDate ?? null,
-    planEndDate: plan?.planEndDate ?? null,
     days,
     todos: allTodos
       .filter((todo) => todo.scheduledDate === selectedDate)
@@ -119,7 +154,7 @@ export function selectTodayViewModel(
     schedules: schedulesForDate(selectedDate),
     adjustmentRemaining: Math.max(
       0,
-      10 - (state.adjustmentUsageByDate[todayDate] ?? 0),
+      10 - (state.adjustmentUsageByDate[adjustmentUsageDate()] ?? 0),
     ),
   };
 }

@@ -17,14 +17,21 @@ export function selectAllExtractedItems(state: PrototypeState) {
   return Object.values(state.extractedItemsById);
 }
 
+export function selectScheduleAcademicItems(state: PrototypeState) {
+  const previousById = new Map((state.pendingPlanUpdate?.previousAcademicEvents ?? []).map((item) => [item.id, item]));
+  return selectAllExtractedItems(state).map((item) => previousById.get(item.id) ?? item);
+}
+
 export function selectCalendarEvents(state: PrototypeState) {
   return Object.values(state.calendarEventsById);
 }
 
 export function selectCurrentWeeklyPlan(state: PrototypeState): WeeklyPlan | null {
-  return Object.values(state.weeklyPlansById).sort((left, right) =>
-    right.createdAt.localeCompare(left.createdAt),
-  )[0] ?? null;
+  return Object.values(state.weeklyPlansById).sort((left, right) => right.createdAt.localeCompare(left.createdAt))[0] ?? null;
+}
+
+export function selectIncompleteTodos(state: PrototypeState) {
+  return Object.values(state.todosById).filter((todo) => !todo.isCompleted);
 }
 
 export function selectTodosForCurrentPlan(state: PrototypeState) {

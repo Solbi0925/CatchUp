@@ -26,6 +26,7 @@ function emptyDraft(date: string): ScheduleDraft {
 }
 
 function displayTime(item: MonthScheduleItem) {
+  if (item.isProvisional) return "미확정 일정";
   if (!item.startTime) return "종일";
   return item.endTime ? `${item.startTime} – ${item.endTime}` : item.startTime;
 }
@@ -57,7 +58,7 @@ export function MonthScheduleDialog({ selectedDate, schedules, eventsById, categ
           {schedules.length === 0 ? <p className="month-sheet__empty">아직 등록된 일정이 없어요.</p> : (
             <ul className="month-schedule-list">
               {schedules.map((item) => <li key={item.id}>
-                <button className="month-schedule-row" type="button" onClick={() => setSelectedItem(item)} aria-label={`${item.title} ${displayTime(item)} 선택`}>
+                <button className={`month-schedule-row${item.isProvisional ? " is-provisional" : ""}`} type="button" disabled={item.isProvisional} onClick={() => setSelectedItem(item)} aria-label={`${item.title} ${displayTime(item)}${item.isProvisional ? "" : " 선택"}`}>
                   <span className="month-schedule-list__flag" aria-hidden="true" style={{ backgroundColor: resolveCategoryColor(item.categoryKey, categoryColorByKey) }} />
                   <span><strong>{item.title}</strong><small>{displayTime(item)}</small></span>
                 </button>
