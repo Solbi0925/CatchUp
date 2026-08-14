@@ -7,9 +7,8 @@ const planningFields: Array<keyof ExtractedItem> = [
 ];
 
 export function isPlanningRelevant(item: ExtractedItem) {
-  if (item.reviewStatus !== "confirmed" || item.itemType === "class-schedule" || item.itemType === "notice") return false;
-  if (item.itemType === "exam" || item.itemType === "quiz") return Boolean(item.date || item.scheduledWeek);
-  return item.confirmationStatus === "confirmed" && item.date !== null;
+  if (item.itemType === "class-schedule" || item.itemType === "notice") return false;
+  return item.confirmationStatus === "confirmed";
 }
 
 export function hasMeaningfulPlanningChange(previous: ExtractedItem | undefined, next: ExtractedItem) {
@@ -51,6 +50,7 @@ export function createPlanUpdateRecommendation(
     academicEventIds: changed.map((item) => item.id),
     message: messages[reasonKind],
     detectedAt,
+    status: "pending",
     previousAcademicEvents: changed.flatMap((item) => previousById[item.id] ? [previousById[item.id]!] : []),
   };
 }

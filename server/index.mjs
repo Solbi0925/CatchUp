@@ -83,9 +83,13 @@ function assessConfirmation(event) {
   if (event.itemType === "class-schedule") {
     if (!event.date && !event.classMeetingTimes.length) issues.push("missing-class-time");
   } else if (!event.date) issues.push("missing-date");
-  if (["assignment", "team-project", "presentation", "deadline", "submission"].includes(event.itemType) && !event.requirements && !event.workload && !event.submissionMethod) issues.push("missing-details");
+  if (["assignment", "team-project", "presentation", "deadline", "submission"].includes(event.itemType) && (!event.requirements || (!event.workload && !event.deliverableComplexity) || !event.submissionMethod)) issues.push("missing-details");
   if (["exam", "quiz"].includes(event.itemType) && !event.examScope) issues.push("missing-exam-scope");
-  return { confirmationStatus: issues.length ? "unconfirmed" : "confirmed", confirmationIssues: issues };
+  return {
+    dateCertainty: event.date ? "exact-date" : event.scheduledWeek ? "academic-week" : "unknown",
+    confirmationStatus: issues.length ? "unconfirmed" : "confirmed",
+    confirmationIssues: issues,
+  };
 }
 
 function normalize(payload, model, now) {
@@ -128,6 +132,8 @@ function normalize(payload, model, now) {
       existingEventId: undefined,
       sources: undefined,
       estimatedDurationMinutes: null,
+      revision: 1,
+      updateNoticeStatus: "unread",
       updatedAt: now,
       reviewStatus: "needs-review",
       isUserEdited: false,

@@ -4,16 +4,14 @@ import { emptyPlanningProfile } from "../../store/planningStorage";
 import { buildMonthSchedules } from "./monthSelectors";
 
 describe("Month academic schedules", () => {
-  it("projects one week-only event across exactly seven days without persisting clones", () => {
+  it("keeps one week-only event as one continuous range object", () => {
     const event = academicEventFixture({
       id: "exam", title: "인공지능소개 중간고사", itemType: "exam", date: null,
       scheduledWeek: 8, reviewStatus: "confirmed", confirmationStatus: "unconfirmed",
     });
     const schedules = buildMonthSchedules([event], [], { ...emptyPlanningProfile, semesterWeekOneStartDate: "2026-06-01" });
-    expect(schedules).toHaveLength(7);
-    expect(schedules.map((item) => item.date)).toEqual([
-      "2026-07-20", "2026-07-21", "2026-07-22", "2026-07-23", "2026-07-24", "2026-07-25", "2026-07-26",
-    ]);
+    expect(schedules).toHaveLength(1);
+    expect(schedules[0]).toMatchObject({ date: "2026-07-20", rangeEndDate: "2026-07-26" });
     expect(new Set(schedules.map((item) => item.extractedItemId))).toEqual(new Set(["exam"]));
     expect(schedules.every((item) => item.title === "인공지능소개 중간고사 주" && item.isProvisional)).toBe(true);
   });
@@ -28,5 +26,12 @@ describe("Month academic schedules", () => {
     const schedules = buildMonthSchedules([event], [], emptyPlanningProfile);
     expect(schedules).toHaveLength(1);
     expect(schedules[0]).toMatchObject({ date: "2026-08-28", isProvisional: false, temporalPrecision: "exact-date" });
+  });
+
+  it("shows an exact-date but detail-incomplete event on that date as provisional", () => {
+    const event = academicEventFixture({ date: "2026-08-28", confirmationStatus: "unconfirmed", confirmationIssues: ["missing-details"] });
+    const schedules = buildMonthSchedules([event], [], emptyPlanningProfile);
+    expect(schedules).toHaveLength(1);
+    expect(schedules[0]).toMatchObject({ date: "2026-08-28", isProvisional: true, temporalPrecision: "exact-date" });
   });
 });

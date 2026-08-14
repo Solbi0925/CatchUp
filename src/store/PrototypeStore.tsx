@@ -39,6 +39,7 @@ function createStoreInitialState() {
     adjustmentUsageByDate: planning.adjustmentUsageByDate,
     planAdjustmentsById: Object.fromEntries(planning.planAdjustments.map((adjustment) => [adjustment.id, adjustment])),
     pendingPlanUpdate: planning.pendingPlanUpdate,
+    processedPlanUpdatesById: Object.fromEntries(planning.processedPlanUpdates.map((update) => [update.id, update])),
   };
   const session = readOnboardingSession();
   if (!session) return stateWithConfirmedItems;
@@ -80,8 +81,9 @@ export function PrototypeStoreProvider({ children }: { children: ReactNode }) {
       adjustmentUsageByDate: state.adjustmentUsageByDate,
       planAdjustments: Object.values(state.planAdjustmentsById),
       pendingPlanUpdate: state.pendingPlanUpdate,
+      processedPlanUpdates: Object.values(state.processedPlanUpdatesById),
     });
-  }, [state.adjustmentUsageByDate, state.pendingPlanUpdate, state.planAdjustmentsById, state.planningProfile, state.todoIdsByWeeklyPlanId, state.todosById, state.weeklyPlansById]);
+  }, [state.adjustmentUsageByDate, state.pendingPlanUpdate, state.planAdjustmentsById, state.planningProfile, state.processedPlanUpdatesById, state.todoIdsByWeeklyPlanId, state.todosById, state.weeklyPlansById]);
   const value = useMemo(() => ({ state, dispatch }), [state]);
   return (
     <PrototypeStoreContext.Provider value={value}>{children}</PrototypeStoreContext.Provider>

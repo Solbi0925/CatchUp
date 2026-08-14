@@ -22,8 +22,8 @@ describe("plan update recommendation", () => {
     const next = academicEventFixture({ id: "exam", itemType: "exam", date: "2026-09-30", scheduledWeek: 9, reviewStatus: "confirmed", confirmationStatus: "confirmed" });
     const state = createInitialPrototypeState();
     state.extractedItemsById = { exam: next };
-    state.pendingPlanUpdate = { id: "pending", reasonKind: "exam-updated", academicEventIds: ["exam"], message: "업데이트", detectedAt: next.updatedAt, previousAcademicEvents: [previous] };
-    expect(selectScheduleAcademicItems(state)[0]).toMatchObject({ date: null, scheduledWeek: 9 });
+    state.pendingPlanUpdate = { id: "pending", reasonKind: "exam-updated", academicEventIds: ["exam"], message: "업데이트", detectedAt: next.updatedAt, previousAcademicEvents: [previous], status: "pending" };
+    expect(selectScheduleAcademicItems(state)[0]).toMatchObject({ date: "2026-09-30" });
     state.pendingPlanUpdate = null;
     expect(selectScheduleAcademicItems(state)[0]).toMatchObject({ date: "2026-09-30" });
   });

@@ -34,7 +34,7 @@ describe("AI Mate first plan flow", () => {
     expect(screen.queryByLabelText("내 메시지")).not.toBeInTheDocument();
   });
 
-  it("shows the coachmark and creates a persisted seven-day plan after only a needed question", async () => {
+  it("shows the coachmark and creates a persisted seven-day plan without initial personalization questions", async () => {
     localStorage.setItem("catchup.academic-events.v2", JSON.stringify([academicEventFixture({
       id: "hard-report", title: "행정기획론 보고서", courseName: "행정기획론", date: "2026-07-23",
       estimatedDurationMinutes: 180, difficulty: "high", reviewStatus: "confirmed",
@@ -51,13 +51,37 @@ describe("AI Mate first plan flow", () => {
     fireEvent.click(screen.getByRole("button", { name: "메시지 보내기" }));
 
     expect(await screen.findByText(/주간계획을 생성하는 중입니다/)).toBeInTheDocument();
-    expect(await screen.findByText(/바로 시작할 수 있나요/)).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "바로 시작" }));
-    expect(composer).toHaveValue("바로 시작 가능");
-    fireEvent.click(screen.getByRole("button", { name: "메시지 보내기" }));
     expect(await screen.findByText(/오늘부터 7일 계획을 만들었어요/)).toBeInTheDocument();
     await waitFor(() => expect(JSON.parse(localStorage.getItem("catchup.planning.v1") ?? "{}").weeklyPlans).toHaveLength(1));
     expect(localStorage.getItem("catchup.planning.v1")).toContain("금요일에는 공부하지 않고 싶어");
+  });
+
+  it("collects the semester start before generation so week-only events appear in Month", async () => {
+    localStorage.setItem("catchup.academic-events.v2", JSON.stringify([academicEventFixture({
+      id: "week-exam", title: "행정기획론 중간고사", courseName: "행정기획론",
+      itemType: "exam", date: null, scheduledWeek: 8, scheduledWeekLabel: "8주차",
+      weekOneStartDate: null, examScope: null, reviewStatus: "confirmed",
+      confirmationStatus: "unconfirmed", confirmationIssues: ["missing-date", "missing-exam-scope"],
+    })]));
+    render(<App initialEntries={["/upload"]} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "AI Mate 열기" }));
+    const composer = screen.getByRole("textbox", { name: "AI Mate 메시지" });
+    fireEvent.change(composer, { target: { value: "주간계획 생성해줘" } });
+    fireEvent.click(screen.getByRole("button", { name: "메시지 보내기" }));
+    expect(await screen.findByText(/이번 학기 1주차는 언제 시작하나요/)).toBeInTheDocument();
+
+    fireEvent.change(composer, { target: { value: "2026-06-01" } });
+    fireEvent.click(screen.getByRole("button", { name: "메시지 보내기" }));
+    expect(await screen.findByText(/오늘부터 7일 계획을 만들었어요/)).toBeInTheDocument();
+    await waitFor(() => expect(JSON.parse(localStorage.getItem("catchup.planning.v1") ?? "{}").profile.semesterWeekOneStartDate).toBe("2026-06-01"));
+
+    fireEvent.click(screen.getByRole("link", { name: "Today" }));
+    expect(await screen.findByText("행정기획론 중간고사 주")).toBeInTheDocument();
+    expect(screen.getByText("미확정 일정")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("link", { name: "Month" }));
+    expect((await screen.findAllByRole("button", { name: "행정기획론 중간고사 주" })).length).toBeGreaterThan(0);
   });
 
   it("skips personalization questions when duration inputs are already sufficient", async () => {
@@ -126,6 +150,9 @@ describe("AI Mate first plan flow", () => {
     expect(screen.getByRole("status")).toHaveTextContent("새로운 과제 정보");
     fireEvent.click(screen.getByRole("button", { name: "AI Mate 열기" }));
     fireEvent.click(screen.getByRole("button", { name: "주간계획 업데이트" }));
+    expect(await screen.findByText(/바로 시작할 수 있나요/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "바로 시작" }));
+    fireEvent.click(screen.getByRole("button", { name: "메시지 보내기" }));
     expect(await screen.findByText(/새로운 학업 정보를 반영해 미완료 주간계획을 업데이트/)).toBeInTheDocument();
     await waitFor(() => expect(screen.getByText("조정 잔여 9회")).toBeInTheDocument());
   });

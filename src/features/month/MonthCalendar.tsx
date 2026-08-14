@@ -112,6 +112,9 @@ export function MonthCalendar({
         </div>
         {Array.from({ length: weekCount }, (_, weekIndex) => {
           const weekCells = gridCells.slice(weekIndex * 7, weekIndex * 7 + 7);
+          const weeklyRanges = [...new Map(weekCells.flatMap((cell) => schedulesByDate.get(cell.date) ?? [])
+            .filter((schedule) => schedule.temporalPrecision === "academic-week")
+            .map((schedule) => [schedule.id, schedule])).values()];
           return (
             <div className="month-week" key={weekCells[0]?.date}>
               <div className="month-week__dates">
@@ -119,7 +122,7 @@ export function MonthCalendar({
                   const isSelected = cell.date === selectedDate;
                   const isToday = cell.date === todayDate;
                   const scheduleCount = schedulesByDate.get(cell.date)?.length ?? 0;
-                  const schedules = schedulesByDate.get(cell.date) ?? [];
+                  const schedules = (schedulesByDate.get(cell.date) ?? []).filter((schedule) => schedule.temporalPrecision !== "academic-week");
                   const className = [
                     "month-date",
                     !cell.isCurrentMonth && "is-adjacent",
@@ -151,7 +154,6 @@ export function MonthCalendar({
                           <span
                             className={`month-date__event-chip${schedule.isProvisional ? " is-provisional" : ""}`}
                             data-temporal-precision={schedule.temporalPrecision}
-                            data-range-position={schedule.rangePosition}
                             data-category-key={schedule.categoryKey}
                             style={{ backgroundColor: resolveCategoryColor(schedule.categoryKey, categoryColorByKey) }}
                             key={schedule.id}
@@ -163,6 +165,24 @@ export function MonthCalendar({
                       </span>
                     </button>
                   );
+                })}
+              </div>
+              <div className="month-week__ranges" aria-label="주 단위 미확정 일정">
+                {weeklyRanges.map((schedule, index) => {
+                  const startIndex = Math.max(0, weekCells.findIndex((cell) => cell.date >= schedule.date));
+                  const rawEndIndex = weekCells.findIndex((cell) => cell.date === schedule.rangeEndDate);
+                  const endIndex = rawEndIndex >= 0 ? Math.max(startIndex, rawEndIndex) : 6;
+                  return <button
+                    type="button"
+                    className="month-week__range"
+                    style={{
+                      gridColumn: `${startIndex + 1} / ${Math.min(7, endIndex) + 2}`,
+                      gridRow: index + 1,
+                      backgroundColor: resolveCategoryColor(schedule.categoryKey, categoryColorByKey),
+                    }}
+                    onClick={() => onSelectDate(schedule.date)}
+                    key={schedule.id}
+                  >{schedule.title}</button>;
                 })}
               </div>
             </div>

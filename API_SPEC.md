@@ -37,8 +37,8 @@ PDF와 이미지 파일들을 하나의 분석 작업으로 전달한다. Vite �
 { "ok": true, "service": "catchup-local-bridge" }
 ```
 
-Bridge는 요청마다 OS 임시 디렉터리를 만들고 종료 시 삭제한다. 원본 파일은 저장하지 않으며 확정·미확정 구조화 이벤트는 브라우저의 `catchup.academic-events.v2`에 저장한다.
+Bridge는 요청마다 OS 임시 디렉터리를 만들고 종료 시 삭제한다. 원본 파일은 저장하지 않으며 확정·미확정 구조화 이벤트는 날짜 정확도, 버전, 새 정보 확인 상태와 함께 브라우저의 `catchup.academic-events.v2`에 즉시 저장한다.
 
 ## 최초 주간계획의 로컬 처리
 
-최초 7일 계획은 별도 서버 API나 DB를 추가하지 않고 브라우저 애플리케이션 로직에서 생성한다. `AcademicEvent`와 `Todo`는 분리하며, 계획·완료 상태·개인화 프로필은 `catchup.planning.v1`에 저장한다. 실제 Google Calendar API와 기존 계획 수정/업데이트 API는 이 단계 범위에 포함하지 않는다.
+최초 7일 계획은 별도 서버 API나 DB를 추가하지 않고 브라우저 애플리케이션 로직에서 생성한다. `AcademicEvent`와 `Todo`는 분리하며, 현재 계획·완료 상태·대기/처리된 업데이트·개인화 프로필은 `catchup.planning.v1`에 저장한다. 실제 Google Calendar API는 이 단계 범위에 포함하지 않는다.

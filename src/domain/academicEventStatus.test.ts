@@ -10,6 +10,7 @@ describe("assessAcademicEventConfirmation", () => {
       workload: null,
       submissionMethod: null,
     }))).toEqual({
+      dateCertainty: "unknown",
       confirmationStatus: "unconfirmed",
       confirmationIssues: ["missing-date", "missing-details"],
     });
@@ -17,6 +18,7 @@ describe("assessAcademicEventConfirmation", () => {
 
   it("confirms an assignment after source-backed timing and details are supplied", () => {
     expect(assessAcademicEventConfirmation(academicEventFixture())).toEqual({
+      dateCertainty: "exact-date",
       confirmationStatus: "confirmed",
       confirmationIssues: [],
     });
@@ -30,6 +32,7 @@ describe("assessAcademicEventConfirmation", () => {
       scheduledWeekLabel: "8주차",
       examScope: null,
     }))).toEqual({
+      dateCertainty: "academic-week",
       confirmationStatus: "unconfirmed",
       confirmationIssues: ["missing-date", "missing-exam-scope"],
     });
@@ -47,6 +50,6 @@ describe("assessAcademicEventConfirmation", () => {
         endTime: "11:45",
         location: "401-930",
       }],
-    }))).toEqual({ confirmationStatus: "confirmed", confirmationIssues: [] });
+    }))).toEqual({ dateCertainty: "unknown", confirmationStatus: "confirmed", confirmationIssues: [] });
   });
 });

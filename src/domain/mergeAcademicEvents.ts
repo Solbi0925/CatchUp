@@ -95,6 +95,8 @@ export function mergeAcademicEvent(
     reviewStatus: "needs-review",
     isUserEdited: existing.isUserEdited,
     updatedAt: incoming.updatedAt,
+    revision: Math.max(existing.revision ?? 1, incoming.revision ?? 1) + 1,
+    updateNoticeStatus: "unread",
   };
   return { ...merged, ...assessAcademicEventConfirmation(merged) };
 }
@@ -110,7 +112,12 @@ export function mergeAcademicEventBatch(
     const explicit = existingById.get(incoming.id);
     const fallback = explicit ?? existingItems.find((existing) =>
       !claimedExistingIds.has(existing.id) && isLikelySameEvent(existing, incoming));
-    if (!fallback) return { ...incoming, ...assessAcademicEventConfirmation(incoming) };
+    if (!fallback) return {
+      ...incoming,
+      revision: incoming.revision ?? 1,
+      updateNoticeStatus: "unread" as const,
+      ...assessAcademicEventConfirmation(incoming),
+    };
     claimedExistingIds.add(fallback.id);
     return mergeAcademicEvent(fallback, incoming);
   });

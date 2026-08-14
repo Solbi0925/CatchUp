@@ -86,16 +86,14 @@ describe("generateMockWeeklyPlan", () => {
     expect(wednesdayMinutes).toBeLessThanOrEqual(60);
   });
 
-  it("uses an exam week without inventing an exact schedule date", () => {
+  it("excludes an unconfirmed week-only exam from plan generation", () => {
     const result = generateMockWeeklyPlan({ ...command, extractedItems: [academicEventFixture({
       id: "week-only-exam", title: "8주차 중간고사", itemType: "exam", date: null,
       scheduledWeek: 8, scheduledWeekLabel: "8주차", examScope: null,
       confirmationStatus: "unconfirmed", confirmationIssues: ["missing-date", "missing-exam-scope"],
       reviewStatus: "confirmed", estimatedDurationMinutes: null,
     })] });
-    expect(result.todos.length).toBeGreaterThan(0);
-    expect(result.todos.every((todo) => todo.title.includes("현재까지"))).toBe(true);
-    expect(result.todos.every((todo) => todo.recommendationReason.includes("8주차"))).toBe(true);
+    expect(result.todos).toEqual([]);
   });
 
   it("carries over incomplete work and tracks the duration evidence", () => {
@@ -104,5 +102,14 @@ describe("generateMockWeeklyPlan", () => {
     expect(result.todos.some((todo) => todo.carriedOverFromTodoId === "old-todo")).toBe(true);
     expect(result.todos.every((todo) => todo.durationRationale.length > 0)).toBe(true);
     expect(result.assistantMessage.text).toContain("기존 미완료 항목");
+  });
+
+  it("creates minimum review tasks from a confirmed timetable when no confirmed event is planable", () => {
+    const result = generateMockWeeklyPlan({ ...command, extractedItems: [academicEventFixture({
+      id: "timetable", itemType: "class-schedule", title: "도시건축 수업", courseName: "도시건축",
+      date: null, confirmationStatus: "confirmed", classMeetingTimes: [{ id: "monday", weekday: 1, startTime: "10:30", endTime: "11:45", location: "401-930" }],
+    })] });
+    expect(result.todos).toHaveLength(1);
+    expect(result.todos[0]).toMatchObject({ title: "도시건축 수업 내용 복습하기", estimatedDurationMinutes: 45 });
   });
 });

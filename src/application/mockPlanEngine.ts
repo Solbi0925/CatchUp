@@ -98,8 +98,7 @@ export function generateMockWeeklyPlan(command: GeneratePlanCommand): GeneratePl
   const window = getPlanWeekWindow(new Date(command.requestedAt));
   const weeklyPlanId = `weekly-${command.operationId}`;
   const relevant = command.extractedItems.filter((item) => {
-    if (item.reviewStatus !== "confirmed" || item.itemType === "class-schedule" || item.itemType === "notice") return false;
-    if ((item.itemType === "exam" || item.itemType === "quiz") && (item.date || item.scheduledWeek)) return true;
+    if (item.itemType === "class-schedule" || item.itemType === "notice") return false;
     return item.confirmationStatus === "confirmed" && item.date !== null && differenceInDays(window.weekStartDate, item.date) <= 27;
   });
   const carryOverByEvent = new Map(command.existingIncompleteTodos.map((todo) => [todo.sourceExtractedItemId, todo]));
@@ -159,6 +158,53 @@ export function generateMockWeeklyPlan(command: GeneratePlanCommand): GeneratePl
           provisionalExamStudy: item.date === null && (item.itemType === "exam" || item.itemType === "quiz"),
         },
       });
+    }
+  }
+
+  // 확정된 마감/시험이 아직 없다면 검수된 시간표만으로 최소 복습 계획을 만든다.
+  if (ranked.length === 0) {
+    const timetableItems = command.extractedItems.filter((item) =>
+      item.itemType === "class-schedule" && item.confirmationStatus === "confirmed",
+    );
+    for (const item of timetableItems) {
+      for (const meeting of item.classMeetingTimes) {
+        let scheduledDate: string | null = null;
+        for (let day = 0; day < 7; day += 1) {
+          const candidate = addDays(window.weekStartDate, day);
+          if (new Date(`${candidate}T00:00:00Z`).getUTCDay() === meeting.weekday) {
+            scheduledDate = candidate;
+            break;
+          }
+        }
+        if (!scheduledDate) continue;
+        const minutes = 45;
+        todos.push({
+          id: `todo-${command.operationId}-${item.id}-${meeting.id}`,
+          weeklyPlanId,
+          sourceExtractedItemId: item.id,
+          scheduledDate,
+          title: `${item.courseName} 수업 내용 복습하기`,
+          todoType: "class-prep",
+          courseName: item.courseName,
+          estimatedDurationMinutes: minutes,
+          priority: "low",
+          isCompleted: false,
+          recommendationReason: `${item.courseName} 수업 직후 핵심 내용을 짧게 복습하도록 배치했어요.`,
+          durationRationale: ["시간표 기반 최소 복습 시간"],
+          carriedOverFromTodoId: null,
+          recommendationDetails: {
+            relatedAcademicEventId: item.id,
+            needReasons: [`확정된 ${item.courseName} 수업 일정이 있음`],
+            placementReasons: [`${scheduledDate} 수업일에 짧은 복습으로 배치함`],
+            priorityReasons: ["확정된 과제·시험이 없을 때 적용하는 최소 복습 계획"],
+            durationReasons: ["시간표 기반 최소 복습 시간 45분"],
+            personalizationReasons: [],
+            userRequestReasons: command.requestText === GENERATE_REQUEST_FALLBACK ? [] : [command.requestText],
+            carriedOver: false,
+            provisionalExamStudy: false,
+          },
+        });
+      }
     }
   }
 

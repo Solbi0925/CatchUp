@@ -8,7 +8,7 @@ import { PERSONAL_CATEGORY_KEY, resolveCategoryColor } from "../calendar/calenda
 import type { CalendarEvent } from "../../domain/types";
 import { selectTodayViewModel } from "./todaySelectors";
 import type { TodayScheduleViewModel } from "./todayTypes";
-import { demoTodayDate } from "../../application/clock";
+import { currentTodayDate } from "../../application/clock";
 import "./today.css";
 
 const scheduleTypeLabels = {
@@ -46,22 +46,24 @@ function addDays(isoDate: string, amount: number) {
 
 function TodayScheduleSection({
   selectedDate,
+  todayDate,
   schedules,
   onAdd,
   onEdit,
 }: {
   selectedDate: string;
+  todayDate: string;
   schedules: TodayScheduleViewModel[];
   onAdd: () => void;
   onEdit: (id: string) => void;
 }) {
   return <section className="today-section">
     <div className="today-section-heading">
-      <div><h2>{selectedDate === demoTodayDate ? "오늘의 예정 일정" : `${formatSelectedDate(selectedDate)} 예정 일정`}</h2></div>
+      <div><h2>{selectedDate === todayDate ? "오늘의 예정 일정" : `${formatSelectedDate(selectedDate)} 예정 일정`}</h2></div>
       <button type="button" className="today-add-button" onClick={onAdd}>추가</button>
     </div>
     {schedules.length === 0 ? <div className="today-zero-state"><strong>예정된 일정이 없어요.</strong></div> : <div className="today-card-list">
-      {schedules.map((schedule) => <button type="button" className={`today-schedule-card${schedule.isProvisional ? " is-provisional" : ""}`} key={schedule.id} disabled={schedule.type === "class" || schedule.isProvisional} onClick={() => onEdit(schedule.id)} aria-label={schedule.type === "class" || schedule.isProvisional ? `${schedule.timeLabel} ${schedule.title}` : `${schedule.title} 일정 수정`}>
+      {schedules.map((schedule) => <button type="button" className={`today-schedule-card${schedule.isProvisional ? " is-provisional" : ""}`} key={schedule.id} disabled={schedule.type === "class" || schedule.isProvisional} onClick={() => onEdit(schedule.id)} aria-label={schedule.isProvisional ? `${schedule.timeLabel} 미확정 일정 ${schedule.title}` : schedule.type === "class" ? `${schedule.timeLabel} ${schedule.title}` : `${schedule.title} 일정 수정`}>
         <time>{schedule.timeLabel}</time>
         <div><h3>{schedule.title}</h3><p>{schedule.isProvisional ? "미확정 학업 일정" : scheduleTypeLabels[schedule.type]} · {schedule.sourceLabel}</p></div>
       </button>)}
@@ -72,15 +74,16 @@ function TodayScheduleSection({
 export function TodayPage() {
   const { state, dispatch } = usePrototypeStore();
   const { openWithDraft, openForTodo } = useAiMate();
-  const [selectedDate, setSelectedDate] = useState(demoTodayDate);
+  const todayDate = useMemo(() => currentTodayDate(), []);
+  const [selectedDate, setSelectedDate] = useState(todayDate);
   const [editingScheduleId, setEditingScheduleId] = useState<string>();
   const [addingSchedule, setAddingSchedule] = useState(false);
   const [eventOverrides, setEventOverrides] = useState<Record<string, CalendarEvent>>({});
   const hasDocuments = Object.keys(state.documentsById).length > 0 || Object.keys(state.extractedItemsById).length > 0;
   const hasPlan = Object.keys(state.weeklyPlansById).length > 0;
   const viewModel = useMemo(
-    () => selectTodayViewModel({ ...state, calendarEventsById: { ...state.calendarEventsById, ...eventOverrides } }, selectedDate),
-    [eventOverrides, selectedDate, state],
+    () => selectTodayViewModel({ ...state, calendarEventsById: { ...state.calendarEventsById, ...eventOverrides } }, selectedDate, todayDate),
+    [eventOverrides, selectedDate, state, todayDate],
   );
   const editingSchedule = viewModel.schedules.find((item) => item.id === editingScheduleId);
   const editingEvent = editingSchedule ? ({ ...state.calendarEventsById, ...eventOverrides })[editingSchedule.id] : undefined;
@@ -107,7 +110,7 @@ export function TodayPage() {
             className={`${day.isSelected ? "selected" : ""} ${hasPlan && !day.isInPlanRange ? "outside-plan" : ""}`.trim()}
             aria-current={day.isSelected ? "date" : undefined}
             aria-pressed={day.isSelected}
-            aria-label={`7월 ${day.dayOfMonth}일 ${day.weekdayLabel}요일${day.isToday ? ", 오늘" : ""}${day.isSelected ? ", 선택됨" : ""}`}
+            aria-label={`${Number(day.date.slice(5, 7))}월 ${day.dayOfMonth}일 ${day.weekdayLabel}요일${day.isToday ? ", 오늘" : ""}${day.isSelected ? ", 선택됨" : ""}`}
             onClick={() => setSelectedDate(day.date)}
           >
             <span>{day.weekdayLabel}</span>
@@ -144,7 +147,7 @@ export function TodayPage() {
               <h2>아직 생성된 주간 계획이 없어요.</h2>
               <p>확인한 학업 자료를 바탕으로 이번 주 계획을 만들어보세요.</p>
             </div>
-            <AiMateCharacter size={72} />
+            <AiMateCharacter size={88} />
           </article>
           <section className="today-section">
             <div className="today-section-heading">
@@ -171,14 +174,14 @@ export function TodayPage() {
               <h2>4주 일정을 고려해 중요한 일부터 정리했어요.</h2>
               <p>우리 오늘도 같이 하나씩 따라잡아봐요!</p>
             </div>
-            <AiMateCharacter size={72} />
+            <AiMateCharacter size={88} />
           </article>
 
           <section className="today-section">
             <div className="today-section-heading">
               <div>
                 <h2>
-                  {selectedDate === demoTodayDate
+                  {selectedDate === todayDate
                     ? "오늘의 할 일"
                     : `${formatSelectedDate(selectedDate)} 할 일`}
                 </h2>
@@ -235,6 +238,7 @@ export function TodayPage() {
       )}
       {hasDocuments && <TodayScheduleSection
         selectedDate={selectedDate}
+        todayDate={todayDate}
         schedules={viewModel.schedules}
         onAdd={() => setAddingSchedule(true)}
         onEdit={setEditingScheduleId}

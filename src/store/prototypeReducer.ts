@@ -70,6 +70,7 @@ export interface PrototypeState {
   adjustmentUsageByDate: Record<string, number>;
   planAdjustmentsById: Record<string, PlanAdjustment>;
   pendingPlanUpdate: PlanUpdateRecommendation | null;
+  processedPlanUpdatesById: Record<string, PlanUpdateRecommendation>;
   categoryColorByKey: Record<string, CalendarCategoryColor>;
   appliedOperations: Record<OperationId, "extraction" | "plan" | "adjustment">;
   planningProfile: PlanningProfile;
@@ -118,7 +119,12 @@ export type PrototypeAction =
   | {
       type: "plan/updateDismissed";
       payload: Record<string, never>;
-    };
+    }
+  | {
+      type: "plan/updateProcessed";
+      payload: { outcome: "changed" | "no-change" | "dismissed" };
+    }
+  | { type: "extraction/updateReviewed"; payload: { id: ExtractedItemId } };
 
 export function createInitialPrototypeState(): PrototypeState {
   return {
@@ -137,6 +143,7 @@ export function createInitialPrototypeState(): PrototypeState {
     adjustmentUsageByDate: {},
     planAdjustmentsById: {},
     pendingPlanUpdate: null,
+    processedPlanUpdatesById: {},
     categoryColorByKey: {},
     appliedOperations: {},
     planningProfile: { semesterWeekOneStartDate: null, confidenceByCourse: {}, pace: null, preparationByEventId: {}, examGoalByEventId: {} },
@@ -210,6 +217,7 @@ export function prototypeReducer(
         academicEventIds: [],
         message: "새로운 서비스 내 일정이 추가되었어요. 주간계획을 업데이트할까요?",
         detectedAt: demoInteractionClock.now().toISOString(),
+        status: "pending" as const,
       } : state.pendingPlanUpdate;
       return {
         ...state,
@@ -247,6 +255,7 @@ export function prototypeReducer(
           academicEventIds: [],
           message: "변경된 서비스 내 일정을 반영해 주간계획을 업데이트할까요?",
           detectedAt: demoInteractionClock.now().toISOString(),
+          status: "pending",
         } : state.pendingPlanUpdate,
       };
     }
@@ -263,6 +272,7 @@ export function prototypeReducer(
           academicEventIds: [],
           message: "변경된 서비스 내 일정을 반영해 주간계획을 업데이트할까요?",
           detectedAt: demoInteractionClock.now().toISOString(),
+          status: "pending",
         } : state.pendingPlanUpdate,
       };
     }
@@ -326,7 +336,16 @@ export function prototypeReducer(
       const item = state.extractedItemsById[action.payload.id];
       if (!item) return state;
       const { id, ...editableFields } = action.payload;
-      const updatedItem = { ...item, ...editableFields, isUserEdited: true };
+      const assessed = assessAcademicEventConfirmation({ ...item, ...editableFields });
+      const updatedItem = {
+        ...item,
+        ...editableFields,
+        ...assessed,
+        revision: item.revision + 1,
+        updateNoticeStatus: "reviewed" as const,
+        updatedAt: demoInteractionClock.now().toISOString(),
+        isUserEdited: true,
+      };
       return {
         ...state,
         extractedItemsById: {
@@ -346,6 +365,7 @@ export function prototypeReducer(
         ...item,
         ...assessAcademicEventConfirmation(item),
         reviewStatus: "confirmed" as const,
+        updateNoticeStatus: "reviewed" as const,
         updatedAt: reviewedAt,
       }));
       const confirmedDocumentIds = new Set([
@@ -363,6 +383,7 @@ export function prototypeReducer(
           academicEventIds: deletedPlannedIds,
           message: "변경된 학업 일정을 반영해 주간계획을 업데이트할까요?",
           detectedAt: reviewedAt,
+          status: "pending" as const,
         } : state.pendingPlanUpdate)
         : state.pendingPlanUpdate;
       return {
@@ -459,6 +480,17 @@ export function prototypeReducer(
         },
         planAdjustmentsById: { ...state.planAdjustmentsById, [adjustment.id]: adjustment },
         pendingPlanUpdate: action.payload.trigger === "NEW_ACADEMIC_INFORMATION" ? null : state.pendingPlanUpdate,
+        processedPlanUpdatesById: action.payload.trigger === "NEW_ACADEMIC_INFORMATION" && state.pendingPlanUpdate
+          ? {
+              ...state.processedPlanUpdatesById,
+              [state.pendingPlanUpdate.id]: {
+                ...state.pendingPlanUpdate,
+                status: "processed",
+                processedAt: adjustment.createdAt,
+                outcome: "changed",
+              },
+            }
+          : state.processedPlanUpdatesById,
         appliedOperations: {
           ...state.appliedOperations,
           [action.payload.operationId]: "adjustment",
@@ -466,6 +498,34 @@ export function prototypeReducer(
       };
     }
     case "plan/updateDismissed":
-      return { ...state, pendingPlanUpdate: null };
+    case "plan/updateProcessed": {
+      if (!state.pendingPlanUpdate) return state;
+      const outcome = action.type === "plan/updateDismissed" ? "dismissed" : action.payload.outcome;
+      const processed = {
+        ...state.pendingPlanUpdate,
+        status: "processed" as const,
+        processedAt: demoInteractionClock.now().toISOString(),
+        outcome,
+      };
+      return {
+        ...state,
+        pendingPlanUpdate: null,
+        processedPlanUpdatesById: {
+          ...state.processedPlanUpdatesById,
+          [processed.id]: processed,
+        },
+      };
+    }
+    case "extraction/updateReviewed": {
+      const item = state.extractedItemsById[action.payload.id];
+      if (!item || item.updateNoticeStatus === "reviewed") return state;
+      return {
+        ...state,
+        extractedItemsById: {
+          ...state.extractedItemsById,
+          [item.id]: { ...item, updateNoticeStatus: "reviewed" },
+        },
+      };
+    }
   }
 }
