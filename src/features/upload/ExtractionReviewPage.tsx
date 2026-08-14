@@ -56,7 +56,21 @@ export function ExtractionReviewPage() {
   const [expandedId, setExpandedId] = useState<string | undefined>();
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [mergeMode, setMergeMode] = useState(false);
+  const [selectedCourse, setSelectedCourse] = useState<string>();
   const isDirty = useMemo(() => JSON.stringify(draft) !== JSON.stringify(items), [draft, items]);
+  const courses = useMemo(() => [...new Set(draft.map((item) => item.courseName || "과목 확인 필요"))]
+    .sort((left, right) => {
+      const unread = (course: string) => draft.some((item) => (item.courseName || "과목 확인 필요") === course && item.updateNoticeStatus === "unread");
+      return Number(unread(right)) - Number(unread(left)) || left.localeCompare(right, "ko");
+    }), [draft]);
+  const visibleItems = useMemo(() => draft
+    .filter((item) => (item.courseName || "과목 확인 필요") === selectedCourse)
+    .sort((left, right) => {
+      const precision = (item: ExtractedItem) => item.date ? 0 : item.scheduledWeek !== null ? 1 : 2;
+      return precision(left) - precision(right)
+        || (left.date ?? String(left.scheduledWeek ?? 999)).localeCompare(right.date ?? String(right.scheduledWeek ?? 999));
+    }), [draft, selectedCourse]);
 
   function updateItem(id: string, patch: Partial<ExtractedItem>) {
     setDraft((current) => current.map((item) => {
@@ -142,18 +156,34 @@ export function ExtractionReviewPage() {
       <header className="focus-header"><button type="button" className="back-button" aria-label="Upload로 돌아가기" onClick={goBack}>‹</button><div><h1>학업 이벤트 확인 및 수정</h1><p>파일이 아닌 최종 과제·시험 단위로 확인하세요.</p></div></header>
       <p className="review-summary">이벤트 {draft.length}개 · 확정 {draft.filter((item) => item.confirmationStatus === "confirmed").length}개 · 미확정 {draft.filter((item) => item.confirmationStatus === "unconfirmed").length}개</p>
       <div className="event-correction-toolbar">
-        <span>같은 이벤트를 선택해 직접 병합할 수 있어요.</span>
-        <button type="button" disabled={selectedIds.length < 2} onClick={mergeSelected}>선택 이벤트 병합 ({selectedIds.length})</button>
+        <span>{mergeMode ? "병합할 같은 이벤트를 선택하세요." : "과목별로 추출 결과를 확인하세요."}</span>
+        <button type="button" onClick={() => { setMergeMode((current) => !current); setSelectedIds([]); }}>{mergeMode ? "병합 취소" : "이벤트 병합"}</button>
+        {mergeMode && <button type="button" disabled={selectedIds.length < 2} onClick={mergeSelected}>선택 이벤트 병합 ({selectedIds.length})</button>}
       </div>
       <div className="extraction-list">
-        {draft.map((item) => {
+        {!selectedCourse ? courses.map((course) => {
+          const courseItems = draft.filter((item) => (item.courseName || "과목 확인 필요") === course);
+          const hasUnread = courseItems.some((item) => item.updateNoticeStatus === "unread");
+          return <button type="button" className="extraction-course-card" key={course} onClick={() => setSelectedCourse(course)}>
+            <span><strong>{course}</strong><small>학업 이벤트 {courseItems.length}개</small></span>
+            {hasUnread && <span className="update-notice-dot" aria-label="새 업데이트" />}
+            <span aria-hidden="true">›</span>
+          </button>;
+        }) : <>
+          <button type="button" className="extraction-course-back" onClick={() => { setSelectedCourse(undefined); setExpandedId(undefined); setSelectedIds([]); }}>‹ 과목 목록</button>
+          <h2 className="extraction-course-title">{selectedCourse}</h2>
+        {visibleItems.map((item) => {
           const expanded = expandedId === item.id;
           const hasError = Object.keys(errors).some((key) => key.startsWith(item.id));
           return (
             <section className="extraction-item" key={item.id}>
-              <label className="extraction-item__select"><input type="checkbox" checked={selectedIds.includes(item.id)} onChange={(event) => setSelectedIds((current) => event.target.checked ? [...current, item.id] : current.filter((id) => id !== item.id))} /><span>병합 선택</span></label>
-              <button type="button" className="extraction-item__toggle" aria-expanded={expanded} onClick={() => setExpandedId(expanded ? undefined : item.id)}>
-                <span><strong>{item.title || "이름 없는 이벤트"}</strong><small>{item.courseName || "과목 확인 필요"} · {eventTypeLabels[item.itemType]} · {eventTimingLabel(item)}</small></span>
+              {mergeMode && <label className="extraction-item__select"><input type="checkbox" checked={selectedIds.includes(item.id)} onChange={(event) => setSelectedIds((current) => event.target.checked ? [...current, item.id] : current.filter((id) => id !== item.id))} /><span>병합 선택</span></label>}
+              <button type="button" className="extraction-item__toggle" aria-expanded={expanded} onClick={() => {
+                dispatch({ type: "extraction/updateReviewed", payload: { id: item.id } });
+                setDraft((current) => current.map((candidate) => candidate.id === item.id ? { ...candidate, updateNoticeStatus: "reviewed" } : candidate));
+                setExpandedId(expanded ? undefined : item.id);
+              }}>
+                <span><strong>{item.title || "이름 없는 이벤트"}{item.updateNoticeStatus === "unread" && <span className="update-notice-dot" aria-label="새 업데이트" />}</strong><small>{item.courseName || "과목 확인 필요"} · {eventTypeLabels[item.itemType]} · {eventTimingLabel(item)}</small></span>
                 <span className={hasError ? "status-badge status-badge--error" : `status-badge status-badge--${item.confirmationStatus}`}>{hasError ? "입력 확인" : item.confirmationStatus === "confirmed" ? "확정" : "미확정"}</span>
               </button>
               {expanded && (
@@ -170,6 +200,7 @@ export function ExtractionReviewPage() {
                   {item.itemType !== "class-schedule" && <>
                     <label>분량<input value={item.workload ?? ""} onChange={(event) => updateItem(item.id, { workload: nullable(event.target.value) })} placeholder="정보 없음" /></label>
                     <label>요구사항<textarea value={item.requirements ?? ""} onChange={(event) => updateItem(item.id, { requirements: nullable(event.target.value) })} placeholder="정보 없음" /></label>
+                    <label>제출 방식<input aria-label="제출 방식" value={item.submissionMethod ?? ""} onChange={(event) => updateItem(item.id, { submissionMethod: nullable(event.target.value) })} placeholder="예: LMS 과제함" /></label>
                     <div className="field-row"><label>자료 조사량<select value={item.researchNeeded} onChange={(event) => updateItem(item.id, { researchNeeded: event.target.value as ExtractedItem["researchNeeded"] })}><option value="unknown">확인 필요</option><option value="none">없음</option><option value="low">적음</option><option value="medium">보통</option><option value="high">많음</option></select></label><label>객관적 난이도<select value={item.difficulty} onChange={(event) => updateItem(item.id, { difficulty: event.target.value as ExtractedItem["difficulty"] })}><option value="unknown">확인 필요</option><option value="low">낮음</option><option value="medium">보통</option><option value="high">높음</option></select></label></div>
                     <label>결과물 복잡도<input value={item.deliverableComplexity ?? ""} onChange={(event) => updateItem(item.id, { deliverableComplexity: nullable(event.target.value) })} placeholder="정보 없음" /></label>
                   </>}
@@ -180,7 +211,7 @@ export function ExtractionReviewPage() {
               )}
             </section>
           );
-        })}
+        })}</>}
       </div>
       <div className="focus-actions"><button type="button" className="primary-button" onClick={save}>학업 이벤트 저장</button></div>
     </main>

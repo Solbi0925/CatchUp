@@ -1,6 +1,7 @@
 import type {
   AcademicEventConfirmationIssue,
   AcademicEventConfirmationStatus,
+  AcademicEventDateCertainty,
   ExtractedItem,
 } from "./types";
 
@@ -10,14 +11,18 @@ type AssessableAcademicEvent = Pick<
   | "courseName"
   | "itemType"
   | "date"
+  | "scheduledWeek"
   | "workload"
   | "requirements"
   | "submissionMethod"
+  | "estimatedDurationMinutes"
+  | "deliverableComplexity"
   | "examScope"
   | "classMeetingTimes"
 >;
 
 export interface AcademicEventConfirmationAssessment {
+  dateCertainty: AcademicEventDateCertainty;
   confirmationStatus: AcademicEventConfirmationStatus;
   confirmationIssues: AcademicEventConfirmationIssue[];
 }
@@ -34,6 +39,11 @@ export function assessAcademicEventConfirmation(
   event: AssessableAcademicEvent,
 ): AcademicEventConfirmationAssessment {
   const confirmationIssues: AcademicEventConfirmationIssue[] = [];
+  const dateCertainty: AcademicEventDateCertainty = event.date
+    ? "exact-date"
+    : event.scheduledWeek
+      ? "academic-week"
+      : "unknown";
   if (!event.title.trim()) confirmationIssues.push("missing-title");
   if (!event.courseName.trim()) confirmationIssues.push("missing-course");
   if (event.itemType === "class-schedule") {
@@ -46,9 +56,9 @@ export function assessAcademicEventConfirmation(
 
   if (
     assignmentLikeTypes.has(event.itemType) &&
-    !event.requirements &&
-    !event.workload &&
-    !event.submissionMethod
+    (!event.requirements ||
+      (!event.workload && !event.estimatedDurationMinutes && !event.deliverableComplexity) ||
+      !event.submissionMethod)
   ) {
     confirmationIssues.push("missing-details");
   }
@@ -57,6 +67,7 @@ export function assessAcademicEventConfirmation(
   }
 
   return {
+    dateCertainty,
     confirmationStatus: confirmationIssues.length === 0 ? "confirmed" : "unconfirmed",
     confirmationIssues,
   };

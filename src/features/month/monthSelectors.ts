@@ -8,6 +8,7 @@ export interface MonthScheduleItem {
   extractedItemId?: string;
   title: string;
   date: string;
+  rangeEndDate?: string;
   startTime: string | null;
   endTime: string | null;
   source: "upload" | "google" | "catchup";
@@ -16,7 +17,6 @@ export interface MonthScheduleItem {
   eventType: CalendarEvent["eventType"];
   isProvisional: boolean;
   temporalPrecision: "exact-date" | "academic-week";
-  rangePosition?: "start" | "middle" | "end";
 }
 
 export function buildMonthSchedules(
@@ -25,14 +25,15 @@ export function buildMonthSchedules(
   planningProfile: PlanningProfile,
 ) {
   const weekItems = extractedItems.flatMap((item) => {
-    if (item.reviewStatus !== "confirmed" || item.itemType === "class-schedule" || item.date !== null) return [];
+    if (item.itemType === "class-schedule" || item.date !== null) return [];
     const range = resolveAcademicWeekRange(item, planningProfile);
     if (!range) return [];
-    return Array.from({ length: 7 }, (_, index) => ({
-      id: `upload-week-${item.id}-${addIsoDays(range.startDate, index)}`,
+    return [{
+      id: `upload-week-${item.id}`,
       extractedItemId: item.id,
       title: provisionalAcademicEventTitle(item.title),
-      date: addIsoDays(range.startDate, index),
+      date: range.startDate,
+      rangeEndDate: range.endDate,
       startTime: null,
       endTime: null,
       source: "upload" as const,
@@ -41,12 +42,11 @@ export function buildMonthSchedules(
       eventType: "class" as const,
       isProvisional: true,
       temporalPrecision: "academic-week" as const,
-      rangePosition: index === 0 ? "start" as const : index === 6 ? "end" as const : "middle" as const,
-    }));
+    }];
   });
   const items: MonthScheduleItem[] = [
     ...extractedItems
-      .filter((item): item is ExtractedItem & { date: string } => item.reviewStatus === "confirmed" && item.date !== null)
+      .filter((item): item is ExtractedItem & { date: string } => item.date !== null)
       .map((item) => ({
         id: `upload-${item.id}`,
         extractedItemId: item.id,
@@ -58,7 +58,7 @@ export function buildMonthSchedules(
         categoryKey: getCourseCategoryKey(item.courseName),
         courseName: item.courseName,
         eventType: "class" as const,
-        isProvisional: false,
+        isProvisional: item.confirmationStatus === "unconfirmed",
         temporalPrecision: "exact-date" as const,
       })),
     ...weekItems,
@@ -87,7 +87,10 @@ export function buildMonthSchedules(
 export function groupSchedulesByDate(items: readonly MonthScheduleItem[]) {
   const grouped = new Map<string, MonthScheduleItem[]>();
   for (const item of items) {
-    grouped.set(item.date, [...(grouped.get(item.date) ?? []), item]);
+    const endDate = item.rangeEndDate ?? item.date;
+    for (let date = item.date; date <= endDate; date = addIsoDays(date, 1)) {
+      grouped.set(date, [...(grouped.get(date) ?? []), item]);
+    }
   }
   return grouped;
 }

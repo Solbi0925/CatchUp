@@ -24,6 +24,7 @@ describe("Upload flow", () => {
     await user.click(screen.getByRole("button", { name: "모든 자료 통합 분석하기" }));
     expect(await screen.findByRole("status")).toHaveTextContent("추출 완료");
     await user.click(await screen.findByRole("link", { name: "학업 이벤트 전체 확인 및 수정" }));
+    await user.click(screen.getByRole("button", { name: /도시건축학업 이벤트/ }));
     await user.click(screen.getByRole("button", { name: /도시건축/ }));
 
     expect(screen.getByLabelText("수업 1 요일")).toHaveValue("1");
@@ -59,6 +60,7 @@ describe("Upload flow", () => {
 
     await user.click(screen.getByRole("link", { name: "학업 이벤트 전체 확인 및 수정" }));
     expect(screen.getByRole("heading", { name: "학업 이벤트 확인 및 수정" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /UX 디자인학업 이벤트/ }));
     expect(screen.getAllByRole("button", { expanded: false })).toHaveLength(6);
     expect(screen.queryByLabelText("이벤트명")).not.toBeInTheDocument();
   });
@@ -73,6 +75,7 @@ describe("Upload flow", () => {
     const user = userEvent.setup();
     render(<App initialEntries={["/upload/extraction"]} />);
 
+    await user.click(screen.getByRole("button", { name: /UX 디자인학업 이벤트/ }));
     await user.click(screen.getByRole("button", { name: /삭제할 이벤트/ }));
     await user.click(screen.getByRole("button", { name: "이 학업 이벤트 삭제" }));
     expect(confirm).toHaveBeenCalledWith('"삭제할 이벤트" 학업 이벤트를 삭제할까요?');
@@ -94,6 +97,8 @@ describe("Upload flow", () => {
     ]));
     vi.spyOn(window, "confirm").mockReturnValue(true);
     const user = userEvent.setup(); render(<App initialEntries={["/upload/extraction"]} />);
+    await user.click(screen.getByRole("button", { name: /UX 디자인학업 이벤트/ }));
+    await user.click(screen.getByRole("button", { name: "이벤트 병합" }));
     const selections = screen.getAllByRole("checkbox", { name: "병합 선택" });
     await user.click(selections[0]); await user.click(selections[1]);
     await user.click(screen.getByRole("button", { name: "선택 이벤트 병합 (2)" }));
@@ -111,6 +116,7 @@ describe("Upload flow", () => {
     })]));
     vi.spyOn(window, "confirm").mockReturnValue(true);
     const user = userEvent.setup(); render(<App initialEntries={["/upload/extraction"]} />);
+    await user.click(screen.getByRole("button", { name: /UX 디자인학업 이벤트/ }));
     await user.click(screen.getByRole("button", { name: /보고서/ }));
     await user.click(screen.getByRole("button", { name: "원본 자료 기준으로 이벤트 분리" }));
     expect(screen.getByText(/이벤트 2개/)).toBeInTheDocument();
@@ -134,10 +140,13 @@ describe("Upload flow", () => {
     const user = userEvent.setup();
     render(<App initialEntries={["/upload/extraction"]} />);
 
+    await user.click(screen.getByRole("button", { name: /UX 디자인학업 이벤트/ }));
     expect(screen.getByText("미확정")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: /과제 1/ }));
     await user.type(screen.getByLabelText("날짜 / 마감일"), "2026-09-02");
     await user.type(screen.getByLabelText("요구사항"), "분석 보고서 PDF 제출");
+    await user.type(screen.getByLabelText("분량"), "A4 5쪽");
+    await user.type(screen.getByLabelText("제출 방식"), "LMS 과제함");
     expect(screen.getAllByText("확정").length).toBeGreaterThan(0);
     await user.click(screen.getByRole("button", { name: "학업 이벤트 저장" }));
 
@@ -176,6 +185,7 @@ describe("Upload flow", () => {
       screen.getByRole("heading", { name: "학업 이벤트 확인 및 수정" }),
     ).toBeInTheDocument();
     expect(screen.queryByLabelText("이벤트명")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /UX 디자인학업 이벤트/ }));
     await user.click(screen.getByRole("button", { name: /UX 리서치 보고서/ }));
     const titleInput = screen.getByLabelText("이벤트명");
     await user.clear(titleInput);

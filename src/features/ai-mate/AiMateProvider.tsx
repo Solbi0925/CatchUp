@@ -28,7 +28,7 @@ interface PlanningQuestion {
   id: string; kind: QuestionKind; prompt: string; courseName?: string; eventId?: string;
   chips: AiMatePromptChip[];
 }
-interface PendingGeneration { operationId: OperationId; requestText: string; question: PlanningQuestion; }
+interface PendingGeneration { mode: "update"; operationId: OperationId; requestText: string; question: PlanningQuestion; affectedIds: string[]; }
 interface FailedRequest { operationId: OperationId; text: string; }
 interface AiMateContextValue {
   isOpen: boolean; setOpen: (open: boolean) => void; openWithDraft: (draft: string, chips?: AiMatePromptChip[]) => void;
@@ -57,9 +57,7 @@ function prerequisiteMessage(operationId: OperationId, reason: PlanPrerequisiteR
 }
 
 function planningItems(items: ExtractedItem[]) {
-  return items.filter((item) => item.reviewStatus === "confirmed" && (
-    item.confirmationStatus === "confirmed" || ((item.itemType === "exam" || item.itemType === "quiz") && item.scheduledWeek !== null)
-  ) && item.itemType !== "class-schedule");
+  return items.filter((item) => item.confirmationStatus === "confirmed" && item.itemType !== "class-schedule");
 }
 
 function adjustmentDraft(todo?: Todo) {
@@ -80,14 +78,6 @@ function adjustmentRequest(text: string) {
 }
 
 export function selectNextPlanningQuestion(items: ExtractedItem[], profile: PlanningProfile): PlanningQuestion | null {
-  const needsWeekMapping = items.some((item) =>
-    item.reviewStatus === "confirmed" && item.date === null && item.scheduledWeek !== null && item.weekOneStartDate === null,
-  );
-  if (needsWeekMapping && profile.semesterWeekOneStartDate === null) return {
-    id: "semester-week-one-start", kind: "semester-start",
-    prompt: "주차별 학업 일정을 실제 날짜에 맞춰 정리하려면 시작일이 필요해요. 이번 학기 1주차는 언제 시작하나요? YYYY-MM-DD 형식으로 알려주세요.",
-    chips: [],
-  };
   const candidates = planningItems(items);
   const confidenceItem = candidates.find((item) => item.estimatedDurationMinutes === null && !profile.confidenceByCourse[item.courseName]);
   if (confidenceItem) return {
@@ -142,10 +132,10 @@ export function AiMateProvider({ children }: { children: ReactNode }) {
   const operationSequence = useRef(0);
   const stateRef = useRef(state); stateRef.current = state;
   const appendAssistant = useCallback((message: AiMateMessage) => setMessages((current) => [...current, message]), []);
-  const taskChips = useCallback((todo?: Todo) => {
+  const taskChips = useCallback((todo?: Todo, includeUpdate = true) => {
     const chips: AiMatePromptChip[] = [{ label: "주간계획 수정", draft: adjustmentDraft(todo) }];
     if (todo) chips.push({ label: "할 일 추천이유", action: "explain-selected" });
-    if (stateRef.current.pendingPlanUpdate) chips.push({ label: "주간계획 업데이트", action: "update-plan" });
+    if (includeUpdate && stateRef.current.pendingPlanUpdate) chips.push({ label: "주간계획 업데이트", action: "update-plan" });
     return chips;
   }, []);
   const setOpen = useCallback((open: boolean) => { setIsOpen(open); if (!open) { setPromptChips([]); setSelectedTodoId(null); } }, []);
@@ -162,15 +152,8 @@ export function AiMateProvider({ children }: { children: ReactNode }) {
     setSelectedTodoId(null); setDraft(""); setPromptChips(taskChips()); setIsOpen(true);
   }, [openForPlanGeneration, taskChips]);
 
-  const finishOrAsk = useCallback(async (operationId: string, requestText: string, profile: PlanningProfile) => {
+  const generatePlan = useCallback(async (operationId: string, requestText: string, profile: PlanningProfile) => {
     const current = stateRef.current;
-    const question = selectNextPlanningQuestion(selectAllExtractedItems(current), profile);
-    if (question) {
-      setPendingGeneration({ operationId, requestText, question });
-      setPromptChips(question.chips);
-      appendAssistant(assistantMessage(operationId, question.prompt, "generate-plan"));
-      return;
-    }
     setPendingGeneration(null); setPromptChips([]);
     const result = generateMockWeeklyPlan({ operationId, requestedAt: demoInteractionClock.now().toISOString(), requestText, user: current.user,
       documents: selectDocuments(current), extractedItems: selectAllExtractedItems(current), calendarEvents: selectCalendarEvents(current),
@@ -179,6 +162,38 @@ export function AiMateProvider({ children }: { children: ReactNode }) {
     appendAssistant(result.assistantMessage);
   }, [appendAssistant, dispatch]);
 
+  const updatePlanOrAsk = useCallback(async (operationId: string, affectedIds: string[], profile: PlanningProfile) => {
+    const current = stateRef.current;
+    const recommendation = current.pendingPlanUpdate;
+    const plan = selectCurrentWeeklyPlan(current);
+    if (!recommendation || !plan) {
+      appendAssistant(assistantMessage(operationId, "현재 반영할 새로운 학업 정보가 없어요.", "update-plan"));
+      return;
+    }
+    const affectedItems = selectAllExtractedItems(current).filter((item) => affectedIds.includes(item.id));
+    const question = selectNextPlanningQuestion(affectedItems, profile);
+    if (question) {
+      setPendingGeneration({ mode: "update", operationId, requestText: plan.generationRequest, question, affectedIds });
+      setPromptChips(question.chips);
+      appendAssistant(assistantMessage(operationId, question.prompt, "update-plan"));
+      return;
+    }
+    setPendingGeneration(null);
+    const usageDate = adjustmentUsageDate();
+    if ((current.adjustmentUsageByDate[usageDate] ?? 0) >= 10) {
+      appendAssistant(assistantMessage(operationId, "오늘 가능한 주간계획 조정 10회를 모두 사용했어요. 내일부터 다시 계획을 조정할 수 있어요.", "update-plan"));
+      return;
+    }
+    const result = updateMockPlan({ command: { operationId, requestedAt: demoInteractionClock.now().toISOString(), requestText: plan.generationRequest, user: current.user, documents: selectDocuments(current), extractedItems: selectAllExtractedItems(current), calendarEvents: selectCalendarEvents(current), existingWeeklyPlan: plan, existingIncompleteTodos: selectIncompleteTodos(current), planningProfile: profile }, weeklyPlan: plan, todos: selectTodosForCurrentPlan(current), affectedAcademicEventIds: affectedIds });
+    if (result.changed) {
+      dispatch({ type: "plan/adjusted", payload: { operationId, todos: result.todos, usageDate, changed: true, trigger: "NEW_ACADEMIC_INFORMATION", requestText: null, relatedAcademicEventIds: affectedIds, changedTodoIds: result.changedTodoIds ?? [] } });
+    } else {
+      dispatch({ type: "plan/updateProcessed", payload: { outcome: "no-change" } });
+    }
+    appendAssistant(result.assistantMessage);
+    setPromptChips(taskChips(selectedTodoId ? current.todosById[selectedTodoId] : undefined, false));
+  }, [appendAssistant, dispatch, selectedTodoId, taskChips]);
+
   const execute = useCallback(async (text: string, operationId: OperationId) => {
     const intent = classifyAiMateIntent(text); setResponding(true); setFailedRequest(null);
     try {
@@ -186,10 +201,10 @@ export function AiMateProvider({ children }: { children: ReactNode }) {
       if (/오류 테스트/.test(text)) throw new Error("test");
       const current = stateRef.current;
       if (intent === "generate-plan") {
-        appendAssistant(assistantMessage(operationId, "주간계획을 생성하는 중입니다... 현재 정보에서 필요한 항목을 확인할게요.", intent));
+        appendAssistant(assistantMessage(operationId, "주간계획을 생성하는 중입니다...", intent));
         const prerequisite = validatePlanPrerequisites({ user: current.user, documents: selectDocuments(current), extractedItems: selectAllExtractedItems(current), existingWeeklyPlan: selectCurrentWeeklyPlan(current), now: demoClock.now() });
         if (!prerequisite.ok) { appendAssistant(prerequisiteMessage(operationId, prerequisite.reason)); return; }
-        await finishOrAsk(operationId, text, current.planningProfile);
+        await generatePlan(operationId, text, current.planningProfile);
         return;
       }
       if (intent === "explain") {
@@ -222,23 +237,20 @@ export function AiMateProvider({ children }: { children: ReactNode }) {
         const plan = selectCurrentWeeklyPlan(current);
         const recommendation = current.pendingPlanUpdate;
         if (!plan || !recommendation) { appendAssistant(assistantMessage(operationId, "현재 반영할 새로운 학업 정보가 없어요.", intent)); return; }
-        const reviewedAffectedIds = recommendation.academicEventIds.filter((id) => !current.extractedItemsById[id] || current.extractedItemsById[id].reviewStatus === "confirmed");
-        if (recommendation.academicEventIds.length && !reviewedAffectedIds.length) { appendAssistant(assistantMessage(operationId, "새 학업 정보의 확인 및 저장을 먼저 완료해주세요. 저장 후 주간계획을 업데이트할 수 있어요.", intent, [{ label: "학업 이벤트 확인", href: "/upload/extraction" }])); return; }
         const usageDate = adjustmentUsageDate();
         if ((current.adjustmentUsageByDate[usageDate] ?? 0) >= 10) { appendAssistant(assistantMessage(operationId, "오늘 가능한 주간계획 조정 10회를 모두 사용했어요. 내일부터 다시 계획을 조정할 수 있어요.", intent)); return; }
         const affectedIds = recommendation.academicEventIds.length
-          ? reviewedAffectedIds
+          ? recommendation.academicEventIds.filter((id) => Boolean(current.extractedItemsById[id]))
           : [...new Set(selectTodosForCurrentPlan(current).filter((todo) => !todo.isCompleted).map((todo) => todo.sourceExtractedItemId))];
-        const result = updateMockPlan({ command: { operationId, requestedAt: demoInteractionClock.now().toISOString(), requestText: plan.generationRequest, user: current.user, documents: selectDocuments(current), extractedItems: selectAllExtractedItems(current), calendarEvents: selectCalendarEvents(current), existingWeeklyPlan: plan, existingIncompleteTodos: selectIncompleteTodos(current), planningProfile: current.planningProfile }, weeklyPlan: plan, todos: selectTodosForCurrentPlan(current), affectedAcademicEventIds: affectedIds });
-        if (result.changed) dispatch({ type: "plan/adjusted", payload: { operationId, todos: result.todos, usageDate, changed: true, trigger: "NEW_ACADEMIC_INFORMATION", requestText: null, relatedAcademicEventIds: affectedIds, changedTodoIds: result.changedTodoIds ?? [] } });
-        appendAssistant(result.assistantMessage); setPromptChips(taskChips(selectedTodoId ? current.todosById[selectedTodoId] : undefined)); return;
+        await updatePlanOrAsk(operationId, affectedIds, current.planningProfile);
+        return;
       }
       appendAssistant(assistantMessage(operationId, "학업 이벤트를 확인한 뒤 ‘주간계획 생성’을 요청할 수 있어요.", intent, [{ label: "Upload로 이동", href: "/upload" }]));
     } catch {
       const failed = assistantMessage(operationId, "요청을 처리하지 못했어요. 잠시 후 다시 시도해주세요.", intent, [{ label: "다시 시도", action: "retry" }]);
       failed.status = "failed"; appendAssistant(failed); setFailedRequest({ operationId, text });
     } finally { setResponding(false); }
-  }, [appendAssistant, dispatch, finishOrAsk, selectedTodoId, taskChips]);
+  }, [appendAssistant, dispatch, generatePlan, selectedTodoId, taskChips, updatePlanOrAsk]);
 
   const selectPromptChip = useCallback((chip: AiMatePromptChip) => {
     if (chip.action === "explain-selected") {
@@ -257,17 +269,17 @@ export function AiMateProvider({ children }: { children: ReactNode }) {
   const sendMessage = useCallback((event?: FormEvent) => {
     event?.preventDefault(); const text = draft.trim(); if (!text || isResponding) return;
     operationSequence.current += 1; const newOperationId = `ai-operation-${operationSequence.current}`;
-    setMessages((current) => [...current, { id: `user-${newOperationId}`, role: "user", text, createdAt: demoInteractionClock.now().toISOString(), status: "sent", intent: pendingGeneration ? "generate-plan" : classifyAiMateIntent(text), operationId: newOperationId }]);
+    setMessages((current) => [...current, { id: `user-${newOperationId}`, role: "user", text, createdAt: demoInteractionClock.now().toISOString(), status: "sent", intent: pendingGeneration ? "update-plan" : classifyAiMateIntent(text), operationId: newOperationId }]);
     setDraft(""); setPromptChips([]);
     if (pendingGeneration) {
       const nextProfile = applyQuestionAnswer(stateRef.current.planningProfile, pendingGeneration.question, text);
       dispatch({ type: "planning/profileUpdated", payload: nextProfile });
       setResponding(true);
-      void waitForResponse().then(() => finishOrAsk(pendingGeneration.operationId, pendingGeneration.requestText, nextProfile)).finally(() => setResponding(false));
+      void waitForResponse().then(() => updatePlanOrAsk(pendingGeneration.operationId, pendingGeneration.affectedIds, nextProfile)).finally(() => setResponding(false));
       return;
     }
     void execute(text, newOperationId);
-  }, [dispatch, draft, execute, finishOrAsk, isResponding, pendingGeneration]);
+  }, [dispatch, draft, execute, isResponding, pendingGeneration, updatePlanOrAsk]);
 
   const retryFailed = useCallback((operationId: OperationId) => { if (!isResponding && failedRequest?.operationId === operationId) void execute(failedRequest.text, operationId); }, [execute, failedRequest, isResponding]);
   const adjustmentRemaining = Math.max(0, 10 - (state.adjustmentUsageByDate[adjustmentUsageDate()] ?? 0));

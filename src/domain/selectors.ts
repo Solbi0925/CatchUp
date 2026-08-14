@@ -18,8 +18,7 @@ export function selectAllExtractedItems(state: PrototypeState) {
 }
 
 export function selectScheduleAcademicItems(state: PrototypeState) {
-  const previousById = new Map((state.pendingPlanUpdate?.previousAcademicEvents ?? []).map((item) => [item.id, item]));
-  return selectAllExtractedItems(state).map((item) => previousById.get(item.id) ?? item);
+  return selectAllExtractedItems(state);
 }
 
 export function selectCalendarEvents(state: PrototypeState) {

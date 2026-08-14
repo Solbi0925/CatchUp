@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from "react";
-import { demoTodayDate } from "../../application/clock";
+import { currentTodayDate } from "../../application/clock";
 import { selectScheduleAcademicItems } from "../../domain/selectors";
 import type { CalendarEvent } from "../../domain/types";
 import { demoCalendarEvents } from "../../mocks/templates";
@@ -11,8 +11,9 @@ import { buildMonthSchedules, groupSchedulesByDate } from "./monthSelectors";
 
 export function MonthPage() {
   const { state, dispatch } = usePrototypeStore();
-  const [visibleMonth, setVisibleMonth] = useState(demoTodayDate.slice(0, 7));
-  const [selectedDate, setSelectedDate] = useState(demoTodayDate);
+  const todayDate = useMemo(() => currentTodayDate(), []);
+  const [visibleMonth, setVisibleMonth] = useState(todayDate.slice(0, 7));
+  const [selectedDate, setSelectedDate] = useState(todayDate);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [mockEventOverrides, setMockEventOverrides] = useState<
     Record<string, CalendarEvent>
@@ -111,12 +112,12 @@ export function MonthPage() {
         gridCells={buildMonthGrid(visibleMonth)}
         schedulesByDate={schedulesByDate}
         selectedDate={selectedDate}
-        todayDate={demoTodayDate}
+        todayDate={todayDate}
         onPreviousMonth={() => setVisibleMonth(shiftMonth(visibleMonth, -1))}
         onNextMonth={() => setVisibleMonth(shiftMonth(visibleMonth, 1))}
         onToday={() => {
-          setVisibleMonth(demoTodayDate.slice(0, 7));
-          setSelectedDate(demoTodayDate);
+          setVisibleMonth(todayDate.slice(0, 7));
+          setSelectedDate(todayDate);
         }}
         onSelectDate={openDate}
         categoryColorByKey={state.categoryColorByKey}

@@ -4,20 +4,18 @@ import { emptyPlanningProfile } from "../../store/planningStorage";
 import { selectNextPlanningQuestion } from "./AiMateProvider";
 
 describe("planning personalization question priority", () => {
-  it("asks for the semester week-one start before confidence questions", () => {
+  it("does not ask planning questions for an unconfirmed week-only event", () => {
     const event = academicEventFixture({
       date: null, scheduledWeek: 8, weekOneStartDate: null, reviewStatus: "confirmed",
       confirmationStatus: "unconfirmed", estimatedDurationMinutes: null,
     });
-    expect(selectNextPlanningQuestion([event], emptyPlanningProfile)).toMatchObject({
-      id: "semester-week-one-start", kind: "semester-start", chips: [],
-    });
+    expect(selectNextPlanningQuestion([event], emptyPlanningProfile)).toBeNull();
   });
 
-  it("does not ask again when uploaded evidence already maps week one", () => {
+  it("asks only event-specific questions for a confirmed event during update", () => {
     const event = academicEventFixture({
-      itemType: "exam", date: null, scheduledWeek: 8, weekOneStartDate: "2026-08-31", reviewStatus: "confirmed",
-      confirmationStatus: "unconfirmed", estimatedDurationMinutes: null,
+      itemType: "exam", date: "2026-09-30", scheduledWeek: 8, weekOneStartDate: "2026-08-31", reviewStatus: "confirmed",
+      confirmationStatus: "confirmed", estimatedDurationMinutes: null,
     });
     expect(selectNextPlanningQuestion([event], emptyPlanningProfile)?.kind).toBe("confidence");
   });

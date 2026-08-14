@@ -10,6 +10,7 @@ export interface StoredPlanningState {
   adjustmentUsageByDate: Record<string, number>;
   planAdjustments: PlanAdjustment[];
   pendingPlanUpdate: PlanUpdateRecommendation | null;
+  processedPlanUpdates: PlanUpdateRecommendation[];
 }
 
 export const emptyPlanningProfile: PlanningProfile = {
@@ -46,15 +47,20 @@ export function readPlanningState(): StoredPlanningState {
       profile: { ...emptyPlanningProfile, ...parsed.profile },
       adjustmentUsageByDate: parsed.adjustmentUsageByDate ?? {},
       planAdjustments: Array.isArray(parsed.planAdjustments) ? parsed.planAdjustments : [],
-      pendingPlanUpdate: parsed.pendingPlanUpdate ?? null,
+      pendingPlanUpdate: parsed.pendingPlanUpdate
+        ? { ...parsed.pendingPlanUpdate, status: "pending" }
+        : null,
+      processedPlanUpdates: Array.isArray(parsed.processedPlanUpdates)
+        ? parsed.processedPlanUpdates.map((update) => ({ ...update, status: "processed" as const }))
+        : [],
     };
   } catch {
-    return { weeklyPlans: [], todos: [], todoIdsByWeeklyPlanId: {}, profile: emptyPlanningProfile, adjustmentUsageByDate: {}, planAdjustments: [], pendingPlanUpdate: null };
+    return { weeklyPlans: [], todos: [], todoIdsByWeeklyPlanId: {}, profile: emptyPlanningProfile, adjustmentUsageByDate: {}, planAdjustments: [], pendingPlanUpdate: null, processedPlanUpdates: [] };
   }
 }
 
 export function writePlanningState(state: StoredPlanningState) {
-  if (!state.weeklyPlans.length && !state.todos.length && !state.planAdjustments.length && !state.pendingPlanUpdate && JSON.stringify(state.profile) === JSON.stringify(emptyPlanningProfile)) {
+  if (!state.weeklyPlans.length && !state.todos.length && !state.planAdjustments.length && !state.pendingPlanUpdate && !state.processedPlanUpdates.length && JSON.stringify(state.profile) === JSON.stringify(emptyPlanningProfile)) {
     window.localStorage.removeItem(STORAGE_KEY);
     return;
   }

@@ -54,4 +54,15 @@ describe("Today screen", () => {
     render(<App initialEntries={["/today"]} />);
     expect(screen.queryByText("8주차 중간고사 주")).not.toBeInTheDocument();
   });
+
+  it("shows an exact-date unconfirmed event on the exact day with a provisional label", () => {
+    localStorage.setItem("catchup.academic-events.v2", JSON.stringify([academicEventFixture({
+      id: "dated-draft", title: "요구사항 미정 과제", date: "2026-07-20",
+      requirements: null, workload: null, submissionMethod: null,
+      confirmationStatus: "unconfirmed", confirmationIssues: ["missing-details"], reviewStatus: "needs-review",
+    })]));
+    render(<App initialEntries={["/today"]} />);
+    expect(screen.getByText("요구사항 미정 과제")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /미확정 일정 요구사항 미정 과제/ })).toBeInTheDocument();
+  });
 });

@@ -81,6 +81,17 @@ const eventDraft = {
 };
 
 describe("prototypeReducer", () => {
+  it("marks a no-change update processed without charging adjustment usage", () => {
+    const initial = createInitialPrototypeState();
+    initial.pendingPlanUpdate = {
+      id: "update-1", reasonKind: "new-academic-event", academicEventIds: [], message: "업데이트", detectedAt: "2026-07-20T00:00:00Z",
+      previousAcademicEvents: [], status: "pending",
+    };
+    const next = prototypeReducer(initial, { type: "plan/updateProcessed", payload: { outcome: "no-change" } });
+    expect(next.pendingPlanUpdate).toBeNull();
+    expect(next.processedPlanUpdatesById["update-1"]).toMatchObject({ status: "processed", outcome: "no-change" });
+    expect(next.adjustmentUsageByDate).toEqual({});
+  });
   it("stores an extraction result and its relation atomically", () => {
     const state = prototypeReducer(createInitialPrototypeState(), {
       type: "extraction/applied",

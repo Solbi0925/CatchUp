@@ -18,8 +18,11 @@ function migrateAcademicEvent(item: ExtractedItem): ExtractedItem {
     scheduledWeekLabel: item.scheduledWeekLabel ?? null,
     weekOneStartDate: item.weekOneStartDate ?? null,
     classMeetingTimes: item.classMeetingTimes ?? [],
+    dateCertainty: item.dateCertainty ?? (item.date ? "exact-date" : item.scheduledWeek ? "academic-week" : "unknown"),
     confirmationStatus: item.confirmationStatus ?? "unconfirmed",
     confirmationIssues: item.confirmationIssues ?? [],
+    revision: item.revision ?? 1,
+    updateNoticeStatus: item.updateNoticeStatus ?? "reviewed",
     updatedAt: item.updatedAt ?? new Date(0).toISOString(),
   };
   return { ...migrated, ...assessAcademicEventConfirmation(migrated) };

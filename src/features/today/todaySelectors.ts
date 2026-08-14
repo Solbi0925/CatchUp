@@ -51,18 +51,16 @@ export function selectTodayViewModel(
   const plan = selectCurrentWeeklyPlan(state);
   const weekStart = mondayOf(selectedDate);
   const allTodos = selectTodosForCurrentPlan(state);
-  const reviewedItems = selectScheduleAcademicItems(state).filter(
-    (item) => item.reviewStatus === "confirmed",
-  );
-  const confirmedItems = reviewedItems.filter(
+  const academicItems = selectScheduleAcademicItems(state);
+  const exactDateItems = academicItems.filter(
     (item): item is ExtractedItem & { date: string } => item.date !== null,
   );
-  const provisionalWeekItems = reviewedItems.flatMap((item) => {
+  const provisionalWeekItems = academicItems.flatMap((item) => {
     if (item.itemType === "class-schedule" || item.date !== null) return [];
     const range = resolveAcademicWeekRange(item, state.planningProfile);
     return range ? [{ item, range }] : [];
   });
-  const classScheduleItems = reviewedItems.filter(
+  const classScheduleItems = academicItems.filter(
     (item) => item.itemType === "class-schedule" && item.classMeetingTimes.length > 0,
   );
   const calendarEvents = selectCalendarEvents(state);
@@ -83,7 +81,7 @@ export function selectTodayViewModel(
         categoryKey: event.eventType === "personal" ? PERSONAL_CATEGORY_KEY : getCourseCategoryKey(event.title),
         isProvisional: false,
       })),
-    ...confirmedItems
+    ...exactDateItems
       .filter((item) => item.date === date)
       .map((item) => ({
         id: item.id,
@@ -92,7 +90,7 @@ export function selectTodayViewModel(
         type: academicScheduleType(item),
         sourceLabel: "업로드 자료" as const,
         categoryKey: getCourseCategoryKey(item.courseName),
-        isProvisional: false,
+        isProvisional: item.confirmationStatus === "unconfirmed",
       })),
     ...provisionalWeekItems
       .filter(({ range }) => date >= range.startDate && date <= range.endDate)
@@ -116,7 +114,10 @@ export function selectTodayViewModel(
         categoryKey: getCourseCategoryKey(item.courseName),
         isProvisional: false,
       }))),
-  ].sort((left, right) => left.timeLabel.localeCompare(right.timeLabel, "ko"));
+  ].sort((left, right) => {
+    const rank = (item: TodayScheduleViewModel) => item.isProvisional ? 2 : item.timeLabel === "종일" ? 1 : 0;
+    return rank(left) - rank(right) || left.timeLabel.localeCompare(right.timeLabel, "ko");
+  });
 
   const days: WeekDayViewModel[] = weekdayLabels.map((weekdayLabel, index) => {
     const date = addDays(weekStart, index);

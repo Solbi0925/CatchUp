@@ -54,6 +54,8 @@ export type ExtractedItemType =
   | "other";
 export type Difficulty = "high" | "medium" | "low" | "unknown";
 export type AcademicEventConfirmationStatus = "confirmed" | "unconfirmed";
+export type AcademicEventDateCertainty = "exact-date" | "academic-week" | "unknown";
+export type AcademicEventUpdateNoticeStatus = "unread" | "reviewed";
 export type AcademicEventConfirmationIssue =
   | "missing-title"
   | "missing-course"
@@ -93,6 +95,8 @@ export interface ExtractedItem {
   courseCode: string | null;
   date: string | null;
   time: string | null;
+  /** Calendar precision is independent from whether the event is plan-ready. */
+  dateCertainty: AcademicEventDateCertainty;
   /** Source-stated academic week, kept separately from an exact calendar date. */
   scheduledWeek: number | null;
   /** Original source expression such as `8주차` or `Week 8`. */
@@ -118,6 +122,9 @@ export interface ExtractedItem {
   /** Whether the event has enough source-backed core information to be used as a final event. */
   confirmationStatus: AcademicEventConfirmationStatus;
   confirmationIssues: AcademicEventConfirmationIssue[];
+  /** Monotonic source-backed revision used by plan snapshots and update notices. */
+  revision: number;
+  updateNoticeStatus: AcademicEventUpdateNoticeStatus;
   updatedAt: string;
   /** Human review state, separate from information completeness. */
   reviewStatus: "confirmed" | "needs-review";
@@ -216,7 +223,10 @@ export interface PlanUpdateRecommendation {
   academicEventIds: ExtractedItemId[];
   message: string;
   detectedAt: string;
-  /** Schedule representation kept until the user accepts the update. */
+  status: "pending" | "processed";
+  processedAt?: string;
+  outcome?: "changed" | "no-change" | "dismissed";
+  /** Snapshot used to explain what changed; Calendar always renders the latest AcademicEvent. */
   previousAcademicEvents?: ExtractedItem[];
 }
 
