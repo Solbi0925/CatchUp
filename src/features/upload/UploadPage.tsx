@@ -1,4 +1,4 @@
-import { useEffect, useReducer, useRef } from "react";
+import { useRef } from "react";
 import { Link } from "react-router-dom";
 import { isSupportedAcademicFile } from "../../domain/policies";
 import { selectAllExtractedItems } from "../../domain/selectors";
@@ -6,8 +6,7 @@ import type { UploadedDocument } from "../../domain/types";
 import { usePrototypeStore } from "../../store/PrototypeStore";
 import { resetCatchUpPrototype } from "../../store/resetPrototype";
 import { ChevronRightIcon, FolderIcon, UploadCloudIcon } from "../../ui/icons";
-import { analyzeAcademicFiles } from "./extractionAdapter";
-import { uploadReducer } from "./uploadReducer";
+import { useUploadSession } from "./UploadSessionProvider";
 import "./upload.css";
 
 function formatBytes(bytes: number) {
@@ -20,47 +19,17 @@ function FileTypeIcon({ format }: { format: UploadedDocument["supportedFileForma
 }
 
 export function UploadPage() {
-  const { state: store, dispatch: storeDispatch } = usePrototypeStore();
-  const [uiState, dispatch] = useReducer(uploadReducer, { status: "idle", files: [] });
+  const { state: store } = usePrototypeStore();
+  const { uiState, dispatch, analyze } = useUploadSession();
   const inputRef = useRef<HTMLInputElement>(null);
-  const abortRef = useRef<AbortController | null>(null);
   const events = selectAllExtractedItems(store);
   const previewEvents = events.slice(0, 4);
-
-  useEffect(() => () => abortRef.current?.abort(), []);
 
   function addFiles(selected: File[]) {
     const invalid = selected.filter((file) => !isSupportedAcademicFile(file));
     const valid = selected.filter(isSupportedAcademicFile);
     if (valid.length) dispatch({ type: "files/added", files: valid });
     if (invalid.length) dispatch({ type: "files/invalid", message: "PDF 또는 이미지 파일만 추가할 수 있어요." });
-  }
-
-  async function analyze() {
-    if (!uiState.files.length) return;
-    const operationId = `extract-${Date.now()}`;
-    const controller = new AbortController();
-    abortRef.current?.abort();
-    abortRef.current = controller;
-    dispatch({ type: "extraction/started", operationId });
-    try {
-      const result = await analyzeAcademicFiles({
-        files: uiState.files,
-        operationId,
-        existingEvents: events,
-        signal: controller.signal,
-      });
-      storeDispatch({ type: "extraction/applied", payload: result });
-      dispatch({ type: "extraction/succeeded", result });
-    } catch (error) {
-      if (error instanceof DOMException && error.name === "AbortError") return;
-      dispatch({
-        type: "extraction/failed",
-        message: error instanceof Error && error.message !== "analysis-failed"
-          ? error.message
-          : "자료를 통합 분석하지 못했어요. 로컬 브리지 실행 상태를 확인하고 다시 시도해주세요.",
-      });
-    }
   }
 
   const extracting = uiState.status === "extracting";
@@ -72,7 +41,12 @@ export function UploadPage() {
       </header>
 
       <label className="upload-zone" htmlFor="academic-files">
-        <UploadCloudIcon /><strong>학업 자료 여러 개 업로드</strong><span>PDF와 이미지 · 순서에 상관없이 선택</span>
+        <UploadCloudIcon />
+        <strong>이번 학기 학업 자료를 한꺼번에 올려주세요</strong>
+        <div className="upload-zone__examples" aria-label="업로드할 수 있는 학업 자료 예시">
+          {["강의계획서", "과제 명세서", "시간표", "수업 공지", "시험 안내"].map((label) => <span key={label}>{label}</span>)}
+        </div>
+        <span className="upload-zone__support">PDF와 이미지 모두 가능 · 순서에 상관없이 여러 개 선택</span>
       </label>
       <input ref={inputRef} id="academic-files" className="sr-only" type="file" multiple accept="application/pdf,image/*" aria-label="학업 자료 업로드" disabled={extracting} onChange={(event) => { addFiles(Array.from(event.target.files ?? [])); event.currentTarget.value = ""; }} />
 

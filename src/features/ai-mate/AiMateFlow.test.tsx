@@ -56,6 +56,34 @@ describe("AI Mate first plan flow", () => {
     expect(localStorage.getItem("catchup.planning.v1")).toContain("금요일에는 공부하지 않고 싶어");
   });
 
+  it("collects the semester start before generation so week-only events appear in Month", async () => {
+    localStorage.setItem("catchup.academic-events.v2", JSON.stringify([academicEventFixture({
+      id: "week-exam", title: "행정기획론 중간고사", courseName: "행정기획론",
+      itemType: "exam", date: null, scheduledWeek: 8, scheduledWeekLabel: "8주차",
+      weekOneStartDate: null, examScope: null, reviewStatus: "confirmed",
+      confirmationStatus: "unconfirmed", confirmationIssues: ["missing-date", "missing-exam-scope"],
+    })]));
+    render(<App initialEntries={["/upload"]} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "AI Mate 열기" }));
+    const composer = screen.getByRole("textbox", { name: "AI Mate 메시지" });
+    fireEvent.change(composer, { target: { value: "주간계획 생성해줘" } });
+    fireEvent.click(screen.getByRole("button", { name: "메시지 보내기" }));
+    expect(await screen.findByText(/이번 학기 1주차는 언제 시작하나요/)).toBeInTheDocument();
+
+    fireEvent.change(composer, { target: { value: "2026-06-01" } });
+    fireEvent.click(screen.getByRole("button", { name: "메시지 보내기" }));
+    expect(await screen.findByText(/오늘부터 7일 계획을 만들었어요/)).toBeInTheDocument();
+    await waitFor(() => expect(JSON.parse(localStorage.getItem("catchup.planning.v1") ?? "{}").profile.semesterWeekOneStartDate).toBe("2026-06-01"));
+
+    fireEvent.click(screen.getByRole("link", { name: "Today" }));
+    expect(await screen.findByText("행정기획론 중간고사 주")).toBeInTheDocument();
+    expect(screen.getByText("미확정 일정")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("link", { name: "Month" }));
+    expect((await screen.findAllByRole("button", { name: "행정기획론 중간고사 주" })).length).toBeGreaterThan(0);
+  });
+
   it("skips personalization questions when duration inputs are already sufficient", async () => {
     localStorage.setItem("catchup.academic-events.v2", JSON.stringify([academicEventFixture({
       id: "known-work", estimatedDurationMinutes: 60, difficulty: "low", reviewStatus: "confirmed",

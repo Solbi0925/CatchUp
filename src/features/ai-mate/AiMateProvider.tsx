@@ -28,7 +28,9 @@ interface PlanningQuestion {
   id: string; kind: QuestionKind; prompt: string; courseName?: string; eventId?: string;
   chips: AiMatePromptChip[];
 }
-interface PendingGeneration { mode: "update"; operationId: OperationId; requestText: string; question: PlanningQuestion; affectedIds: string[]; }
+type PendingGeneration =
+  | { mode: "generate"; operationId: OperationId; requestText: string; question: PlanningQuestion }
+  | { mode: "update"; operationId: OperationId; requestText: string; question: PlanningQuestion; affectedIds: string[] };
 interface FailedRequest { operationId: OperationId; text: string; }
 interface AiMateContextValue {
   isOpen: boolean; setOpen: (open: boolean) => void; openWithDraft: (draft: string, chips?: AiMatePromptChip[]) => void;
@@ -103,6 +105,19 @@ export function selectNextPlanningQuestion(items: ExtractedItem[], profile: Plan
   return null;
 }
 
+export function selectWeekMappingQuestion(items: ExtractedItem[], profile: PlanningProfile): PlanningQuestion | null {
+  const needsWeekMapping = items.some((item) =>
+    item.date === null && item.scheduledWeek !== null && item.weekOneStartDate === null,
+  );
+  if (!needsWeekMapping || profile.semesterWeekOneStartDate !== null) return null;
+  return {
+    id: "semester-week-one-start",
+    kind: "semester-start",
+    prompt: "주차별 학업 일정을 Today와 Month의 실제 날짜에 표시하려면 시작일이 필요해요. 이번 학기 1주차는 언제 시작하나요? YYYY-MM-DD 형식으로 알려주세요.",
+    chips: [],
+  };
+}
+
 function applyQuestionAnswer(profile: PlanningProfile, question: PlanningQuestion, answer: string): PlanningProfile {
   if (question.kind === "semester-start") {
     const match = answer.match(/(20\d{2})\D+(\d{1,2})\D+(\d{1,2})/);
@@ -154,6 +169,13 @@ export function AiMateProvider({ children }: { children: ReactNode }) {
 
   const generatePlan = useCallback(async (operationId: string, requestText: string, profile: PlanningProfile) => {
     const current = stateRef.current;
+    const mappingQuestion = selectWeekMappingQuestion(selectAllExtractedItems(current), profile);
+    if (mappingQuestion) {
+      setPendingGeneration({ mode: "generate", operationId, requestText, question: mappingQuestion });
+      setPromptChips(mappingQuestion.chips);
+      appendAssistant(assistantMessage(operationId, mappingQuestion.prompt, "generate-plan"));
+      return;
+    }
     setPendingGeneration(null); setPromptChips([]);
     const result = generateMockWeeklyPlan({ operationId, requestedAt: demoInteractionClock.now().toISOString(), requestText, user: current.user,
       documents: selectDocuments(current), extractedItems: selectAllExtractedItems(current), calendarEvents: selectCalendarEvents(current),
@@ -269,17 +291,20 @@ export function AiMateProvider({ children }: { children: ReactNode }) {
   const sendMessage = useCallback((event?: FormEvent) => {
     event?.preventDefault(); const text = draft.trim(); if (!text || isResponding) return;
     operationSequence.current += 1; const newOperationId = `ai-operation-${operationSequence.current}`;
-    setMessages((current) => [...current, { id: `user-${newOperationId}`, role: "user", text, createdAt: demoInteractionClock.now().toISOString(), status: "sent", intent: pendingGeneration ? "update-plan" : classifyAiMateIntent(text), operationId: newOperationId }]);
+    setMessages((current) => [...current, { id: `user-${newOperationId}`, role: "user", text, createdAt: demoInteractionClock.now().toISOString(), status: "sent", intent: pendingGeneration?.mode === "update" ? "update-plan" : pendingGeneration?.mode === "generate" ? "generate-plan" : classifyAiMateIntent(text), operationId: newOperationId }]);
     setDraft(""); setPromptChips([]);
     if (pendingGeneration) {
       const nextProfile = applyQuestionAnswer(stateRef.current.planningProfile, pendingGeneration.question, text);
       dispatch({ type: "planning/profileUpdated", payload: nextProfile });
       setResponding(true);
-      void waitForResponse().then(() => updatePlanOrAsk(pendingGeneration.operationId, pendingGeneration.affectedIds, nextProfile)).finally(() => setResponding(false));
+      const continuePendingFlow = pendingGeneration.mode === "generate"
+        ? () => generatePlan(pendingGeneration.operationId, pendingGeneration.requestText, nextProfile)
+        : () => updatePlanOrAsk(pendingGeneration.operationId, pendingGeneration.affectedIds, nextProfile);
+      void waitForResponse().then(continuePendingFlow).finally(() => setResponding(false));
       return;
     }
     void execute(text, newOperationId);
-  }, [dispatch, draft, execute, isResponding, pendingGeneration, updatePlanOrAsk]);
+  }, [dispatch, draft, execute, generatePlan, isResponding, pendingGeneration, updatePlanOrAsk]);
 
   const retryFailed = useCallback((operationId: OperationId) => { if (!isResponding && failedRequest?.operationId === operationId) void execute(failedRequest.text, operationId); }, [execute, failedRequest, isResponding]);
   const adjustmentRemaining = Math.max(0, 10 - (state.adjustmentUsageByDate[adjustmentUsageDate()] ?? 0));

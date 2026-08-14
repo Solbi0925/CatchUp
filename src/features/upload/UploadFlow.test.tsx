@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { App } from "../../app/App";
@@ -7,6 +7,25 @@ import { academicEventFixture } from "../../test/academicEventFixture";
 afterEach(cleanup);
 
 describe("Upload flow", () => {
+  it("keeps selected files and analysis running while navigating away from Upload", async () => {
+    render(<App initialEntries={["/upload"]} />);
+    expect(screen.getByText("이번 학기 학업 자료를 한꺼번에 올려주세요")).toBeInTheDocument();
+    expect(screen.getByLabelText("업로드할 수 있는 학업 자료 예시")).toHaveTextContent("강의계획서과제 명세서시간표수업 공지시험 안내");
+    expect(screen.getByText("PDF와 이미지 모두 가능 · 순서에 상관없이 여러 개 선택")).toBeInTheDocument();
+    const file = new File(["syllabus"], "강의계획서.pdf", { type: "application/pdf" });
+    fireEvent.change(screen.getByLabelText("학업 자료 업로드"), { target: { files: [file] } });
+    fireEvent.click(screen.getByRole("button", { name: "모든 자료 통합 분석하기" }));
+
+    fireEvent.click(screen.getByRole("link", { name: "Today" }));
+    expect(screen.getByRole("link", { name: "Today" })).toHaveAttribute("aria-current", "page");
+    fireEvent.click(screen.getByRole("link", { name: "Upload" }));
+
+    expect(screen.getByText("강의계획서.pdf")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "1개 자료 통합 분석 중..." })).toBeDisabled();
+    expect(await screen.findByRole("status")).toHaveTextContent("추출 완료");
+    expect(screen.getByText("강의계획서.pdf")).toBeInTheDocument();
+  });
+
   it("reviews timetable class times and shows them in Today's schedule without a weekly plan", async () => {
     window.sessionStorage.setItem("catchup:prototype:onboarding:v1", JSON.stringify({
       version: 1,

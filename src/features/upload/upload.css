@@ -28,8 +28,13 @@
 .upload-zone:hover { background: rgba(255,255,255,.5); }
 .upload-zone:focus-within { outline: 3px solid rgba(128,108,242,.15); }
 .upload-zone svg { width: 60px; height: 51px; }
-.upload-zone strong { margin-top: 18px; color: var(--color-ink); font-size: 18px; line-height: 25px; }
-.upload-zone span { margin-top: 8px; color: var(--color-muted); font-size: 14px; }
+.upload-zone strong { margin-top: 15px; color: var(--color-ink); font-size: 16px; line-height: 23px; text-align: center; }
+.upload-zone__examples { display: flex; margin-top: 11px; flex-wrap: wrap; justify-content: center; gap: 6px; }
+.upload-zone__examples span {
+  padding: 4px 9px; border-radius: 999px; background: rgba(128, 108, 242, .1);
+  color: var(--color-ink); font-size: 11px; line-height: 16px;
+}
+.upload-zone .upload-zone__support { margin-top: 10px; color: var(--color-muted); font-size: 12px; line-height: 18px; text-align: center; }
 .selected-section, .uploaded-section { margin-top: 30px; }
 .selected-section h2, .uploaded-section h2 { margin: 0 0 15px; font-size: 17px; line-height: 24px; }
 .selected-section h2 span, .uploaded-section h2 span { color: var(--color-purple); }

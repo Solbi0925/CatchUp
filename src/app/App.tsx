@@ -8,6 +8,7 @@ import { PrototypeStoreProvider } from "../store/PrototypeStore";
 import { AiMateProvider } from "../features/ai-mate/AiMateProvider";
 import { ExtractionReviewPage } from "../features/upload/ExtractionReviewPage";
 import { UploadPage } from "../features/upload/UploadPage";
+import { UploadSessionProvider } from "../features/upload/UploadSessionProvider";
 import { IntroPage } from "../features/intro/IntroPage";
 import { CalendarOnboardingPage } from "../features/onboarding/CalendarOnboardingPage";
 import { TodayPage } from "../features/today/TodayPage";
@@ -56,9 +57,11 @@ export function App({ initialEntries }: { initialEntries?: string[] }) {
   );
   return (
     <PrototypeStoreProvider>
-      <AiMateProvider>
-        <RouterProvider router={router} />
-      </AiMateProvider>
+      <UploadSessionProvider>
+        <AiMateProvider>
+          <RouterProvider router={router} />
+        </AiMateProvider>
+      </UploadSessionProvider>
     </PrototypeStoreProvider>
   );
 }
