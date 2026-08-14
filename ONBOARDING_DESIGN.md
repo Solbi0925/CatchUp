@@ -8,17 +8,17 @@
 
 ## 1. 문서 목적
 
-이 문서는 브랜드 인트로 직후 나타나는 Google Calendar 연동 화면을 개발자가 목업 이미지 없이 구현할 수 있도록 정의한다. 기본 화면뿐 아니라 OAuth 연결 중, 연결 성공, 연결 실패, 연결 미루기, 재진입 상태와 접근성 요구사항까지 포함한다.
+이 문서는 브랜드 인트로 직후 나타나는 Google Calendar 연동 화면을 개발자가 목업 이미지 없이 구현할 수 있도록 정의한다. 기본 화면뿐 아니라 OAuth 연결 중, 연결 성공, 연결 실패, 연결 미루기, 재진입 상태와 접근성 요구사항까지 포함한다. 실제 OAuth는 핵심 Upload·AI·계획 기능 완성 후 발표용 노트북의 localhost에서 연결하며, 그 전에는 Mock 상태로 화면을 검증한다.
 
 이 문서는 `PRD.md`, `README.md`, `IA.md`, `USER_FLOW.md`, `SCREEN_SPEC.md`를 기준으로 하며, 충돌 시 `PRD.md`를 우선한다.
 
 ## 2. 화면 역할과 MVP 범위
 
 - 화면 이름: Google Calendar 연동
-- 권장 경로: `/onboarding/calendar`
+- 권장 경로: `http://localhost:<frontend-port>/onboarding/calendar`
 - 이전 화면: `/onboarding/intro`
 - 다음 화면: 메인 앱의 `Today`
-- 목적: 사용자의 개인 일정과 수업 시간을 불러와 학업 계획에 함께 반영할 수 있음을 설명하고 Google Calendar OAuth 연결을 시작한다.
+- 목적: 사용자의 개인 일정과 수업 시간을 불러와 학업 계획에 함께 반영할 수 있음을 설명하고, 핵심 기능 완성 후 localhost Google Calendar OAuth 연결을 시작한다.
 - 연결 대상: Google Calendar만 지원한다.
 - 제외 대상: 다른 외부 캘린더, 개인 시간표 직접 연동, LMS 완전 자동 연동
 - 사용자는 연결을 미룰 수 있다.
@@ -364,7 +364,7 @@ font-family:
 
 1. 사용자가 `캘린더 연결하기`를 누른다.
 2. 버튼을 `연결 중…` 상태로 바꾸고 중복 클릭을 막는다.
-3. Google OAuth 인증을 시작한다.
+3. 핵심 기능 완성 뒤 Local Backend/Bridge가 localhost 리디렉션 URI로 Google OAuth 인증을 시작한다.
 4. 필요한 최소 권한과 사용 목적을 Google 동의 화면에서 명확히 안내한다.
 5. 성공 시 연결 상태를 저장하고 메인 앱의 `Today`로 이동한다.
 
@@ -405,7 +405,7 @@ OAuth 팝업을 사용하는 경우 팝업 차단이나 사용자의 창 닫기�
 ## 13. 데이터 및 개인정보 원칙
 
 - API 키, OAuth 토큰, 비밀번호를 클라이언트 코드나 문서에 직접 적지 않는다.
-- OAuth 토큰은 안전한 서버 측 저장소 또는 보안 세션 방식으로 관리한다.
+- OAuth 토큰은 Local Backend/Bridge의 로컬 보안 세션 또는 운영체제 보안 저장소에서만 관리하며 Frontend Local Storage에 저장하지 않는다.
 - 화면에는 실제 학생 이름, 이메일, 일정 제목 등 개인정보 예시를 표시하지 않는다.
 - 개발과 테스트에는 가짜 Google 계정 또는 익명화된 샘플 일정만 사용한다.
 - 연결 목적은 개인 일정과 학업 계획의 충돌을 줄이는 데 필요한 범위로 제한한다.

@@ -7,6 +7,6 @@ export function classifyAiMateIntent(rawMessage: string): AiMateIntent {
   if (/(주간계획).*(업데이트)|업데이트.*(계획)/.test(message)) return "update-plan";
   if (/(도움|무엇을 할 수|사용법|어떻게 써)/.test(message)) return "help";
   if (/(줄여|옮겨|바꿔|조정|가볍게|우선)/.test(message)) return "adjust-plan";
-  if (/(계획).*(짜|만들|생성)|이번 주.*(짜|계획)/.test(message)) return "generate-plan";
+  if (/(계획).*(짜|만들|생성)|(이번 주|7일).*(짜|계획)/.test(message)) return "generate-plan";
   return "unknown";
 }

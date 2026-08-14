@@ -11,7 +11,7 @@
 ## Global Constraints
 
 - Do not modify `DATA_MODEL.md` or `API_SPEC.md`.
-- Weekly plans are generated only once per configured week, Monday through Sunday.
+- Plans are generated on user request for exactly 7 days from the request date; automatic weekly generation is not used.
 - AI Mate plan adjustments are limited to 10 successful requests per day.
 - Todo content, date, time, and priority are changed only through AI Mate; calendar schedules may be added or edited directly.
 - Use only `#C7B9FA`, `#E9E0FF`, `#F8B1FB`, `#FEE8FF`, `#A5D1FF`, and `#D9F0FF` for Month category chips.
