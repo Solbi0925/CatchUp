@@ -322,11 +322,20 @@
 }
 
 .today-todo-meta span {
+  display: inline-flex;
   padding: 5px 8px;
+  align-items: center;
+  gap: 4px;
   border-radius: 999px;
   background: #f5f3f9;
   color: #747786;
   font-size: 12px;
+}
+
+.today-todo-meta svg {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
 }
 
 .today-todo-content {

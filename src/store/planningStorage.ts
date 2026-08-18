@@ -48,7 +48,7 @@ export function readPlanningState(): StoredPlanningState {
       adjustmentUsageByDate: parsed.adjustmentUsageByDate ?? {},
       planAdjustments: Array.isArray(parsed.planAdjustments) ? parsed.planAdjustments : [],
       pendingPlanUpdate: parsed.pendingPlanUpdate
-        ? { ...parsed.pendingPlanUpdate, status: "pending" }
+        ? { ...parsed.pendingPlanUpdate, status: "pending", noticeStatus: parsed.pendingPlanUpdate.noticeStatus ?? "unread" }
         : null,
       processedPlanUpdates: Array.isArray(parsed.processedPlanUpdates)
         ? parsed.processedPlanUpdates.map((update) => ({ ...update, status: "processed" as const }))

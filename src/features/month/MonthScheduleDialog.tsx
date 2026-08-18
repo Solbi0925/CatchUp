@@ -3,11 +3,14 @@ import type { CalendarEvent } from "../../domain/types";
 import { ScheduleEditorDialog, type ScheduleDraft } from "../calendar/ScheduleEditorDialog";
 import { PERSONAL_CATEGORY_KEY, resolveCategoryColor, type CalendarCategoryColor } from "../calendar/calendarColors";
 import type { MonthScheduleItem } from "./monthSelectors";
+import { usePrototypeStore } from "../../store/PrototypeStore";
+import { AcademicEventEditorDialog } from "../upload/AcademicEventEditorDialog";
 
 export type MonthEventDraft = ScheduleDraft;
 export interface MonthScheduleTarget {
   eventId?: string;
   extractedItemId?: string;
+  classMeetingId?: string;
 }
 
 interface Props {
@@ -17,7 +20,7 @@ interface Props {
   categoryColorByKey: Readonly<Record<string, CalendarCategoryColor>>;
   onClose: () => void;
   onSave: (draft: MonthEventDraft, target?: MonthScheduleTarget) => void;
-  onDelete: (eventId: string) => void;
+  onDelete: (target: MonthScheduleTarget) => void;
   onColorChange: (categoryKey: string, color: CalendarCategoryColor) => void;
 }
 
@@ -32,6 +35,7 @@ function displayTime(item: MonthScheduleItem) {
 }
 
 export function MonthScheduleDialog({ selectedDate, schedules, eventsById, categoryColorByKey, onClose, onSave, onDelete, onColorChange }: Props) {
+  const { state, dispatch } = usePrototypeStore();
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [selectedItem, setSelectedItem] = useState<MonthScheduleItem>();
   const [adding, setAdding] = useState(false);
@@ -41,6 +45,7 @@ export function MonthScheduleDialog({ selectedDate, schedules, eventsById, categ
   useEffect(() => { setSelectedItem(undefined); setAdding(false); }, [selectedDate]);
 
   const event = selectedItem?.eventId ? eventsById[selectedItem.eventId] : undefined;
+  const academicItem = selectedItem?.extractedItemId ? state.extractedItemsById[selectedItem.extractedItemId] : undefined;
   const draft = event ? {
     title: event.title, date: event.date, startTime: event.startTime, endTime: event.endTime, isAllDay: event.isAllDay, eventType: event.eventType,
   } : selectedItem ? {
@@ -58,27 +63,37 @@ export function MonthScheduleDialog({ selectedDate, schedules, eventsById, categ
           {schedules.length === 0 ? <p className="month-sheet__empty">아직 등록된 일정이 없어요.</p> : (
             <ul className="month-schedule-list">
               {schedules.map((item) => <li key={item.id}>
-                <button className={`month-schedule-row${item.isProvisional ? " is-provisional" : ""}`} type="button" disabled={item.isProvisional} onClick={() => setSelectedItem(item)} aria-label={`${item.title} ${displayTime(item)}${item.isProvisional ? "" : " 선택"}`}>
+                <button className={`month-schedule-row${item.isProvisional ? " is-provisional" : ""}`} type="button" onClick={() => setSelectedItem(item)} aria-label={`${item.title} ${displayTime(item)} 선택`}>
                   <span className="month-schedule-list__flag" aria-hidden="true" style={{ backgroundColor: resolveCategoryColor(item.categoryKey, categoryColorByKey) }} />
                   <span><strong>{item.title}</strong><small>{displayTime(item)}</small></span>
                 </button>
-                {item.source === "catchup" && item.eventId && <button type="button" className="month-schedule-delete" onClick={() => onDelete(item.eventId!)} aria-label={`${item.title} 삭제`}>×</button>}
               </li>)}
             </ul>
           )}
           <button className="month-add-schedule" type="button" onClick={() => setAdding(true)}>추가</button>
         </>}
 
-        {(selectedItem || adding) && <ScheduleEditorDialog
+        {academicItem && selectedItem ? <AcademicEventEditorDialog
+          item={academicItem}
+          onClose={() => setSelectedItem(undefined)}
+          onDelete={() => { onDelete({ extractedItemId: academicItem.id }); setSelectedItem(undefined); }}
+          onSave={(item) => { dispatch({ type: "extraction/itemReplaced", payload: item }); setSelectedItem(undefined); }}
+        /> : (selectedItem || adding) && <ScheduleEditorDialog
+          draftIdentity={selectedItem?.id ?? `new-${selectedDate}`}
           initialDraft={draft}
           categoryKind={categoryKey === PERSONAL_CATEGORY_KEY ? "personal" : "course"}
           categoryColor={resolveCategoryColor(categoryKey, categoryColorByKey)}
           onColorChange={(color) => onColorChange(categoryKey, color)}
           onClose={() => { setSelectedItem(undefined); setAdding(false); }}
+          onDelete={selectedItem ? () => {
+            onDelete({ eventId: selectedItem.eventId, extractedItemId: selectedItem.extractedItemId, classMeetingId: selectedItem.classMeetingId });
+            setSelectedItem(undefined);
+          } : undefined}
           onSave={(nextDraft) => {
             onSave(nextDraft, selectedItem ? {
               eventId: selectedItem.eventId,
               extractedItemId: selectedItem.extractedItemId,
+              classMeetingId: selectedItem.classMeetingId,
             } : undefined);
             setSelectedItem(undefined);
             setAdding(false);

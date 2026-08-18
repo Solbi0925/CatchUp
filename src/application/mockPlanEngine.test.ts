@@ -112,4 +112,14 @@ describe("generateMockWeeklyPlan", () => {
     expect(result.todos).toHaveLength(1);
     expect(result.todos[0]).toMatchObject({ title: "도시건축 수업 내용 복습하기", estimatedDurationMinutes: 45 });
   });
+
+  it("post-validates weekday task limits for timetable review tasks", () => {
+    const result = generateMockWeeklyPlan({ ...command, requestText: "주간계획 생성해줘. 목요일과 금요일 할 일 1개 이하", extractedItems: [academicEventFixture({
+      id: "timetable-limits", itemType: "class-schedule", title: "스튜디오 수업", courseName: "스튜디오", date: null, confirmationStatus: "confirmed",
+      classMeetingTimes: [{ id: "thu-1", weekday: 4, startTime: "09:00", endTime: "10:00", location: null }, { id: "thu-2", weekday: 4, startTime: "11:00", endTime: "12:00", location: null }, { id: "fri", weekday: 5, startTime: "09:00", endTime: "10:00", location: null }],
+    })] });
+    expect(result.validationError).toBeUndefined();
+    expect(result.todos.filter((todo) => new Date(`${todo.scheduledDate}T00:00:00Z`).getUTCDay() === 4)).toHaveLength(1);
+    expect(result.todos.filter((todo) => new Date(`${todo.scheduledDate}T00:00:00Z`).getUTCDay() === 5)).toHaveLength(1);
+  });
 });

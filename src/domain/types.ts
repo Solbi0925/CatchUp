@@ -47,9 +47,6 @@ export type ExtractedItemType =
   | "team-project"
   | "presentation"
   | "quiz"
-  | "deadline"
-  | "submission"
-  | "notice"
   | "class-schedule"
   | "other";
 export type Difficulty = "high" | "medium" | "low" | "unknown";
@@ -213,6 +210,13 @@ export interface PlanAdjustment {
   relatedAcademicEventIds: ExtractedItemId[];
   changedTodoIds: TodoId[];
   createdAt: string;
+  /** Rollback snapshots are kept only for automatic plan updates. */
+  beforeTodos?: Todo[];
+  afterTodos?: Todo[];
+  summary?: string;
+  diff?: PlanDiff;
+  noticeStatus?: "unread" | "reviewed";
+  undoneAt?: string;
 }
 
 export type PlanUpdateReasonKind = "new-academic-event" | "exam-updated" | "assignment-updated" | "schedule-updated";
@@ -226,11 +230,13 @@ export interface PlanUpdateRecommendation {
   status: "pending" | "processed";
   processedAt?: string;
   outcome?: "changed" | "no-change" | "dismissed";
+  noticeStatus?: "unread" | "reviewed";
+  deferredUntilDate?: string;
   /** Snapshot used to explain what changed; Calendar always renders the latest AcademicEvent. */
   previousAcademicEvents?: ExtractedItem[];
 }
 
-export type AiMateIntent = "generate-plan" | "adjust-plan" | "update-plan" | "explain" | "help" | "unknown";
+export type AiMateIntent = "generate-plan" | "adjust-plan" | "update-plan" | "undo-update" | "explain" | "help" | "unknown";
 export type AiMateMessageStatus = "sent" | "pending" | "failed";
 
 export interface AiMateMessageAction {
@@ -285,6 +291,17 @@ export interface GeneratePlanResult {
   weeklyPlan: WeeklyPlan;
   todos: Todo[];
   assistantMessage: AiMateMessage;
+  validationError?: string;
+}
+
+export interface PlanDiff {
+  triggeringChange: string;
+  addedTaskIds: TodoId[];
+  removedTaskIds: TodoId[];
+  changedTaskIds: TodoId[];
+  movedTasks: Array<{ taskId: TodoId; from: string; to: string }>;
+  durationChanges: Array<{ taskId: TodoId; beforeMinutes: number; afterMinutes: number }>;
+  reasons: string[];
 }
 
 export interface AdjustmentResult {
@@ -293,6 +310,7 @@ export interface AdjustmentResult {
   changed: boolean;
   assistantMessage: AiMateMessage;
   changedTodoIds?: TodoId[];
+  planDiff?: PlanDiff;
 }
 
 export interface ExtractionResult {

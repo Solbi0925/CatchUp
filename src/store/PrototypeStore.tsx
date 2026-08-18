@@ -17,6 +17,7 @@ import {
 } from "./prototypeReducer";
 import { readAcademicEvents, writeAcademicEvents } from "./academicEventsStorage";
 import { readPlanningState, writePlanningState } from "./planningStorage";
+import { readCalendarEvents, writeCalendarEvents } from "./calendarEventsStorage";
 
 interface PrototypeStoreValue {
   state: PrototypeState;
@@ -29,6 +30,7 @@ function createStoreInitialState() {
   const state = createInitialPrototypeState();
   const confirmedItems = readAcademicEvents();
   const planning = readPlanningState();
+  const calendarEvents = readCalendarEvents();
   const stateWithConfirmedItems = {
     ...state,
     extractedItemsById: Object.fromEntries(confirmedItems.map((item) => [item.id, item])),
@@ -40,6 +42,7 @@ function createStoreInitialState() {
     planAdjustmentsById: Object.fromEntries(planning.planAdjustments.map((adjustment) => [adjustment.id, adjustment])),
     pendingPlanUpdate: planning.pendingPlanUpdate,
     processedPlanUpdatesById: Object.fromEntries(planning.processedPlanUpdates.map((update) => [update.id, update])),
+    calendarEventsById: Object.fromEntries(calendarEvents.map((event) => [event.id, event])),
   };
   const session = readOnboardingSession();
   if (!session) return stateWithConfirmedItems;
@@ -53,13 +56,8 @@ function createStoreInitialState() {
       introSeen: session.introSeen,
       calendarStep: session.calendarStep,
     },
-    calendarEventsById: session.calendarConnected
-      ? Object.fromEntries(
-          [...demoCalendarEvents, ...demoCatchUpCalendarEvents].map((event) => [
-            event.id,
-            { ...event },
-          ]),
-        )
+    calendarEventsById: calendarEvents.length ? stateWithConfirmedItems.calendarEventsById : session.calendarConnected
+      ? Object.fromEntries([...demoCalendarEvents, ...demoCatchUpCalendarEvents].map((event) => [event.id, { ...event }]))
       : {},
   };
 }
@@ -72,6 +70,9 @@ export function PrototypeStoreProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     writeAcademicEvents(Object.values(state.extractedItemsById));
   }, [state.extractedItemsById]);
+  useEffect(() => {
+    writeCalendarEvents(Object.values(state.calendarEventsById));
+  }, [state.calendarEventsById]);
   useEffect(() => {
     writePlanningState({
       weeklyPlans: Object.values(state.weeklyPlansById),

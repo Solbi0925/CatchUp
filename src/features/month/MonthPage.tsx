@@ -18,17 +18,20 @@ export function MonthPage() {
   const [mockEventOverrides, setMockEventOverrides] = useState<
     Record<string, CalendarEvent>
   >({});
+  const [hiddenMockEventIds, setHiddenMockEventIds] = useState<Set<string>>(() => new Set());
   const returnFocusDate = useRef(selectedDate);
+  const month = parseCanonicalMonth(visibleMonth)!;
+  const gridCells = useMemo(() => buildMonthGrid(visibleMonth), [visibleMonth]);
 
   const calendarEventsById = useMemo(
     () => {
       return {
-        ...Object.fromEntries(demoCalendarEvents.map((event) => [event.id, event])),
+        ...Object.fromEntries(demoCalendarEvents.filter((event) => !hiddenMockEventIds.has(event.id)).map((event) => [event.id, event])),
         ...state.calendarEventsById,
         ...mockEventOverrides,
       };
     },
-    [mockEventOverrides, state.calendarEventsById],
+    [hiddenMockEventIds, mockEventOverrides, state.calendarEventsById],
   );
   const schedules = useMemo(
     () =>
@@ -36,14 +39,14 @@ export function MonthPage() {
         selectScheduleAcademicItems(state),
         Object.values(calendarEventsById),
         state.planningProfile,
+        gridCells.length ? { startDate: gridCells[0].date, endDate: gridCells[gridCells.length - 1].date } : undefined,
       ),
-    [calendarEventsById, state],
+    [calendarEventsById, gridCells, state],
   );
   const schedulesByDate = useMemo(
     () => groupSchedulesByDate(schedules),
     [schedules],
   );
-  const month = parseCanonicalMonth(visibleMonth)!;
 
   const openDate = (date: string) => {
     returnFocusDate.current = date;
@@ -64,7 +67,9 @@ export function MonthPage() {
   };
 
   const saveEvent = (draft: MonthEventDraft, target?: MonthScheduleTarget) => {
-    if (target?.extractedItemId) {
+    if (target?.extractedItemId && target.classMeetingId) {
+      dispatch({ type: "extraction/classMeetingUpdated", payload: { id: target.extractedItemId, meetingId: target.classMeetingId, title: draft.title, weekday: new Date(`${draft.date}T00:00:00Z`).getUTCDay() as 0 | 1 | 2 | 3 | 4 | 5 | 6, startTime: draft.startTime ?? "09:00", endTime: draft.endTime ?? draft.startTime ?? "10:00" } });
+    } else if (target?.extractedItemId) {
       dispatch({
         type: "extraction/itemUpdated",
         payload: {
@@ -77,17 +82,18 @@ export function MonthPage() {
     } else if (target?.eventId) {
       const eventId = target.eventId;
       const existingEvent = calendarEventsById[eventId];
-      if (existingEvent?.source === "google-calendar") {
+      if (existingEvent?.source === "google-calendar" && !state.calendarEventsById[eventId]) {
         setMockEventOverrides((current) => ({
           ...current,
           [eventId]: {
             ...existingEvent,
             ...draft,
+            eventType: existingEvent.eventType,
             updatedAt: new Date().toISOString(),
           },
         }));
       } else {
-        dispatch({ type: "calendar/eventUpdated", payload: { id: eventId, ...draft } });
+        dispatch({ type: "calendar/eventUpdated", payload: { id: eventId, ...draft, eventType: existingEvent?.eventType ?? "personal" } });
       }
     } else {
       dispatch({
@@ -95,6 +101,7 @@ export function MonthPage() {
         payload: {
           id: `catchup-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
           ...draft,
+          eventType: "personal",
         },
       });
     }
@@ -109,7 +116,7 @@ export function MonthPage() {
     <div className="month-page">
       <MonthCalendar
         monthLabel={`${month.year}년 ${month.month}월`}
-        gridCells={buildMonthGrid(visibleMonth)}
+        gridCells={gridCells}
         schedulesByDate={schedulesByDate}
         selectedDate={selectedDate}
         todayDate={todayDate}
@@ -129,9 +136,15 @@ export function MonthPage() {
           eventsById={calendarEventsById}
           onClose={closeSheet}
           onSave={saveEvent}
-          onDelete={(eventId) =>
-            dispatch({ type: "calendar/eventDeleted", payload: { id: eventId } })
-          }
+          onDelete={(target) => {
+            if (target.extractedItemId && target.classMeetingId) dispatch({ type: "extraction/classMeetingDeleted", payload: { id: target.extractedItemId, meetingId: target.classMeetingId } });
+            else if (target.extractedItemId) dispatch({ type: "extraction/itemDeleted", payload: { id: target.extractedItemId } });
+            else if (target.eventId && state.calendarEventsById[target.eventId]) dispatch({ type: "calendar/eventDeleted", payload: { id: target.eventId } });
+            else if (target.eventId) {
+              setHiddenMockEventIds((current) => new Set(current).add(target.eventId!));
+              setMockEventOverrides((current) => Object.fromEntries(Object.entries(current).filter(([id]) => id !== target.eventId)));
+            }
+          }}
           categoryColorByKey={state.categoryColorByKey}
           onColorChange={(categoryKey, color) =>
             dispatch({ type: "calendar/categoryColorSet", payload: { categoryKey, color } })

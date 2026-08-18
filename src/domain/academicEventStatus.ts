@@ -31,8 +31,6 @@ const assignmentLikeTypes = new Set<ExtractedItem["itemType"]>([
   "assignment",
   "team-project",
   "presentation",
-  "deadline",
-  "submission",
 ]);
 
 export function assessAcademicEventConfirmation(

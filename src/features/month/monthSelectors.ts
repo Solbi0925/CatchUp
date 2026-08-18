@@ -1,11 +1,13 @@
 import { addIsoDays, provisionalAcademicEventTitle, resolveAcademicWeekRange } from "../../domain/academicWeek";
 import type { CalendarEvent, ExtractedItem, PlanningProfile } from "../../domain/types";
+import type { ScheduleDisplayType } from "../calendar/ScheduleEditorDialog";
 import { getCourseCategoryKey, PERSONAL_CATEGORY_KEY } from "../calendar/calendarColors";
 
 export interface MonthScheduleItem {
   id: string;
   eventId?: string;
   extractedItemId?: string;
+  classMeetingId?: string;
   title: string;
   date: string;
   rangeEndDate?: string;
@@ -14,15 +16,22 @@ export interface MonthScheduleItem {
   source: "upload" | "google" | "catchup";
   categoryKey: string;
   courseName?: string;
-  eventType: CalendarEvent["eventType"];
+  eventType: ScheduleDisplayType;
   isProvisional: boolean;
   temporalPrecision: "exact-date" | "academic-week";
+}
+
+function calendarTypeForAcademicItem(item: ExtractedItem): ScheduleDisplayType {
+  if (item.itemType === "exam" || item.itemType === "quiz") return "exam";
+  if (item.itemType === "class-schedule") return "class";
+  return "deadline";
 }
 
 export function buildMonthSchedules(
   extractedItems: readonly ExtractedItem[],
   calendarEvents: readonly CalendarEvent[],
   planningProfile: PlanningProfile,
+  _visibleRange?: { startDate: string; endDate: string },
 ) {
   const weekItems = extractedItems.flatMap((item) => {
     if (item.itemType === "class-schedule" || item.date !== null) return [];
@@ -39,7 +48,7 @@ export function buildMonthSchedules(
       source: "upload" as const,
       categoryKey: getCourseCategoryKey(item.courseName),
       courseName: item.courseName,
-      eventType: "class" as const,
+      eventType: calendarTypeForAcademicItem(item),
       isProvisional: true,
       temporalPrecision: "academic-week" as const,
     }];
@@ -57,12 +66,12 @@ export function buildMonthSchedules(
         source: "upload" as const,
         categoryKey: getCourseCategoryKey(item.courseName),
         courseName: item.courseName,
-        eventType: "class" as const,
+        eventType: calendarTypeForAcademicItem(item),
         isProvisional: item.confirmationStatus === "unconfirmed",
         temporalPrecision: "exact-date" as const,
       })),
     ...weekItems,
-    ...calendarEvents.map((event) => ({
+    ...calendarEvents.filter((event) => event.eventType !== "class").map((event) => ({
       id: `calendar-${event.id}`,
       eventId: event.id,
       title: event.title,

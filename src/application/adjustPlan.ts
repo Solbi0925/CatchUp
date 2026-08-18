@@ -1,4 +1,5 @@
 import type { AdjustmentResult, ExtractedItem, OperationId, Todo, WeeklyPlan } from "../domain/types";
+import { parsePlanConstraints, rebalancePlanToConstraints, validatePlanConstraints } from "./planConstraints";
 
 export interface AdjustPlanInput {
   operationId: OperationId;
@@ -12,11 +13,21 @@ export interface AdjustPlanInput {
 }
 
 const weekdays = ["월요일", "화요일", "수요일", "목요일", "금요일", "토요일", "일요일"];
+const weekdayNumbers = [1, 2, 3, 4, 5, 6, 0];
 
 function addDays(isoDate: string, amount: number) {
   const date = new Date(`${isoDate}T00:00:00Z`);
   date.setUTCDate(date.getUTCDate() + amount);
   return date.toISOString().slice(0, 10);
+}
+
+function dateForWeekdayInPlan(weekStartDate: string, weekdayIndex: number) {
+  const weekdayNumber = weekdayNumbers[weekdayIndex];
+  for (let offset = 0; offset < 7; offset += 1) {
+    const candidate = addDays(weekStartDate, offset);
+    if (new Date(`${candidate}T00:00:00Z`).getUTCDay() === weekdayNumber) return candidate;
+  }
+  return weekStartDate;
 }
 
 function movable(todo: Todo) {
@@ -67,8 +78,20 @@ export function adjustMockPlan(input: AdjustPlanInput): AdjustmentResult {
     return message(input, "실제 시험일이나 마감일은 주간계획 수정으로 바꿀 수 없어요. 공부 계획을 어떻게 조정할지 알려주세요.", false, input.todos, []);
   }
   const selected = input.todos.find((todo) => todo.id === input.selectedTodoId && movable(todo));
+  const constraints = parsePlanConstraints(request);
+  if (Object.keys(constraints.maxTasksByWeekday).length || constraints.prohibitedWeekdays.length || constraints.maxDailyMinutes !== null) {
+    const plan = { weekStartDate, weekEndDate };
+    const rebalanced = rebalancePlanToConstraints(input.todos, constraints, plan, academicEvents);
+    if (!rebalanced.ok) return message(input, `현재 마감과 학습량을 지키면서 요청한 조건을 적용하기 어려워요. ${rebalanced.violations.join(", ")}`, false, input.todos, []);
+    const validated = validatePlanConstraints(rebalanced.todos, constraints, plan, academicEvents, input.todos);
+    if (!validated.ok) return message(input, `요청한 조건을 검증하지 못해 계획을 변경하지 않았어요. ${validated.violations.join(", ")}`, false, input.todos, []);
+    if (!rebalanced.changedTodoIds.length) return message(input, "현재 계획이 이미 요청한 조건을 만족하고 있어요.", false, input.todos, []);
+    const changedIds = new Set(rebalanced.changedTodoIds);
+    const todos = rebalanced.todos.map((todo) => changedIds.has(todo.id) ? withAdjustmentReason(todo, `사용자의 요청 '${request}'을 반영해 ${todo.scheduledDate}로 이동했어요.`) : todo);
+    return message(input, "요청한 날짜별 개수와 학습량 조건을 반영해 주간계획을 조정했어요.", true, todos, rebalanced.changedTodoIds);
+  }
   const mentionedDates = weekdays
-    .map((weekday, index) => ({ position: request.indexOf(weekday), date: addDays(weekStartDate, index) }))
+    .map((weekday, index) => ({ position: request.indexOf(weekday), date: dateForWeekdayInPlan(weekStartDate, index) }))
     .filter(({ position }) => position >= 0)
     .sort((left, right) => left.position - right.position)
     .map(({ date }) => date);
@@ -101,7 +124,7 @@ export function adjustMockPlan(input: AdjustPlanInput): AdjustmentResult {
     const overloaded = [...loads.entries()].find(([, minutes]) => minutes > maximum);
     if (!overloaded) return message(input, `현재 계획은 이미 하루 ${maximum / 60}시간 이하예요.`, false, input.todos, []);
     const candidate = input.todos.filter((todo) => movable(todo) && todo.scheduledDate === overloaded[0]).sort((a, b) => b.estimatedDurationMinutes - a.estimatedDurationMinutes)[0];
-    const destination = weekdays.map((_, index) => addDays(weekStartDate, index)).find((date) => date !== overloaded[0] && (loads.get(date) ?? 0) + candidate.estimatedDurationMinutes <= maximum && respectsAcademicDate(candidate, date, academicEvents));
+    const destination = Array.from({ length: 7 }, (_, index) => addDays(weekStartDate, index)).find((date) => date !== overloaded[0] && (loads.get(date) ?? 0) + candidate.estimatedDurationMinutes <= maximum && respectsAcademicDate(candidate, date, academicEvents));
     if (!destination) return message(input, "마감과 현재 학습량을 지키면서 요청한 일일 시간 제한을 적용하기 어려워요.", false, input.todos, []);
     const moved = withAdjustmentReason({ ...candidate, scheduledDate: destination }, `사용자가 요청한 하루 ${maximum / 60}시간 제한을 맞추기 위해 ${destination}로 이동했어요.`);
     return message(input, "하루 학습량 제한에 맞게 계획을 조정했어요.", true, input.todos.map((todo) => todo.id === candidate.id ? moved : todo), [candidate.id]);
@@ -119,7 +142,7 @@ export function adjustMockPlan(input: AdjustPlanInput): AdjustmentResult {
         : selected ? [selected] : input.todos.filter((todo) => movable(todo) && todo.scheduledDate !== targetDate).slice(0, 1);
     if (!candidates.length) return message(input, "옮길 수 있는 해당 날짜의 미완료 할 일을 찾지 못했어요. 다른 방식으로 수정사항을 입력해주세요.", false, input.todos, []);
     const destination = avoidWholeDay
-      ? weekdays.map((_, index) => addDays(weekStartDate, index)).find((date) => date !== targetDate && candidates.every((todo) => respectsAcademicDate(todo, date, academicEvents)))
+      ? Array.from({ length: 7 }, (_, index) => addDays(weekStartDate, index)).find((date) => date !== targetDate && candidates.every((todo) => respectsAcademicDate(todo, date, academicEvents)))
       : reduceDay ? addDays(targetDate, targetDate === weekEndDate ? -1 : 1)
       : targetDate;
     if (!destination || candidates.some((todo) => !respectsAcademicDate(todo, destination, academicEvents))) return message(input, "마감일을 지키면서 요청한 날짜로 이동할 수 없어요. 다른 날짜를 알려주세요.", false, input.todos, []);

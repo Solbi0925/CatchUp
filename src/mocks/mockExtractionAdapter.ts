@@ -45,6 +45,9 @@ export async function extractAcademicFilesMock({
     uploadedAt: clock.now().toISOString(),
   }));
   const primary = documents[0];
+  if (files.every((file) => /empty|학업정보없음|무관한/i.test(file.name))) {
+    return { operationId, documents, extractedItems: [] };
+  }
   const sourceReferences = documents.map((document, index) => ({
     id: `source-${operationId}-${index}`,
     documentId: document.id,

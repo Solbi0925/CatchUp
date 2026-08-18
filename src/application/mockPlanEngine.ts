@@ -6,6 +6,7 @@ import type {
   PlanningProfile,
   Todo,
 } from "../domain/types";
+import { parsePlanConstraints, rebalancePlanToConstraints } from "./planConstraints";
 
 function addDays(isoDate: string, days: number) {
   const date = new Date(`${isoDate}T00:00:00Z`);
@@ -26,7 +27,7 @@ function eventMinutes(startTime: string | null, endTime: string | null) {
 
 function todoType(item: ExtractedItem): Todo["todoType"] {
   if (item.itemType === "exam" || item.itemType === "quiz") return "exam-study";
-  if (item.itemType === "class-schedule" || item.itemType === "notice") return "class-prep";
+  if (item.itemType === "class-schedule") return "class-prep";
   return "assignment-work";
 }
 
@@ -94,11 +95,18 @@ function capacityForDate(date: string, command: GeneratePlanCommand) {
   return capacity;
 }
 
+function taskLimitForDate(date: string, request: string) {
+  const weekday = new Date(`${date}T00:00:00Z`).getUTCDay();
+  const names = ["일요일", "월요일", "화요일", "수요일", "목요일", "금요일", "토요일"];
+  const match = request.match(new RegExp(`${names[weekday]}[^.]*?(\\d+)개\\s*이하`));
+  return match ? Number(match[1]) : Number.POSITIVE_INFINITY;
+}
+
 export function generateMockWeeklyPlan(command: GeneratePlanCommand): GeneratePlanResult {
   const window = getPlanWeekWindow(new Date(command.requestedAt));
   const weeklyPlanId = `weekly-${command.operationId}`;
   const relevant = command.extractedItems.filter((item) => {
-    if (item.itemType === "class-schedule" || item.itemType === "notice") return false;
+    if (item.itemType === "class-schedule") return false;
     return item.confirmationStatus === "confirmed" && item.date !== null && differenceInDays(window.weekStartDate, item.date) <= 27;
   });
   const carryOverByEvent = new Map(command.existingIncompleteTodos.map((todo) => [todo.sourceExtractedItemId, todo]));
@@ -109,6 +117,7 @@ export function generateMockWeeklyPlan(command: GeneratePlanCommand): GeneratePl
   }).sort((a, b) => b.score - a.score || a.item.id.localeCompare(b.item.id));
 
   const usedByDate = new Map<string, number>();
+  const taskCountByDate = new Map<string, number>();
   const todos: Todo[] = [];
   for (const { item, estimate, carried, score } of ranked) {
     const totalMinutes = carried ? Math.max(estimate.minutes, carried.estimatedDurationMinutes) : estimate.minutes;
@@ -124,12 +133,14 @@ export function generateMockWeeklyPlan(command: GeneratePlanCommand): GeneratePl
         const date = addDays(window.weekStartDate, day);
         const used = usedByDate.get(date) ?? 0;
         const capacity = capacityForDate(date, command);
-        if (capacity > 0 && used + minutes <= capacity && used < lowestLoad) {
+        const taskLimit = taskLimitForDate(date, command.requestText);
+        if (capacity > 0 && (taskCountByDate.get(date) ?? 0) < taskLimit && used + minutes <= capacity && used < lowestLoad) {
           scheduledDate = date;
           lowestLoad = used;
         }
       }
       usedByDate.set(scheduledDate, (usedByDate.get(scheduledDate) ?? 0) + minutes);
+      taskCountByDate.set(scheduledDate, (taskCountByDate.get(scheduledDate) ?? 0) + 1);
       todos.push({
         id: `todo-${command.operationId}-${item.id}-${index}`,
         weeklyPlanId,
@@ -208,20 +219,26 @@ export function generateMockWeeklyPlan(command: GeneratePlanCommand): GeneratePl
     }
   }
 
-  const hadCarryOver = todos.some((todo) => todo.carriedOverFromTodoId);
+  const plan = {
+    id: weeklyPlanId, userId: command.user.id, weekStartDate: window.weekStartDate,
+    weekEndDate: window.weekEndDate, status: "complete" as const, createdAt: command.requestedAt,
+    generationRequest: command.requestText, referenceWindowEndDate: window.referenceWindowEndDate,
+    summary: "사용자 요청과 앞으로 4주 학업 일정을 고려한 7일 계획",
+  };
+  const constrained = rebalancePlanToConstraints(todos, parsePlanConstraints(command.requestText), plan, command.extractedItems);
+  const finalTodos = constrained.ok ? constrained.todos : todos;
+  const hadCarryOver = finalTodos.some((todo) => todo.carriedOverFromTodoId);
   return {
     operationId: command.operationId,
-    weeklyPlan: {
-      id: weeklyPlanId, userId: command.user.id, weekStartDate: window.weekStartDate,
-      weekEndDate: window.weekEndDate, status: "complete", createdAt: command.requestedAt,
-      generationRequest: command.requestText, referenceWindowEndDate: window.referenceWindowEndDate,
-      summary: "사용자 요청과 앞으로 4주 학업 일정을 고려한 7일 계획",
-    },
-    todos,
+    weeklyPlan: plan,
+    todos: finalTodos,
+    validationError: constrained.ok ? undefined : constrained.violations.join(", "),
     assistantMessage: {
       id: `assistant-${command.operationId}`, role: "assistant", createdAt: command.requestedAt,
       status: "sent", intent: "generate-plan", operationId: command.operationId,
-      text: `요청하신 조건과 앞으로 4주 학업 일정을 고려해 오늘부터 7일 계획을 만들었어요. 다가오는 시험과 마감은 미리 나누어 배치했어요.${hadCarryOver ? " 기존 미완료 항목도 다시 우선순위를 계산해 반영했어요." : ""}`,
+      text: constrained.ok
+        ? `요청하신 조건과 앞으로 4주 학업 일정을 고려해 오늘부터 7일 계획을 만들었어요. 다가오는 시험과 마감은 미리 나누어 배치했어요.${hadCarryOver ? " 기존 미완료 항목도 다시 우선순위를 계산해 반영했어요." : ""}`
+        : `요청한 조건을 모두 지키면서 마감 전 학습량을 배치하기 어려워 계획을 저장하지 않았어요. 충돌 조건: ${constrained.violations.join(", ")}`,
     },
   };
 }

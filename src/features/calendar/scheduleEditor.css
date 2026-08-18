@@ -18,3 +18,5 @@
 .schedule-color-fieldset p { margin: 9px 0 0; color: var(--color-muted); font-size: 12px; }
 .schedule-editor__error { margin: 0; color: var(--color-error); font-size: 13px; }
 .schedule-editor__primary { display: grid; min-height: 50px; place-items: center; border: 0; border-radius: 12px; background: #8c6ef6; color: white; font-weight: 800; }
+.schedule-editor__fixed-type { margin: 0; color: var(--color-muted); font-size: 12px; }
+.schedule-editor__delete { min-height: 44px; border: 1px solid #f3c9ce; border-radius: 11px; background: #fff7f8; color: var(--color-error); font-weight: 700; }

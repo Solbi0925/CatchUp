@@ -76,4 +76,30 @@ describe("adjustMockPlan", () => {
     expect(result.changed).toBe(true);
     expect(result.todos[0].scheduledDate).toBe("2026-08-06");
   });
+
+  it("maps a weekday inside a rolling seven-day plan instead of treating its start as Monday", () => {
+    const rollingTodos: Todo[] = [{ ...todos[0], id: "rolling", scheduledDate: "2026-08-13" }];
+    const result = adjustMockPlan({
+      operationId: "adjust-rolling",
+      requestText: "수요일로 옮겨줘",
+      requestedAt: "2026-08-13T09:00:00+09:00",
+      weeklyPlan: {
+        id: "rolling-plan", userId: "user-demo-01", weekStartDate: "2026-08-13", weekEndDate: "2026-08-19",
+        status: "complete", createdAt: "2026-08-13T09:00:00+09:00", generationRequest: "생성", referenceWindowEndDate: "2026-09-09", summary: "rolling",
+      },
+      todos: rollingTodos,
+      selectedTodoId: "rolling",
+    });
+    expect(result.todos[0].scheduledDate).toBe("2026-08-19");
+    expect(result.assistantMessage.text).toContain("요청한 날짜 조건");
+  });
+
+  it("treats a weekday task-count request as a hard constraint", () => {
+    const result = adjustMockPlan({
+      operationId: "adjust-count", requestText: "목요일 할 일 1개 이하로 수정해줘", requestedAt: "2026-07-20T09:00:00+09:00",
+      weekStartDate: "2026-07-20", todos: [...todos, { ...todos[0], id: "todo-thu-2", scheduledDate: "2026-07-23" }],
+    });
+    expect(result.changed).toBe(true);
+    expect(result.todos.filter((todo) => todo.scheduledDate === "2026-07-23")).toHaveLength(1);
+  });
 });

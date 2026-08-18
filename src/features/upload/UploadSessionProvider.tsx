@@ -31,25 +31,29 @@ export function UploadSessionProvider({ children }: { children: ReactNode }) {
   useEffect(() => () => abortRef.current?.abort(), []);
 
   const analyze = useCallback(async () => {
-    if (!uiState.files.length || uiState.status === "extracting") return;
+    const targets = uiState.files.filter((entry) => entry.status === "pending" || entry.status === "failed");
+    if (!targets.length || uiState.status === "extracting") return;
     const operationId = `extract-${Date.now()}`;
     const controller = new AbortController();
     abortRef.current?.abort();
     abortRef.current = controller;
-    dispatch({ type: "extraction/started", operationId });
+    const fileIds = targets.map((entry) => entry.id);
+    dispatch({ type: "extraction/started", operationId, fileIds });
     try {
       const result = await analyzeAcademicFiles({
-        files: uiState.files,
+        files: targets.map((entry) => entry.file),
         operationId,
         existingEvents: events,
         signal: controller.signal,
       });
-      storeDispatch({ type: "extraction/applied", payload: result });
-      dispatch({ type: "extraction/succeeded", result });
+      const normalized = result.extractedItems.length === 0 ? { ...result, documents: result.documents.map((document) => ({ ...document, extractionStatus: "failed" as const })) } : result;
+      storeDispatch({ type: "extraction/applied", payload: normalized });
+      dispatch({ type: "extraction/succeeded", result: normalized, fileIds });
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") return;
       dispatch({
         type: "extraction/failed",
+        fileIds,
         message: error instanceof Error && error.message !== "analysis-failed"
           ? error.message
           : "자료를 통합 분석하지 못했어요. 로컬 브리지 실행 상태를 확인하고 다시 시도해주세요.",
