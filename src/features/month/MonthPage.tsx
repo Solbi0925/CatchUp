@@ -77,6 +77,7 @@ export function MonthPage() {
           title: draft.title,
           date: draft.date,
           time: draft.startTime,
+          isAllDay: draft.isAllDay,
         },
       });
     } else if (target?.eventId) {

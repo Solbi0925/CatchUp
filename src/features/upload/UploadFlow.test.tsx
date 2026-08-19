@@ -74,6 +74,75 @@ describe("Upload flow", () => {
     expect(getComputedStyle(dot).display).toBe("inline-block");
   });
 
+  it("sorts scheduled weeks and exact dates on one academic-week timeline", async () => {
+    localStorage.setItem("catchup.academic-events.v2", JSON.stringify([
+      academicEventFixture({ id: "week-4", title: "4주차 이벤트", date: null, scheduledWeek: 4, scheduledWeekLabel: "4주차", weekOneStartDate: "2026-08-17" }),
+      academicEventFixture({ id: "exact-date", title: "정확한 날짜 이벤트", date: "2026-09-08", scheduledWeek: null, scheduledWeekLabel: null, weekOneStartDate: "2026-08-17" }),
+      academicEventFixture({ id: "week-2", title: "2주차 이벤트", date: null, scheduledWeek: 2, scheduledWeekLabel: "2주차", weekOneStartDate: "2026-08-17" }),
+      academicEventFixture({ id: "week-1", title: "1주차 이벤트", date: null, scheduledWeek: 1, scheduledWeekLabel: "1주차", weekOneStartDate: "2026-08-17" }),
+      academicEventFixture({ id: "week-3", title: "3주차 이벤트", date: null, scheduledWeek: 3, scheduledWeekLabel: "3주차", weekOneStartDate: "2026-08-17" }),
+    ]));
+    const user = userEvent.setup();
+    const { container } = render(<App initialEntries={["/upload/extraction"]} />);
+    await user.click(screen.getByRole("button", { name: /UX 디자인\s+학업 이벤트/ }));
+
+    const visibleTitles = () => [...container.querySelectorAll(".extraction-item__toggle strong")].map((element) => element.textContent);
+    expect(visibleTitles()).toEqual(["1주차 이벤트", "2주차 이벤트", "3주차 이벤트", "4주차 이벤트", "정확한 날짜 이벤트"]);
+
+    await user.click(screen.getByRole("button", { name: /정확한 날짜 이벤트/ }));
+    const dateInput = screen.getByLabelText("날짜 / 마감일");
+    await user.clear(dateInput);
+    await user.type(dateInput, "2026-09-01");
+    expect(visibleTitles()).toEqual(["1주차 이벤트", "2주차 이벤트", "3주차 이벤트", "정확한 날짜 이벤트", "4주차 이벤트"]);
+  });
+
+  it("keeps hidden planning metadata while showing one week field and a compact all-day control", async () => {
+    localStorage.setItem("catchup.academic-events.v2", JSON.stringify([academicEventFixture({
+      id: "hidden-metadata",
+      title: "메타데이터 보존 과제",
+      courseCode: "CD101",
+      scheduledWeek: 10,
+      scheduledWeekLabel: "Week 10",
+      weekOneStartDate: "2026-08-17",
+      submissionMethod: "LMS 과제함",
+      researchNeeded: "high",
+      deliverableComplexity: "영상과 인터랙션 포함",
+    })]));
+    const user = userEvent.setup();
+    render(<App initialEntries={["/upload/extraction"]} />);
+    await user.click(screen.getByRole("button", { name: /UX 디자인\s+학업 이벤트/ }));
+    await user.click(screen.getByRole("button", { name: /메타데이터 보존 과제/ }));
+
+    expect(screen.queryByText("과목 코드")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("1주차 시작일")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("제출 방식")).not.toBeInTheDocument();
+    expect(screen.queryByText("자료 조사량")).not.toBeInTheDocument();
+    expect(screen.queryByText("결과물 복잡도")).not.toBeInTheDocument();
+    expect(screen.getAllByLabelText("예정 주차")).toHaveLength(1);
+    expect(screen.getByLabelText("예정 주차")).toHaveValue("Week 10");
+
+    const allDay = screen.getByLabelText("종일 일정");
+    expect(allDay.parentElement).toHaveClass("all-day-toggle");
+    expect(allDay.parentElement).toHaveTextContent("종일");
+    expect(getComputedStyle(allDay).width).toBe("16px");
+
+    await user.clear(screen.getByLabelText("예정 주차"));
+    await user.type(screen.getByLabelText("예정 주차"), "11주차");
+    await user.click(screen.getByRole("button", { name: "학업 이벤트 저장" }));
+    await waitFor(() => {
+      const [stored] = JSON.parse(localStorage.getItem("catchup.academic-events.v2") ?? "[]");
+      expect(stored).toMatchObject({
+        scheduledWeek: 11,
+        scheduledWeekLabel: "11주차",
+        courseCode: "CD101",
+        weekOneStartDate: "2026-08-17",
+        submissionMethod: "LMS 과제함",
+        researchNeeded: "high",
+        deliverableComplexity: "영상과 인터랙션 포함",
+      });
+    });
+  });
+
   it("keeps selected files and analysis running while navigating away from Upload", async () => {
     render(<App initialEntries={["/upload"]} />);
     expect(screen.getByText("이번 학기 학업 자료를 한꺼번에 올려주세요")).toBeInTheDocument();
@@ -232,7 +301,6 @@ describe("Upload flow", () => {
     await user.type(screen.getByLabelText("날짜 / 마감일"), "2026-09-02");
     await user.type(screen.getByLabelText("요구사항"), "분석 보고서 PDF 제출");
     await user.type(screen.getByLabelText("분량"), "A4 5쪽");
-    await user.type(screen.getByLabelText("제출 방식"), "LMS 과제함");
     expect(screen.getAllByText("확정").length).toBeGreaterThan(0);
     await user.click(screen.getByRole("button", { name: "학업 이벤트 저장" }));
 
@@ -242,6 +310,43 @@ describe("Upload flow", () => {
       const stored = JSON.parse(window.localStorage.getItem("catchup.academic-events.v2") ?? "[]");
       expect(stored[0]?.confirmationStatus).toBe("confirmed");
     });
+  });
+
+  it("keeps internal spaces in visible free-text fields and hides optional submission metadata", async () => {
+    window.localStorage.setItem("catchup.academic-events.v2", JSON.stringify([
+      academicEventFixture({
+        id: "space-test",
+        title: "Space test",
+        date: null,
+        requirements: null,
+        workload: null,
+        submissionMethod: null,
+        confirmationStatus: "unconfirmed",
+        confirmationIssues: ["missing-date", "missing-details"],
+      }),
+    ]));
+    const user = userEvent.setup();
+    render(<App initialEntries={["/upload/extraction"]} />);
+
+    await user.click(screen.getByRole("button", { name: /UX/ }));
+    await user.click(screen.getByRole("button", { name: /Space test/ }));
+    expect(screen.getByText("\uD655\uC815\uD558\uB824\uBA74 \uD544\uC694\uD55C \uC815\uBCF4").nextSibling).toHaveTextContent(
+      "\uC815\uD655\uD55C \uB0A0\uC9DC, \uC694\uAD6C\uC0AC\uD56D, \uBD84\uB7C9",
+    );
+
+    const title = screen.getByLabelText("\uC774\uBCA4\uD2B8\uBA85");
+    await user.clear(title);
+    await user.type(title, "Final report");
+    await user.type(screen.getByLabelText("\uB0A0\uC9DC / \uB9C8\uAC10\uC77C"), "2026-09-02");
+    await user.type(screen.getByLabelText("\uC694\uAD6C\uC0AC\uD56D"), "Analysis report PDF");
+    await user.type(screen.getByLabelText("\uBD84\uB7C9"), "A4 5 pages");
+
+    expect(title).toHaveValue("Final report");
+    expect(screen.getByLabelText("\uC694\uAD6C\uC0AC\uD56D")).toHaveValue("Analysis report PDF");
+    expect(screen.getByLabelText("\uBD84\uB7C9")).toHaveValue("A4 5 pages");
+    expect(screen.getAllByText("\uD655\uC815").length).toBeGreaterThan(0);
+
+    expect(screen.queryByLabelText("\uC81C\uCD9C \uBC29\uC2DD")).not.toBeInTheDocument();
   });
 
   it("uploads files together, reviews one integrated event, confirms it and returns to Upload", async () => {

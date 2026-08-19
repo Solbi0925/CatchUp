@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { adjustMockPlan } from "./adjustPlan";
+import { adjustPlanDeterministically } from "./deterministicPlanAdjuster";
 import type { Todo } from "../domain/types";
 
 const todos: Todo[] = [
@@ -35,9 +35,9 @@ const todos: Todo[] = [
   },
 ];
 
-describe("adjustMockPlan", () => {
+describe("adjustPlanDeterministically", () => {
   it("moves the longest Wednesday task to Thursday", () => {
-    const result = adjustMockPlan({
+    const result = adjustPlanDeterministically({
       operationId: "adjust-1",
       requestText: "수요일 할 일을 줄여줘",
       requestedAt: "2026-07-20T21:00:00+09:00",
@@ -49,7 +49,7 @@ describe("adjustMockPlan", () => {
   });
 
   it("does not report a successful change when no matching task exists", () => {
-    const result = adjustMockPlan({
+    const result = adjustPlanDeterministically({
       operationId: "adjust-2",
       requestText: "일요일 할 일을 가볍게 해줘",
       requestedAt: "2026-07-20T21:00:00+09:00",
@@ -71,7 +71,7 @@ describe("adjustMockPlan", () => {
       todos: augustTodos,
     };
 
-    const result = adjustMockPlan(input);
+    const result = adjustPlanDeterministically(input);
 
     expect(result.changed).toBe(true);
     expect(result.todos[0].scheduledDate).toBe("2026-08-06");
@@ -79,7 +79,7 @@ describe("adjustMockPlan", () => {
 
   it("maps a weekday inside a rolling seven-day plan instead of treating its start as Monday", () => {
     const rollingTodos: Todo[] = [{ ...todos[0], id: "rolling", scheduledDate: "2026-08-13" }];
-    const result = adjustMockPlan({
+    const result = adjustPlanDeterministically({
       operationId: "adjust-rolling",
       requestText: "수요일로 옮겨줘",
       requestedAt: "2026-08-13T09:00:00+09:00",
@@ -95,7 +95,7 @@ describe("adjustMockPlan", () => {
   });
 
   it("treats a weekday task-count request as a hard constraint", () => {
-    const result = adjustMockPlan({
+    const result = adjustPlanDeterministically({
       operationId: "adjust-count", requestText: "목요일 할 일 1개 이하로 수정해줘", requestedAt: "2026-07-20T09:00:00+09:00",
       weekStartDate: "2026-07-20", todos: [...todos, { ...todos[0], id: "todo-thu-2", scheduledDate: "2026-07-23" }],
     });

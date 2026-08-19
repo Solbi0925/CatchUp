@@ -90,6 +90,22 @@ describe("MonthPage", () => {
     expect(JSON.parse(localStorage.getItem("catchup.academic-events.v2") ?? "[]")[0].title).toBe("도시건축 수업");
   });
 
+  it("distinguishes a time-unknown AcademicEvent from a real all-day calendar event", async () => {
+    localStorage.setItem("catchup.academic-events.v2", JSON.stringify([academicEventFixture({
+      id: "time-unknown-month", title: "시간 미정 발표", itemType: "presentation", date: "2026-07-20", time: null,
+      requirements: "발표 자료", confirmationStatus: "confirmed", reviewStatus: "confirmed",
+    })]));
+    localStorage.setItem("catchup.calendar-events.v1", JSON.stringify([{
+      id: "real-all-day", userId: "user-demo-01", title: "실제 종일 일정", date: "2026-07-20",
+      startTime: null, endTime: null, isAllDay: true, eventType: "personal", source: "catchup", updatedAt: "2026-07-19T00:00:00Z",
+    }]));
+    const user = userEvent.setup();
+    renderMonth();
+    await user.click(screen.getByRole("button", { name: /2026년 7월 20일/ }));
+    expect(screen.getByRole("button", { name: /시간 미정 발표 시간 없음 선택/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /실제 종일 일정 종일 선택/ })).toBeInTheDocument();
+  });
+
   it("shares three event lanes between week ranges and single-day schedules, then opens hidden items with +N", async () => {
     localStorage.setItem("catchup.academic-events.v2", JSON.stringify(Array.from({ length: 5 }, (_, index) => academicEventFixture({
       id: `crowded-${index}`,

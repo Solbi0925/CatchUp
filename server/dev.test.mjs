@@ -13,7 +13,7 @@ describe("development server launcher", () => {
     runDevelopmentProcesses(spawnProcess);
 
     expect(developmentProcesses.map(({ name }) => name)).toEqual(["bridge", "frontend"]);
-    expect(spawnProcess).toHaveBeenCalledWith(process.execPath, ["server/index.mjs"], { stdio: "inherit" });
+    expect(spawnProcess).toHaveBeenCalledWith(process.execPath, ["--watch", "server/index.mjs"], { stdio: "inherit" });
     expect(spawnProcess).toHaveBeenCalledWith(process.execPath, ["node_modules/vite/bin/vite.js"], { stdio: "inherit" });
   });
 });

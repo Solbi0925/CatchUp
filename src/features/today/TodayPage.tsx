@@ -81,6 +81,10 @@ export function TodayPage() {
   const [addingSchedule, setAddingSchedule] = useState(false);
   const hasDocuments = Object.keys(state.documentsById).length > 0 || Object.keys(state.extractedItemsById).length > 0;
   const hasPlan = Object.keys(state.weeklyPlansById).length > 0;
+  const recentlyChangedTodoIds = useMemo(() => {
+    const latest = Object.values(state.planAdjustmentsById).filter((adjustment) => adjustment.trigger === "USER_REQUEST").sort((left, right) => right.createdAt.localeCompare(left.createdAt))[0];
+    return new Set(latest?.changedTodoIds ?? []);
+  }, [state.planAdjustmentsById]);
   const viewModel = useMemo(
     () => selectTodayViewModel(state, selectedDate, todayDate),
     [selectedDate, state, todayDate],
@@ -94,7 +98,7 @@ export function TodayPage() {
   } : editingMeeting && editingItem ? {
     title: editingItem.title, date: selectedDate, startTime: editingMeeting.startTime, endTime: editingMeeting.endTime, isAllDay: false, eventType: "class",
   } : editingItem ? {
-    title: editingItem.title, date: editingItem.date ?? selectedDate, startTime: editingItem.time, endTime: null, isAllDay: !editingItem.time, eventType: editingSchedule?.type ?? "class",
+    title: editingItem.title, date: editingItem.date ?? selectedDate, startTime: editingItem.time, endTime: null, isAllDay: editingItem.isAllDay === true, eventType: editingSchedule?.type ?? "class",
   } : { title: "", date: selectedDate, startTime: "09:00", endTime: "10:00", isAllDay: false, eventType: "personal" };
   const editorCategoryKey = editingSchedule?.categoryKey ?? PERSONAL_CATEGORY_KEY;
 
@@ -206,7 +210,7 @@ export function TodayPage() {
             ) : (
               <div className="today-card-list">
                 {viewModel.todos.map((todo) => (
-                  <article className={`today-todo-card${todo.completed ? " completed" : ""}`} key={todo.id}>
+                  <article className={`today-todo-card${todo.completed ? " completed" : ""}${recentlyChangedTodoIds.has(todo.id) ? " recently-adjusted" : ""}`} key={todo.id}>
                     <input
                       type="checkbox"
                       checked={todo.completed}
@@ -225,9 +229,10 @@ export function TodayPage() {
                       onClick={() => openForTodo(todo.id)}
                     >
                       <span className="today-course">{todo.courseOrSource}</span>
+                      {recentlyChangedTodoIds.has(todo.id) && <span className="today-adjusted-label">방금 조정</span>}
                       <h3>{todo.title}</h3>
                       <div className="today-todo-meta">
-                        <span><ClockIcon />{todo.estimatedMinutes < 60 ? `${todo.estimatedMinutes}M` : `${Number((todo.estimatedMinutes / 60).toFixed(1))}H`}</span>
+                        {todo.estimatedMinutes > 0 && <span><ClockIcon />{todo.estimatedMinutes < 60 ? `${todo.estimatedMinutes}M` : `${Number((todo.estimatedMinutes / 60).toFixed(1))}H`}</span>}
                         <span><CalendarIcon />{todo.dueAt ? `${formatDueDate(todo.dueAt)} 마감` : "마감일 없음"}</span>
                       </div>
                     </button>
@@ -277,6 +282,7 @@ export function TodayPage() {
                 title: draft.title,
                 date: draft.date,
                 time: draft.startTime,
+                isAllDay: draft.isAllDay,
               },
             });
             else if (editingEvent) dispatch({ type: "calendar/eventUpdated", payload: { id: editingEvent.id, ...draft, eventType: editingEvent.eventType } });

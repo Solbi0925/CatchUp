@@ -2,10 +2,10 @@
 
 ## 목적과 범위
 
-이번 API는 학업자료 다중 업로드와 이벤트 중심 통합 분석만 담당한다. 별도 DB, 클라우드 백엔드, OpenAI API Key를 사용하지 않는다.
+Local Bridge는 학업자료 통합 분석과 AI 주간계획 초안 생성을 서로 다른 엔드포인트와 JSON Schema로 처리한다. 별도 DB, 클라우드 백엔드, OpenAI API Key를 사용하지 않는다.
 
 ```text
-Vite Frontend -> Local Bridge -> codex exec -> JSON Schema 검증 -> 이벤트 중심 결과
+Vite Frontend -> Local Bridge -> codex exec -> 요청별 JSON Schema -> 애플리케이션 절대 규칙 검증 -> Local Storage
 ```
 
 ## POST `/api/academic-materials/analyze`
@@ -39,6 +39,98 @@ PDF와 이미지 파일들을 하나의 분석 작업으로 전달한다. Vite �
 
 Bridge는 요청마다 OS 임시 디렉터리를 만들고 종료 시 삭제한다. 원본 파일은 저장하지 않으며 확정·미확정 구조화 이벤트는 날짜 정확도, 버전, 새 정보 확인 상태와 함께 브라우저의 `catchup.academic-events.v2`에 즉시 저장한다.
 
-## 최초 주간계획의 로컬 처리
+## AI 주간계획 API
 
-최초 7일 계획은 별도 서버 API나 DB를 추가하지 않고 브라우저 애플리케이션 로직에서 생성한다. `AcademicEvent`와 `Todo`는 분리하며, 현재 계획·완료 상태·대기/처리된 업데이트·개인화 프로필은 `catchup.planning.v1`에 저장한다. 실제 Google Calendar API는 이 단계 범위에 포함하지 않는다.
+최초 생성과 자동 업데이트는 동일한 `weekly-plan.schema.json`을 사용하되 모드별 지시와 잠금 범위를 다르게 전달한다.
+
+- `POST /api/weekly-plans/generate`: 최초 7일 계획 초안
+- `POST /api/weekly-plans/update`: 새 확정 AcademicEvent 또는 개인 일정에 직접 영향받는 미완료 Task의 최소 변경안
+- `POST /api/weekly-plans/adjust`: Fast Path로 확정할 수 없는 사용자 자연어 요청의 변경 명령
+
+생성·업데이트 요청에는 `mode`, `attempt`(1 또는 2), 정규화된 `input`, 첫 검증 실패 때의 `validationViolations`가 포함된다. 입력에는 계획 시작·종료·28일 참고 종료일, 확정 AcademicEvent와 Optional 추출 정보, 개인·반복 수업 일정, 기존 미완료·완료 Todo, `PlanningProfile`, 사용자 원문, 잠긴 Todo ID가 들어간다. 원본 파일 전체, 원본 근거 전문, OAuth 토큰, 계정 비밀은 전달하지 않는다. 과거 AcademicEvent는 28일 후보에서 제외하고 미완료 Todo는 별도 이월 후보로 전달한다.
+
+응답은 다음 구조를 갖는다.
+
+```json
+{
+  "interpretationSummary": "금요일 학습량을 줄입니다.",
+  "interpretedConstraints": {
+    "maxDailyMinutes": null,
+    "maxTasksByWeekday": [{ "weekday": 5, "maxTasks": 1 }],
+    "prohibitedWeekdays": [],
+    "lightStudyWeekdays": [5],
+    "preferredStudyWeekdaysByEventId": [],
+    "blockedTimeRanges": []
+  },
+  "tasks": [{
+    "clientTaskKey": "event-1-review-1",
+    "sourceAcademicEventId": "event-1",
+    "title": "시험 범위 복습하기",
+    "todoType": "exam-study",
+    "scheduledDate": "2026-08-22",
+    "startTime": "10:00",
+    "estimatedDurationMinutes": 90,
+    "priority": "high",
+    "taskPhase": "review",
+    "dependsOnClientTaskKey": null,
+    "carriedOverFromTodoId": null,
+    "recommendation": {
+      "needReasons": ["확정 시험 준비"],
+      "placementReasons": ["개인 일정과 겹치지 않는 시간"],
+      "priorityReasons": ["가까운 시험일"],
+      "durationReasons": ["시험 범위와 저장된 예상시간"],
+      "personalizationReasons": [],
+      "userRequestReasons": ["금요일 학습량 감소"]
+    }
+  }],
+  "warnings": [],
+  "questions": []
+}
+```
+
+모든 객체는 `additionalProperties: false`이며 날짜·시간·enum·양의 정수 소요시간을 Schema에서 제한한다. 모델은 `clientTaskKey`만 제안하고 WeeklyPlan/Todo ID와 저장 시각은 애플리케이션이 생성한다.
+
+### 조정 전용 Fast Path와 변경 명령
+
+AI Mate 조정은 먼저 브라우저 애플리케이션의 고신뢰 파서가 대상 Todo와 이동 날짜·요일, 마감 재분배, 분할, 증감, 우선순위, 일일·요일 한도, 금지·가벼운 요일 요청을 판정한다. 확실한 경우 Local Bridge나 Codex를 호출하지 않는다. 모호한 경우에만 계획 기간, 후보 Todo 요약, 관련 AcademicEvent, 완료·잠금 ID, 날짜별 학습량, 제목을 제거한 일정 시간 블록, 사용자 한도와 요청문을 `/api/weekly-plans/adjust`에 보낸다. 업로드 자료, 원본 출처, 무관한 미래 이벤트와 Optional 상세는 보내지 않는다.
+
+조정 응답은 전체 `tasks` 배열이 아니라 다음과 같은 `plan-adjustment.schema.json` 변경 명령이다.
+
+```json
+{
+  "interpretationSummary": "마감 전에 완료하도록 관련 작업을 재분배합니다.",
+  "operations": [{
+    "type": "rebalance_before_deadline",
+    "targetTodoIds": ["todo-123"],
+    "targetAcademicEventIds": ["event-123"],
+    "scheduledDate": null,
+    "weekday": null,
+    "minutes": null,
+    "taskCount": null
+  }],
+  "constraints": {
+    "maxDailyMinutes": null,
+    "maxTasksByWeekday": [],
+    "prohibitedWeekdays": [],
+    "preferredWeekdays": []
+  },
+  "warnings": [],
+  "questions": []
+}
+```
+
+모든 객체는 `additionalProperties: false`이고 operation type, ID, 날짜, 요일, 시간과 개수 범위를 서버와 애플리케이션이 다시 검사한다. 질문이 있으면 계획을 변경하지 않는다. 존재하지 않는 대상이나 해석 불가능한 명령만 검증 오류를 넣어 최대 한 번 재해석하며, 날짜 capacity나 일정 충돌처럼 코드가 판정할 문제는 모델을 재호출하지 않는다.
+
+## 절대 규칙과 재생성
+
+브라우저 애플리케이션은 Schema 통과 응답도 다시 검증한다. 실제 입력에 존재하는 확정 AcademicEvent인지, 날짜가 7일 범위와 원본 마감 이내인지, 현재 주 마감 작업량이 임의 축소되지 않았는지, dependency 순서와 일정 시간이 충돌하지 않는지, 금지 요일·일일 시간·요일별 개수 조건을 지키는지 확인한다. 업데이트에서는 완료 Todo와 영향받지 않은 Todo를 잠그고 diff를 계산한다.
+
+생성·업데이트 첫 초안이 실패하면 `{ violations: [{ code, taskKey, message }] }`에 해당하는 목록을 두 번째 요청에 전달한다. 재생성은 최대 한 번이다. 조정 명령도 자연어 재해석이 필요한 오류에 한해 최대 한 번만 재요청한다. 두 번째 결과도 실패하거나 모델 실행, 타임아웃, JSON 파싱, Schema, 참조 무결성 오류가 발생하면 부분 저장하지 않고 기존 계획과 pending 업데이트를 유지한다. 실질적인 diff가 없으면 `no-change`이며 일일 조정 횟수를 차감하지 않는다.
+
+Local Bridge와 클라이언트의 조정 진단 로그에는 `operationId`, mode, attempt, 단계, 프롬프트 문자·바이트 수, Codex 시작·종료 및 실행시간, JSON 파싱시간, 명령 실행시간, 규칙 검증시간, 재시도·Fast Path 여부, 전체 응답시간과 결과 코드만 기록한다. 요청 원문, 학업자료, 개인정보, 캘린더 제목과 인증 정보는 로그 필드 whitelist에서 제외한다.
+
+현재 계획·완료 상태·대기/처리 업데이트·개인화 프로필은 `catchup.planning.v1`에 저장한다. 실제 Google Calendar OAuth/API 연동은 구현하지 않았고 CatchUp 직접 입력 및 익명 샘플 일정만 사용한다.
+
+## 실행과 테스트
+
+Node.js, pnpm, 로그인된 Codex CLI가 필요하다. OpenAI API Key는 필요하지 않다. `pnpm dev`로 Vite와 Local Bridge를 함께 실행하고 `pnpm typecheck`, `pnpm test`, `pnpm build`로 검증한다. 테스트에서는 모델 실행기 인터페이스에 Fake/Stub을 주입하며 외부 모델을 호출하지 않는다. `CATCHUP_BRIDGE_PORT`는 기본값 `4318`을 바꿀 때만 선택적으로 사용한다. 조정 명령 전용 모델은 설치된 Codex CLI가 공식 지원하는 `--model` 옵션을 통해 `CATCHUP_CODEX_ADJUST_MODEL`로 선택하며, 값이 없으면 CLI 기본 모델을 사용한다.

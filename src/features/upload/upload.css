@@ -159,6 +159,14 @@
 .extraction-review-page .extraction-item__fields,
 .extraction-review-page .field-row,
 .extraction-review-page .field-row > label { min-width: 0; }
+.extraction-item__fields .all-day-toggle {
+  display: inline-flex; width: fit-content; align-items: center; gap: 8px;
+  color: #4f4c59; font-size: 13px; font-weight: 650;
+}
+.extraction-item__fields .all-day-toggle input {
+  width: 16px; min-height: 16px; height: 16px; padding: 0;
+  border-radius: 4px; accent-color: var(--color-purple);
+}
 .source-reference-list { min-width: 0; padding-top: 6px; }
 .source-reference-list h3 { margin: 0 0 9px; font-size: 14px; }
 .source-reference-list article { min-width: 0; padding: 11px 12px; overflow: hidden; border-radius: 10px; background: #f7f4fc; }

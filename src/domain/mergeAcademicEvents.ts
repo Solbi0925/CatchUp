@@ -60,6 +60,7 @@ export function mergeAcademicEvent(
     courseCode: preferIncoming(incoming.courseCode, existing.courseCode),
     date: preferIncoming(incoming.date, existing.date),
     time: preferIncoming(incoming.time, existing.time),
+    isAllDay: incoming.isAllDay ?? existing.isAllDay ?? false,
     scheduledWeek: preferIncoming(incoming.scheduledWeek, existing.scheduledWeek),
     scheduledWeekLabel: preferIncoming(incoming.scheduledWeekLabel, existing.scheduledWeekLabel),
     weekOneStartDate: preferIncoming(incoming.weekOneStartDate, existing.weekOneStartDate),

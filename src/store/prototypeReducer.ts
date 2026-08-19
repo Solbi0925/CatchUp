@@ -29,7 +29,7 @@ type EditableCalendarEventFields = Pick<
   CalendarEvent,
   "title" | "date" | "startTime" | "endTime" | "isAllDay" | "eventType"
 >;
-type EditableExtractedItemFields = Pick<ExtractedItem, "title" | "date" | "time">;
+type EditableExtractedItemFields = Pick<ExtractedItem, "title" | "date" | "time"> & { isAllDay?: boolean };
 type ImmutableCalendarEventFields = {
   [Field in keyof Pick<CalendarEvent, "userId" | "source" | "updatedAt">]?: never;
 };
@@ -361,6 +361,7 @@ export function prototypeReducer(
         ...editableFields,
         ...assessed,
         dateCertainty: editableFields.date ? "exact-date" as const : item.scheduledWeek ? "academic-week" as const : "unknown" as const,
+        isAllDay: editableFields.isAllDay ?? item.isAllDay ?? false,
         revision: item.revision + 1,
         updateNoticeStatus: "reviewed" as const,
         updatedAt: demoInteractionClock.now().toISOString(),

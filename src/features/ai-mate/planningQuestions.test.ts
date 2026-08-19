@@ -1,9 +1,26 @@
 import { describe, expect, it } from "vitest";
 import { academicEventFixture } from "../../test/academicEventFixture";
 import { emptyPlanningProfile } from "../../store/planningStorage";
-import { selectNextPlanningQuestion, selectWeekMappingQuestion } from "./AiMateProvider";
+import { parseMaxDailyStudyMinutes, selectGenerationPlanningQuestion, selectNextPlanningQuestion } from "./AiMateProvider";
 
 describe("planning personalization question priority", () => {
+  it("asks for and then reuses the user's realistic maximum daily study time", () => {
+    const question = selectGenerationPlanningQuestion([], emptyPlanningProfile);
+    expect(question?.kind).toBe("max-daily-study");
+    expect(question?.chips.map((chip) => chip.label)).toEqual(["2-4시간", "4-6시간", "6-8시간", "그 이상"]);
+    expect(selectGenerationPlanningQuestion([], { ...emptyPlanningProfile, maxDailyStudyMinutes: 240 })).toBeNull();
+  });
+
+  it.each([
+    ["2-4시간", 180],
+    ["4~6시간", 300],
+    ["6–8시간", 420],
+    ["8시간 이상", 540],
+    ["최대 6시간", 360],
+    ["150분", 150],
+  ])("converts %s to a deterministic daily study limit", (answer, expected) => {
+    expect(parseMaxDailyStudyMinutes(answer)).toBe(expected);
+  });
   it("does not ask planning questions for an unconfirmed week-only event", () => {
     const event = academicEventFixture({
       date: null, scheduledWeek: 8, weekOneStartDate: null, reviewStatus: "confirmed",
@@ -12,15 +29,14 @@ describe("planning personalization question priority", () => {
     expect(selectNextPlanningQuestion([event], emptyPlanningProfile)).toBeNull();
   });
 
-  it("asks only for the semester start needed to place a week-only event on Today and Month", () => {
+  it("does not ask for missing dates while generating a plan", () => {
     const event = academicEventFixture({
       date: null, scheduledWeek: 8, weekOneStartDate: null, reviewStatus: "confirmed",
       confirmationStatus: "unconfirmed",
     });
-    expect(selectWeekMappingQuestion([event], emptyPlanningProfile)?.kind).toBe("semester-start");
-    expect(selectWeekMappingQuestion([event], {
+    expect(selectGenerationPlanningQuestion([event], {
       ...emptyPlanningProfile,
-      semesterWeekOneStartDate: "2026-08-31",
+      maxDailyStudyMinutes: 240,
     })).toBeNull();
   });
 

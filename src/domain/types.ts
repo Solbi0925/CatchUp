@@ -92,6 +92,8 @@ export interface ExtractedItem {
   courseCode: string | null;
   date: string | null;
   time: string | null;
+  /** True only when the source or user explicitly says the event occupies the whole day. */
+  isAllDay?: boolean;
   /** Calendar precision is independent from whether the event is plan-ready. */
   dateCertainty: AcademicEventDateCertainty;
   /** Source-stated academic week, kept separately from an exact calendar date. */
@@ -151,6 +153,8 @@ export interface WeeklyPlan {
   generationRequest: string;
   referenceWindowEndDate: string;
   summary: string;
+  interpretationSummary?: string;
+  interpretedConstraints?: InterpretedPlanConstraints;
   /** Academic-event versions reflected by the latest generation/update. */
   academicEventSnapshot?: Record<ExtractedItemId, string>;
   lastAdjustedAt?: string;
@@ -168,6 +172,8 @@ export interface PlanningProfile {
   pace: PlanningPace | null;
   preparationByEventId: Record<ExtractedItemId, PreparationLevel>;
   examGoalByEventId: Record<ExtractedItemId, ExamGoal>;
+  /** Upper bound for WeeklyPlanTask time. Scheduled events are not included in this number. */
+  maxDailyStudyMinutes?: number | null;
 }
 
 export interface Todo {
@@ -175,6 +181,8 @@ export interface Todo {
   weeklyPlanId: WeeklyPlanId;
   sourceExtractedItemId: ExtractedItemId;
   scheduledDate: string;
+  /** Optional AI-proposed study start. Used for deterministic schedule-overlap validation. */
+  startTime?: string | null;
   title: string;
   todoType: "assignment-work" | "exam-study" | "class-prep" | "review";
   courseName: string;
@@ -185,7 +193,22 @@ export interface Todo {
   /** Source-backed and personalized inputs used for this estimate. */
   durationRationale: string[];
   carriedOverFromTodoId: TodoId | null;
+  /** Optional deterministic scheduling phase for tasks that form one event workflow. */
+  taskPhase?: "prepare" | "research" | "draft" | "work" | "review" | "finalize";
+  /** A predecessor in the same AcademicEvent workflow. */
+  dependsOnTodoId?: TodoId | null;
   recommendationDetails?: RecommendationReason;
+  /** User-added calendar task that is displayed but excluded from AI planning and adjustment. */
+  planningParticipation?: "managed" | "calendar-only";
+}
+
+export interface InterpretedPlanConstraints {
+  maxDailyMinutes: number | null;
+  maxTasksByWeekday: Array<{ weekday: number; maxTasks: number }>;
+  prohibitedWeekdays: number[];
+  lightStudyWeekdays: number[];
+  preferredStudyWeekdaysByEventId: Array<{ sourceAcademicEventId: ExtractedItemId; weekdays: number[] }>;
+  blockedTimeRanges: Array<{ weekday: number; startTime: string; endTime: string }>;
 }
 
 export interface RecommendationReason {

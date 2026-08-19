@@ -13,6 +13,7 @@ export interface MonthScheduleItem {
   rangeEndDate?: string;
   startTime: string | null;
   endTime: string | null;
+  isAllDay: boolean;
   source: "upload" | "google" | "catchup";
   categoryKey: string;
   courseName?: string;
@@ -45,6 +46,7 @@ export function buildMonthSchedules(
       rangeEndDate: range.endDate,
       startTime: null,
       endTime: null,
+      isAllDay: false,
       source: "upload" as const,
       categoryKey: getCourseCategoryKey(item.courseName),
       courseName: item.courseName,
@@ -63,6 +65,7 @@ export function buildMonthSchedules(
         date: item.date,
         startTime: item.time,
         endTime: null,
+        isAllDay: item.isAllDay === true,
         source: "upload" as const,
         categoryKey: getCourseCategoryKey(item.courseName),
         courseName: item.courseName,
@@ -78,6 +81,7 @@ export function buildMonthSchedules(
       date: event.date,
       startTime: event.startTime,
       endTime: event.endTime,
+      isAllDay: event.isAllDay,
       source: event.source === "catchup" ? ("catchup" as const) : ("google" as const),
       categoryKey: event.eventType === "personal" ? PERSONAL_CATEGORY_KEY : getCourseCategoryKey(event.title),
       eventType: event.eventType,

@@ -19,6 +19,7 @@ export const emptyPlanningProfile: PlanningProfile = {
   pace: null,
   preparationByEventId: {},
   examGoalByEventId: {},
+  maxDailyStudyMinutes: null,
 };
 
 export function readPlanningState(): StoredPlanningState {
@@ -29,7 +30,8 @@ export function readPlanningState(): StoredPlanningState {
       weeklyPlans: Array.isArray(parsed.weeklyPlans) ? parsed.weeklyPlans : [],
       todos: Array.isArray(parsed.todos) ? parsed.todos.map((todo) => ({
         ...todo,
-        durationRationale: todo.durationRationale ?? [],
+        estimatedDurationMinutes: todo.planningParticipation === "calendar-only" ? 0 : todo.estimatedDurationMinutes,
+        durationRationale: todo.planningParticipation === "calendar-only" ? [] : todo.durationRationale ?? [],
         carriedOverFromTodoId: todo.carriedOverFromTodoId ?? null,
         recommendationDetails: todo.recommendationDetails ? {
           relatedAcademicEventId: todo.recommendationDetails.relatedAcademicEventId ?? todo.sourceExtractedItemId,

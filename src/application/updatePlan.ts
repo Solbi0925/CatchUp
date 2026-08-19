@@ -1,6 +1,6 @@
-import { generateMockWeeklyPlan } from "./mockPlanEngine";
+import { generateMockWeeklyPlan, scheduleAcademicEventTodos } from "./mockPlanEngine";
 import type { AdjustmentResult, ExtractedItem, GeneratePlanCommand, PlanDiff, Todo, WeeklyPlan } from "../domain/types";
-import { parsePlanConstraints, validatePlanConstraints } from "./planConstraints";
+import { effectiveDailyStudyCapacity, parsePlanConstraints, scheduledMinutesByDate, validatePlanConstraints } from "./planConstraints";
 
 interface UpdatePlanInput {
   command: GeneratePlanCommand;
@@ -39,7 +39,9 @@ function updateReasonText(input: UpdatePlanInput, before: Todo[], after: Todo[],
   ].slice(0, 3);
   const remainder = Math.max(0, diff.changedTaskIds.length - details.length);
   const changeSummary = details.length ? `${details.join(", ")}${remainder ? ` 외 ${remainder}개` : ""}` : "현재 계획을 다시 확인";
-  return `${source} 반영해 ${changeSummary}했어요. 마감일과 남은 7일 학습량을 기준으로 조정했어요. 원하지 않으면 취소할 수 있어요!`;
+  const evidence = diff.addedTaskIds.concat(diff.movedTasks.map((item) => item.taskId))
+    .flatMap((id) => afterById.get(id)?.recommendationDetails?.placementReasons ?? []).slice(0, 2);
+  return `${source} 반영해 ${changeSummary}했어요.${evidence.length ? ` ${evidence.join("; ")}.` : ""} 원하지 않으면 취소할 수 있어요!`;
 }
 
 function isTinyClassScheduleChange(input: UpdatePlanInput) {
@@ -56,65 +58,78 @@ export function updateMockPlan(input: UpdatePlanInput): AdjustmentResult {
     return { operationId: input.command.operationId, todos: input.todos, changed: false, changedTodoIds: [], planDiff: buildDiff(input, input.todos, input.todos), assistantMessage: { id: `assistant-${input.command.operationId}`, role: "assistant", createdAt: input.command.requestedAt, status: "sent", intent: "update-plan", operationId: input.command.operationId, text: "수업 시간의 작은 변경은 기존 학습 계획에 실질적인 영향을 주지 않아 계획을 그대로 유지했어요." } };
   }
   if (!input.affectedAcademicEventIds.length) {
-    const busyDates = new Set(input.command.calendarEvents.map((event) => event.date));
-    input.command.extractedItems.filter((item) => item.itemType === "class-schedule").forEach((item) => item.classMeetingTimes.forEach((meeting) => {
-      for (let index = 0; index < 7; index += 1) {
-        const date = addDays(input.weeklyPlan.weekStartDate, index);
-        if (new Date(`${date}T00:00:00Z`).getUTCDay() === meeting.weekday) busyDates.add(date);
-      }
-    }));
+    const constraints = parsePlanConstraints(input.weeklyPlan.generationRequest);
     const loads = new Map<string, number>();
     input.todos.filter((todo) => !todo.isCompleted).forEach((todo) => loads.set(todo.scheduledDate, (loads.get(todo.scheduledDate) ?? 0) + todo.estimatedDurationMinutes));
+    const scheduledLoads = scheduledMinutesByDate(input.weeklyPlan, input.command.calendarEvents, input.command.extractedItems);
+    const countOn = (date: string) => input.todos.filter((todo) => !todo.isCompleted && todo.scheduledDate === date).length;
+    const byId = new Map(input.todos.map((todo) => [todo.id, todo]));
     const moved: Todo[] = [];
     const todos = input.todos.map((todo) => {
-      if (todo.isCompleted || !busyDates.has(todo.scheduledDate)) return todo;
+      const currentCapacity = effectiveDailyStudyCapacity(todo.scheduledDate, constraints, scheduledLoads, input.command.planningProfile.maxDailyStudyMinutes ?? 240);
+      if (todo.isCompleted || (loads.get(todo.scheduledDate) ?? 0) <= currentCapacity) return todo;
       const source = input.command.extractedItems.find((item) => item.id === todo.sourceExtractedItemId);
+      const predecessor = todo.dependsOnTodoId ? byId.get(todo.dependsOnTodoId) : undefined;
+      const successor = input.todos.find((candidate) => candidate.dependsOnTodoId === todo.id);
       const candidates = Array.from({ length: 7 }, (_, index) => addDays(input.weeklyPlan.weekStartDate, index))
-        .filter((date) => date !== todo.scheduledDate && !busyDates.has(date) && (!source?.date || date <= source.date))
-        .sort((left, right) => (loads.get(left) ?? 0) - (loads.get(right) ?? 0));
+        .filter((date) => {
+          const weekday = new Date(`${date}T00:00:00Z`).getUTCDay();
+          const maximum = constraints.maxTasksByWeekday[weekday];
+          return date !== todo.scheduledDate && (!source?.date || date < source.date)
+            && (!predecessor || date > predecessor.scheduledDate) && (!successor || date < successor.scheduledDate)
+            && !constraints.prohibitedWeekdays.includes(weekday) && (maximum === undefined || countOn(date) < maximum)
+            && (loads.get(date) ?? 0) + todo.estimatedDurationMinutes <= effectiveDailyStudyCapacity(date, constraints, scheduledLoads, input.command.planningProfile.maxDailyStudyMinutes ?? 240);
+        })
+        .sort((left, right) => {
+          const leftWeekday = new Date(`${left}T00:00:00Z`).getUTCDay(); const rightWeekday = new Date(`${right}T00:00:00Z`).getUTCDay();
+          return Number(!constraints.preferredWeekdays.includes(leftWeekday)) - Number(!constraints.preferredWeekdays.includes(rightWeekday))
+            || ((loads.get(left) ?? 0) + (scheduledLoads.get(left) ?? 0)) - ((loads.get(right) ?? 0) + (scheduledLoads.get(right) ?? 0)) || left.localeCompare(right);
+        });
       const destination = candidates[0];
       if (!destination) return todo;
+      loads.set(todo.scheduledDate, Math.max(0, (loads.get(todo.scheduledDate) ?? 0) - todo.estimatedDurationMinutes));
+      loads.set(destination, (loads.get(destination) ?? 0) + todo.estimatedDurationMinutes);
       const next = { ...todo, scheduledDate: destination, recommendationReason: `새 개인 일정과 겹치지 않도록 ${destination}로 이동했어요.`, recommendationDetails: todo.recommendationDetails ? { ...todo.recommendationDetails, placementReasons: [`새 개인 일정과 겹치지 않도록 ${destination}로 이동함`] } : undefined };
       moved.push(next);
       return next;
     });
     const changed = moved.length > 0;
     const finalTodos = changed ? todos : input.todos; const diff = buildDiff(input, input.todos, finalTodos);
-    const validation = validatePlanConstraints(finalTodos, parsePlanConstraints(input.weeklyPlan.generationRequest), input.weeklyPlan, input.command.extractedItems, input.todos);
+    const validation = validatePlanConstraints(finalTodos, constraints, input.weeklyPlan, input.command.extractedItems, input.todos, undefined, input.command.calendarEvents, input.command.planningProfile.maxDailyStudyMinutes ?? 240);
     if (!validation.ok) return { operationId: input.command.operationId, todos: input.todos, changed: false, changedTodoIds: [], planDiff: buildDiff(input, input.todos, input.todos), assistantMessage: { id: `assistant-${input.command.operationId}`, role: "assistant", createdAt: input.command.requestedAt, status: "sent", intent: "update-plan", operationId: input.command.operationId, text: `기존 계획 조건을 지키지 못해 자동 업데이트를 적용하지 않았어요. ${validation.violations.join(", ")}` } };
     const text = changed ? updateReasonText(input, input.todos, finalTodos, diff) : "새 일정을 확인했지만 현재 주간계획과 충돌하지 않아 계획은 바꾸지 않았어요.";
     return { operationId: input.command.operationId, todos: finalTodos, changed, changedTodoIds: diff.changedTaskIds, planDiff: diff, assistantMessage: { id: `assistant-${input.command.operationId}`, role: "assistant", createdAt: input.command.requestedAt, status: "sent", intent: "update-plan", operationId: input.command.operationId, text } };
   }
   const affected = new Set(input.affectedAcademicEventIds);
-  const generated = generateMockWeeklyPlan({ ...input.command, existingWeeklyPlan: null });
   const completed = input.todos.filter((todo) => todo.isCompleted);
   const retained = input.todos.filter((todo) => !todo.isCompleted && !affected.has(todo.sourceExtractedItemId));
   const completedKeys = new Set(completed.map((todo) => `${todo.sourceExtractedItemId}:${todo.title}`));
   const previousPending = input.todos.filter((todo) => !todo.isCompleted && affected.has(todo.sourceExtractedItemId));
-  const generatedAffected = generated.todos
-    .filter((todo) => affected.has(todo.sourceExtractedItemId) && !completedKeys.has(`${todo.sourceExtractedItemId}:${todo.title}`));
+  const affectedItems = input.command.extractedItems.filter((item) => affected.has(item.id) && item.itemType !== "class-schedule" && item.confirmationStatus === "confirmed" && item.date);
+  const generated = scheduleAcademicEventTodos(input.command, affectedItems, input.weeklyPlan, input.weeklyPlan.id, retained, completed);
+  const generatedAffected = generated.todos.filter((todo) => !completedKeys.has(`${todo.sourceExtractedItemId}:${todo.title}`));
   const previousByEvent = new Map<string, Todo[]>(); previousPending.forEach((todo) => previousByEvent.set(todo.sourceExtractedItemId, [...(previousByEvent.get(todo.sourceExtractedItemId) ?? []), todo]));
   const generatedIndexByEvent = new Map<string, number>();
+  const generatedToRefreshedId = new Map<string, string>();
   const refreshed = generatedAffected.map((todo) => {
     const index = generatedIndexByEvent.get(todo.sourceExtractedItemId) ?? 0; generatedIndexByEvent.set(todo.sourceExtractedItemId, index + 1);
     const existing = previousByEvent.get(todo.sourceExtractedItemId)?.[index];
+    const id = existing?.id ?? `updated-${input.command.operationId}-${todo.sourceExtractedItemId}-${todo.id.split("-").pop()}`;
+    generatedToRefreshedId.set(todo.id, id);
     return ({
       ...todo,
-      id: existing?.id ?? `updated-${input.command.operationId}-${todo.sourceExtractedItemId}-${todo.id.split("-").pop()}`,
+      id,
       weeklyPlanId: input.weeklyPlan.id,
-      recommendationReason: "새롭게 확인된 학업 정보를 반영해 남은 계획을 다시 배치했어요.",
-      recommendationDetails: todo.recommendationDetails ? {
-        ...todo.recommendationDetails,
-        placementReasons: ["새롭게 확인된 학업 정보를 반영해 남은 계획을 다시 배치함"],
-      } : undefined,
     });
-  });
+  }).map((todo) => ({ ...todo, dependsOnTodoId: todo.dependsOnTodoId ? generatedToRefreshedId.get(todo.dependsOnTodoId) ?? todo.dependsOnTodoId : null }));
   const todos = [...completed, ...retained, ...refreshed];
   const before = JSON.stringify(previousPending.map(({ id: _id, ...todo }) => todo));
   const after = JSON.stringify(refreshed.map(({ id: _id, ...todo }) => todo));
   const changed = before !== after;
   const finalTodos = changed ? todos : input.todos;
-  const validation = validatePlanConstraints(finalTodos, parsePlanConstraints(input.weeklyPlan.generationRequest), input.weeklyPlan, input.command.extractedItems, input.todos, affected);
+  const validation = generated.violations.length
+    ? { ok: false, violations: generated.violations }
+    : validatePlanConstraints(finalTodos, parsePlanConstraints(input.weeklyPlan.generationRequest), input.weeklyPlan, input.command.extractedItems, input.todos, affected, input.command.calendarEvents, input.command.planningProfile.maxDailyStudyMinutes ?? 240);
   if (!validation.ok) return { operationId: input.command.operationId, todos: input.todos, changed: false, changedTodoIds: [], planDiff: buildDiff(input, input.todos, input.todos), assistantMessage: { id: `assistant-${input.command.operationId}`, role: "assistant", createdAt: input.command.requestedAt, status: "sent", intent: "update-plan", operationId: input.command.operationId, text: `기존 계획 조건을 지키지 못해 자동 업데이트를 적용하지 않았어요. ${validation.violations.join(", ")}` } };
   const diff = buildDiff(input, input.todos, finalTodos);
   const text = changed ? updateReasonText(input, input.todos, finalTodos, diff) : "새 정보를 확인했지만 현재 주간계획에서 바꿀 부분은 없었어요.";

@@ -25,6 +25,7 @@ function migrateAcademicEvent(item: ExtractedItem): ExtractedItem {
     scheduledWeekLabel: item.scheduledWeekLabel ?? null,
     weekOneStartDate: item.weekOneStartDate ?? null,
     classMeetingTimes: item.classMeetingTimes ?? [],
+    isAllDay: item.isAllDay ?? false,
     dateCertainty: item.dateCertainty ?? (item.date ? "exact-date" : item.scheduledWeek ? "academic-week" : "unknown"),
     confirmationStatus: item.confirmationStatus ?? "unconfirmed",
     confirmationIssues: item.confirmationIssues ?? [],

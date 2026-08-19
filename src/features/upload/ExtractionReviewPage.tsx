@@ -22,6 +22,56 @@ function eventTimingLabel(item: ExtractedItem) {
   return "날짜 확인 필요";
 }
 
+const dayInMilliseconds = 24 * 60 * 60 * 1_000;
+
+function validIsoDate(value: string | null | undefined): value is string {
+  return Boolean(value && /^\d{4}-\d{2}-\d{2}$/.test(value));
+}
+
+function sourceWeek(item: ExtractedItem) {
+  if (item.scheduledWeek !== null) return item.scheduledWeek;
+  const match = item.scheduledWeekLabel?.match(/\d+/);
+  return match ? Number(match[0]) : null;
+}
+
+function courseWeekOneStart(items: ExtractedItem[], fallback: string | null) {
+  const counts = new Map<string, number>();
+  items.forEach((item) => {
+    if (validIsoDate(item.weekOneStartDate)) {
+      counts.set(item.weekOneStartDate, (counts.get(item.weekOneStartDate) ?? 0) + 1);
+    }
+  });
+  return [...counts.entries()].sort(([leftDate, leftCount], [rightDate, rightCount]) =>
+    rightCount - leftCount || leftDate.localeCompare(rightDate))[0]?.[0]
+    ?? (validIsoDate(fallback) ? fallback : null);
+}
+
+function reviewOrderKey(item: ExtractedItem, weekOneStart: string | null) {
+  const week = sourceWeek(item);
+  if (item.date && weekOneStart && validIsoDate(item.date)) {
+    const position = (Date.parse(`${item.date}T00:00:00Z`) - Date.parse(`${weekOneStart}T00:00:00Z`)) / dayInMilliseconds;
+    return { group: 0, position, kind: 1, date: item.date };
+  }
+  if (week !== null) {
+    return { group: 0, position: (week - 1) * 7, kind: item.date ? 1 : 0, date: item.date ?? "" };
+  }
+  if (item.date) return { group: 1, position: 0, kind: 0, date: item.date };
+  return { group: 2, position: 0, kind: 0, date: "" };
+}
+
+export function sortAcademicEventsForReview(items: ExtractedItem[], semesterWeekOneStartDate: string | null) {
+  const weekOneStart = courseWeekOneStart(items, semesterWeekOneStartDate);
+  return [...items].sort((left, right) => {
+    const leftKey = reviewOrderKey(left, weekOneStart);
+    const rightKey = reviewOrderKey(right, weekOneStart);
+    return leftKey.group - rightKey.group
+      || leftKey.position - rightKey.position
+      || leftKey.kind - rightKey.kind
+      || leftKey.date.localeCompare(rightKey.date)
+      || left.title.localeCompare(right.title, "ko");
+  });
+}
+
 export function ExtractionReviewPage() {
   const navigate = useNavigate();
   const { state, dispatch } = usePrototypeStore();
@@ -38,13 +88,10 @@ export function ExtractionReviewPage() {
       const unread = (course: string) => draft.some((item) => (item.courseName || "과목 확인 필요") === course && item.updateNoticeStatus === "unread");
       return Number(unread(right)) - Number(unread(left)) || left.localeCompare(right, "ko");
     }), [draft]);
-  const visibleItems = useMemo(() => draft
-    .filter((item) => (item.courseName || "과목 확인 필요") === selectedCourse)
-    .sort((left, right) => {
-      const precision = (item: ExtractedItem) => item.date ? 0 : item.scheduledWeek !== null ? 1 : 2;
-      return precision(left) - precision(right)
-        || (left.date ?? String(left.scheduledWeek ?? 999)).localeCompare(right.date ?? String(right.scheduledWeek ?? 999));
-    }), [draft, selectedCourse]);
+  const visibleItems = useMemo(() => sortAcademicEventsForReview(
+    draft.filter((item) => (item.courseName || "과목 확인 필요") === selectedCourse),
+    state.planningProfile.semesterWeekOneStartDate,
+  ), [draft, selectedCourse, state.planningProfile.semesterWeekOneStartDate]);
 
   function updateItem(id: string, patch: Partial<ExtractedItem>) {
     setDraft((current) => current.map((item) => {

@@ -88,6 +88,15 @@ describe("Today screen", () => {
     expect(screen.getByRole("button", { name: "요구사항 미정 과제 일정 수정" })).toHaveTextContent("미확정 학업 일정");
   });
 
+  it("labels an exact-date AcademicEvent without a time as 시간 없음", () => {
+    localStorage.setItem("catchup.academic-events.v2", JSON.stringify([academicEventFixture({
+      id: "time-unknown", title: "시간 미정 시험", itemType: "exam", date: "2026-07-20", time: null,
+      examScope: "1~4주차", confirmationStatus: "confirmed", reviewStatus: "confirmed",
+    })]));
+    render(<App initialEntries={["/today"]} />);
+    expect(screen.getByRole("button", { name: "시간 미정 시험 일정 수정" })).toHaveTextContent("시간 없음");
+  });
+
   it("reuses the detailed AcademicEvent editor and persists its fields from Today", async () => {
     localStorage.setItem("catchup.academic-events.v2", JSON.stringify([academicEventFixture({ id: "today-edit", title: "요구사항 미정 과제", date: "2026-07-20", requirements: null, workload: null, submissionMethod: null, confirmationStatus: "unconfirmed", confirmationIssues: ["missing-details"], reviewStatus: "needs-review" })]));
     render(<App initialEntries={["/today"]} />);

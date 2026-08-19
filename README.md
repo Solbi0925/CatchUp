@@ -60,6 +60,7 @@ Google Calendar를 사용하는 대학생의 강의계획서, LMS 공지, 과제
 - `IA.md`: 정보 구조 문서
 - `USER_FLOW.md`: 사용자 흐름 문서
 - `SCREEN_SPEC.md`: 화면 상세 명세 문서
+- `USER_TEST_SCENARIOS.md`: 팀원이 학생 역할로 직접 따라 해보는 최신 서비스 행동 시나리오
 - `FIRST_DESIGN.md`: 브랜드 인트로 화면 디자인·구현 명세
 - `ONBOARDING_DESIGN.md`: Google Calendar 연동 화면 디자인·구현 명세
 
@@ -77,7 +78,7 @@ Node.js, pnpm, 로그인된 `codex` CLI가 필요하다. OpenAI API Key는 사�
 pnpm dev
 ```
 
-`pnpm dev`는 Vite 화면 서버와 Local Bridge를 함께 실행한다. 따로 실행해야 할 때만 `pnpm dev:frontend`와 `pnpm dev:bridge`를 각각 사용한다. Bridge 상태는 `http://127.0.0.1:4318/health`에서 확인한다. Frontend 프록시와 Bridge는 기본 포트 `4318`을 함께 사용한다.
+`pnpm dev`는 Vite 화면 서버와 Local Bridge를 함께 실행한다. 개발 중 서버 코드가 바뀌면 Bridge도 watch 모드로 자동 재시작된다. 따로 실행해야 할 때만 `pnpm dev:frontend`와 `pnpm dev:bridge`를 각각 사용한다. Bridge 상태는 `http://127.0.0.1:4318/health`에서 확인한다. Frontend 프록시와 Bridge는 기본 포트 `4318`을 함께 사용한다.
 
 ```bash
 pnpm typecheck
@@ -86,3 +87,13 @@ pnpm build
 ```
 
 업로드 파일은 OS 임시 디렉터리에서 처리 후 삭제되며, 구조화된 확정·미확정 학업 이벤트와 원본 출처 정보만 브라우저 Local Storage에 저장된다. 이후 자료 분석 시 기존 미확정 이벤트를 함께 비교해 동일 이벤트의 부족한 정보를 보완한다.
+
+## AI 주간계획 구조
+
+최초 생성과 자동 업데이트는 `Vite -> Local Bridge -> codex exec -> weekly-plan JSON Schema -> 애플리케이션 절대 규칙 검증` 흐름을 사용한다. AI Mate의 사용자 조정은 더 작은 전용 흐름을 사용한다. 날짜 이동, 마감 전 재분배, 분할, 시간·요일 한도처럼 대상과 조건이 명확한 요청은 Fast Path가 Codex 호출 없이 처리한다. 모호하거나 복합적인 요청만 Local Bridge가 Codex로 보내며, Codex는 전체 계획이 아니라 `plan-adjustment.schema.json`의 변경 명령만 반환한다. 실제 날짜 배치와 최소 diff 적용은 애플리케이션이 수행한다.
+
+두 조정 경로 모두 확정 이벤트 참조, 7일 범위, 마감, 개인·수업 일정 충돌, 일일 capacity, 요일별 개수, 금지 요일, dependency, 완료 항목과 관련 없는 항목 보존을 검사한 뒤에만 Local Storage에 저장한다. 코드로 해결할 수 없는 충돌은 모델을 다시 부르지 않고 기존 계획을 유지한다. 존재하지 않는 대상이나 해석 불가능한 명령처럼 자연어 재해석이 필요한 경우에만 최대 한 번 재요청한다. 성공한 실제 변경만 하루 10회 한도에 반영하며 실패와 `no-change`는 차감하지 않는다.
+
+최초 생성·자동 업데이트의 첫 초안이 실패하면 구조화된 위반 목록을 포함해 한 번만 재생성한다. 두 번째 초안도 실패하거나 모델 실행·타임아웃·JSON 오류가 발생하면 기존 계획과 pending 업데이트를 유지한다. 테스트에서는 외부 모델을 호출하지 않고 모델 실행기 인터페이스에 Fake/Stub을 주입한다.
+
+필수 환경 변수는 없다. Bridge 포트를 바꿀 때만 `CATCHUP_BRIDGE_PORT`를 설정한다. 조정 명령에만 다른 Codex 모델을 사용하려면 `CATCHUP_CODEX_ADJUST_MODEL`을 선택적으로 설정한다. 값이 없으면 로그인된 Codex CLI의 기본 모델을 사용하며, 설치된 CLI가 지원하지 않는 모델이면 계획을 바꾸지 않고 명확한 실행 오류를 표시한다. 별도 reasoning 설정은 추측해 추가하지 않았다. Codex CLI 로그인 상태는 `codex login status`로 확인할 수 있고 OpenAI API Key나 외부 AI SDK는 사용하지 않는다. Google Calendar 화면과 샘플 일정은 MVP 프로토타입이며 실제 Google Calendar OAuth/API 연동은 아직 구현하지 않았다. 세부 요청·응답과 검증 정책은 `API_SPEC.md`를 참고한다.

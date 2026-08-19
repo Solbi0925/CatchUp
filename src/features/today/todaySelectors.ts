@@ -87,7 +87,7 @@ export function selectTodayViewModel(
         id: item.id,
         extractedItemId: item.id,
         title: item.title,
-        timeLabel: item.time ?? "종일",
+        timeLabel: item.isAllDay ? "종일" : item.time ?? "시간 없음",
         type: academicScheduleType(item),
         sourceLabel: "업로드 자료" as const,
         categoryKey: getCourseCategoryKey(item.courseName),
@@ -119,7 +119,7 @@ export function selectTodayViewModel(
         isProvisional: false,
       }))),
   ].sort((left, right) => {
-    const rank = (item: TodayScheduleViewModel) => item.isProvisional ? 2 : item.timeLabel === "종일" ? 1 : 0;
+    const rank = (item: TodayScheduleViewModel) => item.isProvisional ? 3 : item.timeLabel === "시간 없음" ? 2 : item.timeLabel === "종일" ? 1 : 0;
     return rank(left) - rank(right) || left.timeLabel.localeCompare(right.timeLabel, "ko");
   });
 
@@ -149,7 +149,7 @@ export function selectTodayViewModel(
           id: todo.id,
           title: todo.title,
           courseOrSource: todo.courseName,
-          estimatedMinutes: todo.estimatedDurationMinutes,
+          estimatedMinutes: todo.planningParticipation === "calendar-only" ? 0 : todo.estimatedDurationMinutes,
           priority: todo.priority,
           completed: todo.isCompleted,
           dueAt: source?.date ?? null,

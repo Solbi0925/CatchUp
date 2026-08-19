@@ -80,6 +80,7 @@ export function AiMateLayer({ showCoachmark }: { showCoachmark: boolean }) {
     promptChips,
     selectPromptChip,
     isResponding,
+    responseStage,
     adjustmentRemaining,
     sendMessage,
     retryFailed,
@@ -207,7 +208,7 @@ export function AiMateLayer({ showCoachmark }: { showCoachmark: boolean }) {
                 >
                   <AiMateCharacter size={40} />
                   <div className="ai-bubble ai-bubble--assistant ai-loading">
-                    <span>답변을 준비하고 있어요</span>
+                    <span>{responseStage === "acknowledged" ? "요청을 확인했어요" : responseStage === "interpreting" ? "요청을 해석하고 있어요" : responseStage === "rebalancing" ? "일정을 재배치하고 있어요" : responseStage === "validating" ? "규칙을 확인하고 있어요" : "답변을 준비하고 있어요"}</span>
                     <span className="ai-loading__dots" aria-hidden="true">
                       <i />
                       <i />

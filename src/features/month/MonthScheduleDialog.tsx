@@ -30,7 +30,8 @@ function emptyDraft(date: string): ScheduleDraft {
 
 function displayTime(item: MonthScheduleItem) {
   if (item.isProvisional) return "미확정 일정";
-  if (!item.startTime) return "종일";
+  if (item.isAllDay) return "종일";
+  if (!item.startTime) return "시간 없음";
   return item.endTime ? `${item.startTime} – ${item.endTime}` : item.startTime;
 }
 
@@ -49,7 +50,7 @@ export function MonthScheduleDialog({ selectedDate, schedules, eventsById, categ
   const draft = event ? {
     title: event.title, date: event.date, startTime: event.startTime, endTime: event.endTime, isAllDay: event.isAllDay, eventType: event.eventType,
   } : selectedItem ? {
-    title: selectedItem.title, date: selectedItem.date, startTime: selectedItem.startTime, endTime: selectedItem.endTime, isAllDay: !selectedItem.startTime, eventType: selectedItem.eventType,
+    title: selectedItem.title, date: selectedItem.date, startTime: selectedItem.startTime, endTime: selectedItem.endTime, isAllDay: selectedItem.isAllDay, eventType: selectedItem.eventType,
   } : emptyDraft(selectedDate);
   const categoryKey = selectedItem?.categoryKey ?? PERSONAL_CATEGORY_KEY;
 

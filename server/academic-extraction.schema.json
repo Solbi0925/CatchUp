@@ -21,7 +21,7 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["existingEventId", "title", "itemType", "courseName", "courseCode", "date", "time", "scheduledWeek", "scheduledWeekLabel", "weekOneStartDate", "classMeetingTimes", "assignmentType", "examType", "workload", "requirements", "researchNeeded", "deliverableComplexity", "examScope", "gradingMethod", "submissionMethod", "requiredMaterials", "difficulty", "confidence", "uncertaintyNotes", "sources"],
+        "required": ["existingEventId", "title", "itemType", "courseName", "courseCode", "date", "time", "isAllDay", "scheduledWeek", "scheduledWeekLabel", "weekOneStartDate", "classMeetingTimes", "assignmentType", "examType", "workload", "requirements", "researchNeeded", "deliverableComplexity", "examScope", "gradingMethod", "submissionMethod", "requiredMaterials", "difficulty", "confidence", "uncertaintyNotes", "sources"],
         "properties": {
           "existingEventId": { "type": ["string", "null"] },
           "title": { "type": "string" },
@@ -30,6 +30,7 @@
           "courseCode": { "type": ["string", "null"] },
           "date": { "type": ["string", "null"] },
           "time": { "type": ["string", "null"] },
+          "isAllDay": { "type": "boolean" },
           "scheduledWeek": { "type": ["integer", "null"], "minimum": 1 },
           "scheduledWeekLabel": { "type": ["string", "null"] },
           "weekOneStartDate": { "type": ["string", "null"] },
