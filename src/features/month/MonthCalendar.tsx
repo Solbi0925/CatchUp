@@ -56,6 +56,47 @@ export interface MonthCalendarProps {
   categoryColorByKey: Readonly<Record<string, CalendarCategoryColor>>;
 }
 
+const MAX_EVENT_LANES = 3;
+
+interface PositionedSchedule {
+  schedule: MonthScheduleItem;
+  startIndex: number;
+  endIndex: number;
+  lane: number;
+}
+
+export function layoutWeekSchedules(
+  weekCells: readonly MonthGridCell[],
+  schedulesByDate: ReadonlyMap<string, readonly MonthScheduleItem[]>,
+) {
+  const uniqueSchedules = [...new Map(
+    weekCells.flatMap((cell) => schedulesByDate.get(cell.date) ?? []).map((schedule) => [schedule.id, schedule]),
+  ).values()].sort((left, right) =>
+    Number(right.temporalPrecision === "academic-week") - Number(left.temporalPrecision === "academic-week") ||
+    `${left.date}-${left.startTime ?? ""}-${left.title}`.localeCompare(`${right.date}-${right.startTime ?? ""}-${right.title}`),
+  );
+  const occupied = Array.from({ length: MAX_EVENT_LANES }, () => Array(7).fill(false) as boolean[]);
+  const positioned: PositionedSchedule[] = [];
+  const hiddenCountByDate = new Map<string, number>();
+
+  for (const schedule of uniqueSchedules) {
+    const endDate = schedule.rangeEndDate ?? schedule.date;
+    const indexes = weekCells.flatMap((cell, index) => cell.date >= schedule.date && cell.date <= endDate ? [index] : []);
+    if (indexes.length === 0) continue;
+    const startIndex = indexes[0];
+    const endIndex = indexes[indexes.length - 1];
+    const lane = occupied.findIndex((slots) => indexes.every((index) => !slots[index]));
+    if (lane < 0) {
+      indexes.forEach((index) => hiddenCountByDate.set(weekCells[index].date, (hiddenCountByDate.get(weekCells[index].date) ?? 0) + 1));
+      continue;
+    }
+    indexes.forEach((index) => { occupied[lane][index] = true; });
+    positioned.push({ schedule, startIndex, endIndex, lane });
+  }
+
+  return { positioned, hiddenCountByDate };
+}
+
 export function MonthCalendar({
   monthLabel,
   gridCells,
@@ -112,9 +153,7 @@ export function MonthCalendar({
         </div>
         {Array.from({ length: weekCount }, (_, weekIndex) => {
           const weekCells = gridCells.slice(weekIndex * 7, weekIndex * 7 + 7);
-          const weeklyRanges = [...new Map(weekCells.flatMap((cell) => schedulesByDate.get(cell.date) ?? [])
-            .filter((schedule) => schedule.temporalPrecision === "academic-week")
-            .map((schedule) => [schedule.id, schedule])).values()];
+          const { positioned, hiddenCountByDate } = layoutWeekSchedules(weekCells, schedulesByDate);
           return (
             <div className="month-week" key={weekCells[0]?.date}>
               <div className="month-week__dates">
@@ -122,7 +161,6 @@ export function MonthCalendar({
                   const isSelected = cell.date === selectedDate;
                   const isToday = cell.date === todayDate;
                   const scheduleCount = schedulesByDate.get(cell.date)?.length ?? 0;
-                  const schedules = (schedulesByDate.get(cell.date) ?? []).filter((schedule) => schedule.temporalPrecision !== "academic-week");
                   const className = [
                     "month-date",
                     !cell.isCurrentMonth && "is-adjacent",
@@ -149,40 +187,31 @@ export function MonthCalendar({
                       <span className="month-date__number">
                         {Number(cell.date.slice(-2))}
                       </span>
-                      <span className="month-date__events" aria-hidden="true">
-                        {schedules.slice(0, 2).map((schedule) => (
-                          <span
-                            className={`month-date__event-chip${schedule.isProvisional ? " is-provisional" : ""}`}
-                            data-temporal-precision={schedule.temporalPrecision}
-                            data-category-key={schedule.categoryKey}
-                            style={{ backgroundColor: resolveCategoryColor(schedule.categoryKey, categoryColorByKey) }}
-                            key={schedule.id}
-                          >
-                            {schedule.title}
-                          </span>
-                        ))}
-                        {schedules.length > 2 && <span className="month-date__more">+{schedules.length - 2}</span>}
-                      </span>
                     </button>
                   );
                 })}
               </div>
-              <div className="month-week__ranges" aria-label="주 단위 미확정 일정">
-                {weeklyRanges.map((schedule, index) => {
-                  const startIndex = Math.max(0, weekCells.findIndex((cell) => cell.date >= schedule.date));
-                  const rawEndIndex = weekCells.findIndex((cell) => cell.date === schedule.rangeEndDate);
-                  const endIndex = rawEndIndex >= 0 ? Math.max(startIndex, rawEndIndex) : 6;
-                  return <button
+              <div className="month-week__events" aria-label="이번 주 일정">
+                {positioned.map(({ schedule, startIndex, endIndex, lane }) => (
+                  <button
                     type="button"
-                    className="month-week__range"
+                    className={`month-week__event${schedule.temporalPrecision === "academic-week" ? " is-range" : ""}${schedule.isProvisional ? " is-provisional" : ""}`}
+                    data-event-lane={lane + 1}
+                    data-temporal-precision={schedule.temporalPrecision}
                     style={{
-                      gridColumn: `${startIndex + 1} / ${Math.min(7, endIndex) + 2}`,
-                      gridRow: index + 1,
+                      gridColumn: `${startIndex + 1} / ${endIndex + 2}`,
+                      gridRow: lane + 1,
                       backgroundColor: resolveCategoryColor(schedule.categoryKey, categoryColorByKey),
                     }}
                     onClick={() => onSelectDate(schedule.date)}
                     key={schedule.id}
-                  >{schedule.title}</button>;
+                  >{schedule.title}</button>
+                ))}
+              </div>
+              <div className="month-week__more-layer" aria-label="숨겨진 일정">
+                {weekCells.map((cell, index) => {
+                  const hiddenCount = hiddenCountByDate.get(cell.date) ?? 0;
+                  return hiddenCount > 0 ? <button type="button" style={{ gridColumn: index + 1 }} onClick={() => onSelectDate(cell.date)} aria-label={`${formatKoreanDate(cell.date)} 숨겨진 일정 ${hiddenCount}개`} key={cell.date}>+{hiddenCount}</button> : null;
                 })}
               </div>
             </div>

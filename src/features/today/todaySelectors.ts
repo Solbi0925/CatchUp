@@ -38,8 +38,7 @@ function academicScheduleType(
   item: ExtractedItem,
 ): TodayScheduleViewModel["type"] {
   if (item.itemType === "exam") return "exam";
-  if (item.itemType === "submission") return "submission";
-  if (item.itemType === "notice" || item.itemType === "class-schedule") return "notice";
+  if (item.itemType === "class-schedule") return "notice";
   return "deadline";
 }
 
@@ -69,6 +68,7 @@ export function selectTodayViewModel(
       .filter((event) => event.date === date)
       .map((event) => ({
         id: event.id,
+        calendarEventId: event.id,
         title: event.title,
         timeLabel: event.isAllDay
           ? "종일"
@@ -85,8 +85,9 @@ export function selectTodayViewModel(
       .filter((item) => item.date === date)
       .map((item) => ({
         id: item.id,
+        extractedItemId: item.id,
         title: item.title,
-        timeLabel: item.time ?? "종일",
+        timeLabel: item.isAllDay ? "종일" : item.time ?? "시간 없음",
         type: academicScheduleType(item),
         sourceLabel: "업로드 자료" as const,
         categoryKey: getCourseCategoryKey(item.courseName),
@@ -96,6 +97,7 @@ export function selectTodayViewModel(
       .filter(({ range }) => date >= range.startDate && date <= range.endDate)
       .map(({ item }) => ({
         id: `${item.id}:academic-week:${date}`,
+        extractedItemId: item.id,
         title: provisionalAcademicEventTitle(item.title),
         timeLabel: "미확정 일정",
         type: academicScheduleType(item),
@@ -107,6 +109,8 @@ export function selectTodayViewModel(
       .filter((meeting) => meeting.weekday === weekdayOf(date))
       .map((meeting) => ({
         id: `${item.id}:${meeting.id}`,
+        extractedItemId: item.id,
+        classMeetingId: meeting.id,
         title: meeting.location ? `${item.title} · ${meeting.location}` : item.title,
         timeLabel: `${meeting.startTime}–${meeting.endTime}`,
         type: "class" as const,
@@ -115,7 +119,7 @@ export function selectTodayViewModel(
         isProvisional: false,
       }))),
   ].sort((left, right) => {
-    const rank = (item: TodayScheduleViewModel) => item.isProvisional ? 2 : item.timeLabel === "종일" ? 1 : 0;
+    const rank = (item: TodayScheduleViewModel) => item.isProvisional ? 3 : item.timeLabel === "시간 없음" ? 2 : item.timeLabel === "종일" ? 1 : 0;
     return rank(left) - rank(right) || left.timeLabel.localeCompare(right.timeLabel, "ko");
   });
 
@@ -145,7 +149,7 @@ export function selectTodayViewModel(
           id: todo.id,
           title: todo.title,
           courseOrSource: todo.courseName,
-          estimatedMinutes: todo.estimatedDurationMinutes,
+          estimatedMinutes: todo.planningParticipation === "calendar-only" ? 0 : todo.estimatedDurationMinutes,
           priority: todo.priority,
           completed: todo.isCompleted,
           dueAt: source?.date ?? null,

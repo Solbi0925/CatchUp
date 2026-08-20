@@ -67,6 +67,79 @@ const command: GeneratePlanCommand = {
 };
 
 describe("generateMockWeeklyPlan", () => {
+  it("excludes past AcademicEvents from the four-week horizon", () => {
+    const result = generateMockWeeklyPlan({ ...command, extractedItems: [academicEventFixture({
+      id: "past-event", title: "지난 과제", date: "2026-07-18", estimatedDurationMinutes: 180,
+    })] });
+    expect(result.validationError).toBeUndefined();
+    expect(result.todos).toEqual([]);
+  });
+
+  it("uses daily study capacity without counting a time-unknown event as occupied time", () => {
+    const timeUnknown = academicEventFixture({ id: "time-unknown", title: "시간 미정 시험", itemType: "exam", date: "2026-07-22", time: null, examScope: "1~4주차", estimatedDurationMinutes: 180, difficulty: "unknown" });
+    const result = generateMockWeeklyPlan({
+      ...command,
+      extractedItems: [timeUnknown],
+      calendarEvents: [],
+      planningProfile: { ...command.planningProfile, maxDailyStudyMinutes: 240 } as GeneratePlanCommand["planningProfile"],
+    });
+    expect(result.validationError).toBeUndefined();
+    expect(result.todos.reduce((sum, todo) => sum + todo.estimatedDurationMinutes, 0)).toBe(180);
+  });
+
+  it("lowers effective study capacity on a day filled with timed schedules", () => {
+    const event = academicEventFixture({ id: "capacity-event", date: "2026-07-26", estimatedDurationMinutes: 180, difficulty: "unknown" });
+    const result = generateMockWeeklyPlan({
+      ...command,
+      extractedItems: [event],
+      planningProfile: { ...command.planningProfile, maxDailyStudyMinutes: 240 } as GeneratePlanCommand["planningProfile"],
+      calendarEvents: [{
+        id: "long-class", userId: command.user.id, title: "긴 수업과 일정", date: "2026-07-20", startTime: "08:00", endTime: "18:00",
+        isAllDay: false, eventType: "class", source: "catchup", updatedAt: command.requestedAt,
+      }],
+    });
+    const mondayMinutes = result.todos.filter((todo) => todo.scheduledDate === "2026-07-20").reduce((sum, todo) => sum + todo.estimatedDurationMinutes, 0);
+    expect(mondayMinutes).toBeLessThanOrEqual(120);
+    expect(result.todos.reduce((sum, todo) => sum + todo.estimatedDurationMinutes, 0)).toBe(180);
+  });
+
+  it("defers a four-week-away event when this week's real capacity is full", () => {
+    const future = academicEventFixture({ id: "future-large", title: "4주 뒤 큰 과제", date: "2026-08-15", estimatedDurationMinutes: 360, difficulty: "unknown" });
+    const calendarEvents = Array.from({ length: 7 }, (_, index) => ({
+      id: `full-${index}`, userId: command.user.id, title: "종일 일정", date: new Date(Date.UTC(2026, 6, 19 + index)).toISOString().slice(0, 10),
+      startTime: null, endTime: null, isAllDay: true, eventType: "personal" as const, source: "catchup" as const, updatedAt: command.requestedAt,
+    }));
+    const result = generateMockWeeklyPlan({ ...command, extractedItems: [future], calendarEvents, planningProfile: { ...command.planningProfile, maxDailyStudyMinutes: 240 } as GeneratePlanCommand["planningProfile"] });
+    expect(result.validationError).toBeUndefined();
+    expect(result.todos).toEqual([]);
+  });
+
+  it("starts only an early portion of a four-week-away event when capacity is available", () => {
+    const future = academicEventFixture({ id: "future-start", title: "4주 뒤 큰 과제", date: "2026-08-15", estimatedDurationMinutes: 360, difficulty: "unknown" });
+    const result = generateMockWeeklyPlan({ ...command, extractedItems: [future], calendarEvents: [], planningProfile: { ...command.planningProfile, maxDailyStudyMinutes: 240 } as GeneratePlanCommand["planningProfile"] });
+    const minutes = result.todos.reduce((sum, todo) => sum + todo.estimatedDurationMinutes, 0);
+    expect(minutes).toBeGreaterThan(0);
+    expect(minutes).toBeLessThan(360);
+    expect(result.todos[0].taskPhase).toBe("research");
+  });
+
+  it("preserves the full estimate when a 3-hour task must be split around 1-hour daily capacity", () => {
+    const event = academicEventFixture({ id: "split-work", date: "2026-07-26", estimatedDurationMinutes: 180, difficulty: "unknown" });
+    const result = generateMockWeeklyPlan({ ...command, extractedItems: [event], calendarEvents: [], planningProfile: { ...command.planningProfile, maxDailyStudyMinutes: 60 } as GeneratePlanCommand["planningProfile"] });
+    expect(result.validationError).toBeUndefined();
+    expect(result.todos.reduce((sum, todo) => sum + todo.estimatedDurationMinutes, 0)).toBe(180);
+    expect(result.todos.every((todo) => todo.estimatedDurationMinutes <= 60)).toBe(true);
+  });
+
+  it("carries over only incomplete work whose source event is still valid", () => {
+    const valid = academicEventFixture({ id: "valid", date: "2026-07-26", estimatedDurationMinutes: 60, difficulty: "unknown" });
+    const expired = academicEventFixture({ id: "expired", date: "2026-07-18", estimatedDurationMinutes: 60, difficulty: "unknown" });
+    const previous = generateMockWeeklyPlan({ ...command, extractedItems: [valid] }).todos[0];
+    const expiredTodo = { ...previous, id: "expired-todo", sourceExtractedItemId: expired.id, title: "기한 지난 작업", carriedOverFromTodoId: null };
+    const result = generateMockWeeklyPlan({ ...command, extractedItems: [valid, expired], existingIncompleteTodos: [{ ...previous, id: "valid-todo" }, expiredTodo] });
+    expect(result.todos.some((todo) => todo.carriedOverFromTodoId === "valid-todo")).toBe(true);
+    expect(result.todos.some((todo) => todo.carriedOverFromTodoId === "expired-todo" || todo.sourceExtractedItemId === "expired")).toBe(false);
+  });
   it("creates deterministic todos linked to runtime extracted item ids", () => {
     const first = generateMockWeeklyPlan(command);
     const second = generateMockWeeklyPlan(command);
@@ -111,5 +184,15 @@ describe("generateMockWeeklyPlan", () => {
     })] });
     expect(result.todos).toHaveLength(1);
     expect(result.todos[0]).toMatchObject({ title: "도시건축 수업 내용 복습하기", estimatedDurationMinutes: 45 });
+  });
+
+  it("post-validates weekday task limits for timetable review tasks", () => {
+    const result = generateMockWeeklyPlan({ ...command, requestText: "주간계획 생성해줘. 목요일과 금요일 할 일 1개 이하", extractedItems: [academicEventFixture({
+      id: "timetable-limits", itemType: "class-schedule", title: "스튜디오 수업", courseName: "스튜디오", date: null, confirmationStatus: "confirmed",
+      classMeetingTimes: [{ id: "thu-1", weekday: 4, startTime: "09:00", endTime: "10:00", location: null }, { id: "thu-2", weekday: 4, startTime: "11:00", endTime: "12:00", location: null }, { id: "fri", weekday: 5, startTime: "09:00", endTime: "10:00", location: null }],
+    })] });
+    expect(result.validationError).toBeUndefined();
+    expect(result.todos.filter((todo) => new Date(`${todo.scheduledDate}T00:00:00Z`).getUTCDay() === 4)).toHaveLength(1);
+    expect(result.todos.filter((todo) => new Date(`${todo.scheduledDate}T00:00:00Z`).getUTCDay() === 5)).toHaveLength(1);
   });
 });

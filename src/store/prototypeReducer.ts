@@ -29,7 +29,7 @@ type EditableCalendarEventFields = Pick<
   CalendarEvent,
   "title" | "date" | "startTime" | "endTime" | "isAllDay" | "eventType"
 >;
-type EditableExtractedItemFields = Pick<ExtractedItem, "title" | "date" | "time">;
+type EditableExtractedItemFields = Pick<ExtractedItem, "title" | "date" | "time"> & { isAllDay?: boolean };
 type ImmutableCalendarEventFields = {
   [Field in keyof Pick<CalendarEvent, "userId" | "source" | "updatedAt">]?: never;
 };
@@ -52,6 +52,12 @@ function pickEditableCalendarEventFields({
   eventType,
 }: EditableCalendarEventFields): EditableCalendarEventFields {
   return { title, date, startTime, endTime, isAllDay, eventType };
+}
+
+function scheduleUpdateRecommendation(state: PrototypeState, message: string, academicEventIds: ExtractedItemId[] = [], previousAcademicEvents?: ExtractedItem[]): PlanUpdateRecommendation | null {
+  if (!Object.keys(state.weeklyPlansById).length) return state.pendingPlanUpdate;
+  const detectedAt = demoInteractionClock.now().toISOString();
+  return { id: `plan-update-schedule-${detectedAt}`, reasonKind: "schedule-updated", academicEventIds, message, detectedAt, status: "pending", noticeStatus: "unread", previousAcademicEvents };
 }
 
 export interface PrototypeState {
@@ -102,6 +108,13 @@ export type PrototypeAction =
       type: "extraction/itemUpdated";
       payload: { id: ExtractedItemId } & EditableExtractedItemFields;
     }
+  | { type: "extraction/itemReplaced"; payload: ExtractedItem }
+  | {
+      type: "extraction/classMeetingUpdated";
+      payload: { id: ExtractedItemId; meetingId: string; title: string; weekday: ExtractedItem["classMeetingTimes"][number]["weekday"]; startTime: string; endTime: string };
+    }
+  | { type: "extraction/classMeetingDeleted"; payload: { id: ExtractedItemId; meetingId: string } }
+  | { type: "extraction/itemDeleted"; payload: { id: ExtractedItemId } }
   | {
       type: "extraction/confirmed";
       payload: { items: ExtractedItem[]; deletedItemIds?: ExtractedItemId[] };
@@ -113,9 +126,12 @@ export type PrototypeAction =
       payload: {
         operationId: OperationId; todos: Todo[]; usageDate: string; changed: boolean;
         trigger: PlanAdjustmentTrigger; requestText: string | null;
-        relatedAcademicEventIds: ExtractedItemId[]; changedTodoIds: TodoId[];
+        relatedAcademicEventIds: ExtractedItemId[]; changedTodoIds: TodoId[]; summary?: string; diff?: import("../domain/types").PlanDiff;
       };
     }
+  | { type: "plan/automaticUpdateUndone"; payload: { adjustmentId: string } }
+  | { type: "plan/adjustmentNoticeReviewed"; payload: { adjustmentId: string } }
+  | { type: "plan/updateNoticeReviewed"; payload: Record<string, never> }
   | {
       type: "plan/updateDismissed";
       payload: Record<string, never>;
@@ -218,6 +234,7 @@ export function prototypeReducer(
         message: "새로운 서비스 내 일정이 추가되었어요. 주간계획을 업데이트할까요?",
         detectedAt: demoInteractionClock.now().toISOString(),
         status: "pending" as const,
+        noticeStatus: "unread" as const,
       } : state.pendingPlanUpdate;
       return {
         ...state,
@@ -236,7 +253,7 @@ export function prototypeReducer(
     }
     case "calendar/eventUpdated": {
       const existingEvent = state.calendarEventsById[action.payload.id];
-      if (!existingEvent || existingEvent.source !== "catchup") return state;
+      if (!existingEvent) return state;
       const { id } = action.payload;
       const editableFields = pickEditableCalendarEventFields(action.payload);
       return {
@@ -253,15 +270,16 @@ export function prototypeReducer(
           id: `plan-update-calendar-${demoInteractionClock.now().toISOString()}`,
           reasonKind: "schedule-updated",
           academicEventIds: [],
-          message: "변경된 서비스 내 일정을 반영해 주간계획을 업데이트할까요?",
+          message: "변경된 개인 일정을 반영해 주간계획을 자동으로 정리할게요.",
           detectedAt: demoInteractionClock.now().toISOString(),
           status: "pending",
+          noticeStatus: "unread",
         } : state.pendingPlanUpdate,
       };
     }
     case "calendar/eventDeleted": {
       const existingEvent = state.calendarEventsById[action.payload.id];
-      if (!existingEvent || existingEvent.source !== "catchup") return state;
+      if (!existingEvent) return state;
       const { [action.payload.id]: _deletedEvent, ...calendarEventsById } = state.calendarEventsById;
       return {
         ...state,
@@ -270,9 +288,10 @@ export function prototypeReducer(
           id: `plan-update-calendar-${demoInteractionClock.now().toISOString()}`,
           reasonKind: "schedule-updated",
           academicEventIds: [],
-          message: "변경된 서비스 내 일정을 반영해 주간계획을 업데이트할까요?",
+          message: "삭제된 개인 일정을 반영해 주간계획을 자동으로 정리할게요.",
           detectedAt: demoInteractionClock.now().toISOString(),
           status: "pending",
+          noticeStatus: "unread",
         } : state.pendingPlanUpdate,
       };
     }
@@ -341,6 +360,8 @@ export function prototypeReducer(
         ...item,
         ...editableFields,
         ...assessed,
+        dateCertainty: editableFields.date ? "exact-date" as const : item.scheduledWeek ? "academic-week" as const : "unknown" as const,
+        isAllDay: editableFields.isAllDay ?? item.isAllDay ?? false,
         revision: item.revision + 1,
         updateNoticeStatus: "reviewed" as const,
         updatedAt: demoInteractionClock.now().toISOString(),
@@ -355,6 +376,73 @@ export function prototypeReducer(
         pendingPlanUpdate: Object.keys(state.weeklyPlansById).length
           ? createPlanUpdateRecommendation({ [id]: item }, [updatedItem], demoInteractionClock.now().toISOString()) ?? state.pendingPlanUpdate
           : state.pendingPlanUpdate,
+      };
+    }
+    case "extraction/itemReplaced": {
+      const item = state.extractedItemsById[action.payload.id];
+      if (!item) return state;
+      const assessed = assessAcademicEventConfirmation(action.payload);
+      const updatedItem = { ...action.payload, ...assessed, revision: item.revision + 1, updateNoticeStatus: "reviewed" as const, updatedAt: demoInteractionClock.now().toISOString(), isUserEdited: true };
+      return { ...state, extractedItemsById: { ...state.extractedItemsById, [item.id]: updatedItem }, pendingPlanUpdate: Object.keys(state.weeklyPlansById).length ? createPlanUpdateRecommendation({ [item.id]: item }, [updatedItem], demoInteractionClock.now().toISOString()) ?? state.pendingPlanUpdate : state.pendingPlanUpdate };
+    }
+    case "extraction/classMeetingUpdated": {
+      const item = state.extractedItemsById[action.payload.id];
+      if (!item || item.itemType !== "class-schedule") return state;
+      const previousMeeting = item.classMeetingTimes.find((meeting) => meeting.id === action.payload.meetingId);
+      if (!previousMeeting) return state;
+      const updatedItem = {
+        ...item,
+        title: action.payload.title,
+        courseName: action.payload.title,
+        classMeetingTimes: item.classMeetingTimes.map((meeting) => meeting.id === action.payload.meetingId ? {
+          ...meeting,
+          weekday: action.payload.weekday,
+          startTime: action.payload.startTime,
+          endTime: action.payload.endTime,
+        } : meeting),
+        revision: item.revision + 1,
+        updateNoticeStatus: "reviewed" as const,
+        updatedAt: demoInteractionClock.now().toISOString(),
+        isUserEdited: true,
+      };
+      return {
+        ...state,
+        extractedItemsById: { ...state.extractedItemsById, [item.id]: updatedItem },
+        pendingPlanUpdate: scheduleUpdateRecommendation(state, "변경된 수업 일정을 반영해 주간계획을 자동으로 정리할게요.", [item.id], [item]),
+      };
+    }
+    case "extraction/classMeetingDeleted": {
+      const item = state.extractedItemsById[action.payload.id];
+      if (!item || item.itemType !== "class-schedule") return state;
+      const classMeetingTimes = item.classMeetingTimes.filter((meeting) => meeting.id !== action.payload.meetingId);
+      if (classMeetingTimes.length === item.classMeetingTimes.length) return state;
+      if (classMeetingTimes.length === 0) {
+        const { [item.id]: _deleted, ...extractedItemsById } = state.extractedItemsById;
+        return { ...state, extractedItemsById, extractedItemIdsByDocumentId: Object.fromEntries(Object.entries(state.extractedItemIdsByDocumentId).map(([documentId, ids]) => [documentId, ids.filter((id) => id !== item.id)])), pendingPlanUpdate: scheduleUpdateRecommendation(state, "삭제된 수업 일정을 반영해 주간계획을 자동으로 정리할게요.", [item.id], [item]) };
+      }
+      const updatedItem = { ...item, classMeetingTimes, revision: item.revision + 1, updatedAt: demoInteractionClock.now().toISOString(), isUserEdited: true, updateNoticeStatus: "reviewed" as const };
+      return { ...state, extractedItemsById: { ...state.extractedItemsById, [item.id]: updatedItem }, pendingPlanUpdate: scheduleUpdateRecommendation(state, "삭제된 수업 일정을 반영해 주간계획을 자동으로 정리할게요.", [item.id], [item]) };
+    }
+    case "extraction/itemDeleted": {
+      const item = state.extractedItemsById[action.payload.id];
+      if (!item) return state;
+      const { [item.id]: _deleted, ...extractedItemsById } = state.extractedItemsById;
+      const hasPlannedTodo = Object.values(state.todosById).some((todo) => todo.sourceExtractedItemId === item.id && !todo.isCompleted);
+      const detectedAt = demoInteractionClock.now().toISOString();
+      return {
+        ...state,
+        extractedItemsById,
+        extractedItemIdsByDocumentId: Object.fromEntries(Object.entries(state.extractedItemIdsByDocumentId).map(([documentId, ids]) => [documentId, ids.filter((id) => id !== item.id)])),
+        pendingPlanUpdate: Object.keys(state.weeklyPlansById).length && hasPlannedTodo ? {
+          id: `plan-update-deleted-${detectedAt}-${item.id}`,
+          reasonKind: "schedule-updated",
+          academicEventIds: [item.id],
+          message: `${item.title} 삭제를 반영해 주간계획을 정리할게요.`,
+          detectedAt,
+          status: "pending",
+          noticeStatus: "unread",
+          previousAcademicEvents: [item],
+        } : state.pendingPlanUpdate,
       };
     }
     case "extraction/confirmed": {
@@ -384,6 +472,7 @@ export function prototypeReducer(
           message: "변경된 학업 일정을 반영해 주간계획을 업데이트할까요?",
           detectedAt: reviewedAt,
           status: "pending" as const,
+          noticeStatus: "unread" as const,
         } : state.pendingPlanUpdate)
         : state.pendingPlanUpdate;
       return {
@@ -455,6 +544,13 @@ export function prototypeReducer(
         relatedAcademicEventIds: action.payload.relatedAcademicEventIds,
         changedTodoIds: action.payload.changedTodoIds,
         createdAt: demoInteractionClock.now().toISOString(),
+        ...(action.payload.trigger === "NEW_ACADEMIC_INFORMATION" ? {
+          beforeTodos: (state.todoIdsByWeeklyPlanId[currentPlan.id] ?? []).map((id) => state.todosById[id]).filter(Boolean),
+          afterTodos: action.payload.todos,
+          summary: action.payload.summary,
+          diff: action.payload.diff,
+          noticeStatus: "unread" as const,
+        } : {}),
       };
       return {
         ...state,
@@ -497,6 +593,30 @@ export function prototypeReducer(
         },
       };
     }
+    case "plan/automaticUpdateUndone": {
+      const adjustment = state.planAdjustmentsById[action.payload.adjustmentId];
+      if (!adjustment || adjustment.trigger !== "NEW_ACADEMIC_INFORMATION" || adjustment.undoneAt || !adjustment.beforeTodos) return state;
+      const currentPlan = state.weeklyPlansById[adjustment.weeklyPlanId];
+      if (!currentPlan) return state;
+      const currentIds = new Set(state.todoIdsByWeeklyPlanId[currentPlan.id] ?? []);
+      const undoneAt = demoInteractionClock.now().toISOString();
+      return {
+        ...state,
+        todosById: {
+          ...Object.fromEntries(Object.entries(state.todosById).filter(([id]) => !currentIds.has(id))),
+          ...Object.fromEntries(adjustment.beforeTodos.map((todo) => [todo.id, todo])),
+        },
+        todoIdsByWeeklyPlanId: { ...state.todoIdsByWeeklyPlanId, [currentPlan.id]: adjustment.beforeTodos.map((todo) => todo.id) },
+        planAdjustmentsById: { ...state.planAdjustmentsById, [adjustment.id]: { ...adjustment, undoneAt, noticeStatus: "reviewed" } },
+      };
+    }
+    case "plan/adjustmentNoticeReviewed": {
+      const adjustment = state.planAdjustmentsById[action.payload.adjustmentId];
+      if (!adjustment || adjustment.noticeStatus === "reviewed") return state;
+      return { ...state, planAdjustmentsById: { ...state.planAdjustmentsById, [adjustment.id]: { ...adjustment, noticeStatus: "reviewed" } } };
+    }
+    case "plan/updateNoticeReviewed":
+      return state.pendingPlanUpdate ? { ...state, pendingPlanUpdate: { ...state.pendingPlanUpdate, noticeStatus: "reviewed" } } : state;
     case "plan/updateDismissed":
     case "plan/updateProcessed": {
       if (!state.pendingPlanUpdate) return state;

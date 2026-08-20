@@ -1,0 +1,90 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["interpretationSummary", "interpretedConstraints", "tasks", "warnings", "questions"],
+  "properties": {
+    "interpretationSummary": { "type": "string", "minLength": 1 },
+    "interpretedConstraints": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["maxDailyMinutes", "maxTasksByWeekday", "prohibitedWeekdays", "lightStudyWeekdays", "preferredStudyWeekdaysByEventId", "blockedTimeRanges"],
+      "properties": {
+        "maxDailyMinutes": { "type": ["integer", "null"], "minimum": 1 },
+        "maxTasksByWeekday": {
+          "type": "array",
+          "items": {
+            "type": "object", "additionalProperties": false,
+            "required": ["weekday", "maxTasks"],
+            "properties": {
+              "weekday": { "type": "integer", "minimum": 0, "maximum": 6 },
+              "maxTasks": { "type": "integer", "minimum": 0 }
+            }
+          }
+        },
+        "prohibitedWeekdays": { "type": "array", "items": { "type": "integer", "minimum": 0, "maximum": 6 } },
+        "lightStudyWeekdays": { "type": "array", "items": { "type": "integer", "minimum": 0, "maximum": 6 } },
+        "preferredStudyWeekdaysByEventId": {
+          "type": "array",
+          "items": {
+            "type": "object", "additionalProperties": false,
+            "required": ["sourceAcademicEventId", "weekdays"],
+            "properties": {
+              "sourceAcademicEventId": { "type": "string", "minLength": 1 },
+              "weekdays": { "type": "array", "items": { "type": "integer", "minimum": 0, "maximum": 6 } }
+            }
+          }
+        },
+        "blockedTimeRanges": {
+          "type": "array",
+          "items": {
+            "type": "object", "additionalProperties": false,
+            "required": ["weekday", "startTime", "endTime"],
+            "properties": {
+              "weekday": { "type": "integer", "minimum": 0, "maximum": 6 },
+              "startTime": { "type": "string", "pattern": "^(?:[01][0-9]|2[0-3]):[0-5][0-9]$" },
+              "endTime": { "type": "string", "pattern": "^(?:[01][0-9]|2[0-3]):[0-5][0-9]$" }
+            }
+          }
+        }
+      }
+    },
+    "tasks": {
+      "type": "array",
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["clientTaskKey", "sourceAcademicEventId", "title", "todoType", "scheduledDate", "startTime", "estimatedDurationMinutes", "priority", "taskPhase", "dependsOnClientTaskKey", "carriedOverFromTodoId", "recommendation"],
+        "properties": {
+          "clientTaskKey": { "type": "string", "minLength": 1 },
+          "sourceAcademicEventId": { "type": "string", "minLength": 1 },
+          "title": { "type": "string", "minLength": 1 },
+          "todoType": { "enum": ["assignment-work", "exam-study", "class-prep", "review"] },
+          "scheduledDate": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" },
+          "startTime": { "type": ["string", "null"], "pattern": "^(?:[01][0-9]|2[0-3]):[0-5][0-9]$" },
+          "estimatedDurationMinutes": { "type": "integer", "minimum": 1 },
+          "priority": { "enum": ["high", "medium", "low"] },
+          "taskPhase": { "enum": ["prepare", "research", "draft", "work", "review", "finalize", null] },
+          "dependsOnClientTaskKey": { "type": ["string", "null"] },
+          "carriedOverFromTodoId": { "type": ["string", "null"] },
+          "recommendation": {
+            "type": "object", "additionalProperties": false,
+            "required": ["needReasons", "placementReasons", "priorityReasons", "durationReasons", "personalizationReasons", "userRequestReasons"],
+            "properties": {
+              "needReasons": { "$ref": "#/$defs/stringArray" },
+              "placementReasons": { "$ref": "#/$defs/stringArray" },
+              "priorityReasons": { "$ref": "#/$defs/stringArray" },
+              "durationReasons": { "$ref": "#/$defs/stringArray" },
+              "personalizationReasons": { "$ref": "#/$defs/stringArray" },
+              "userRequestReasons": { "$ref": "#/$defs/stringArray" }
+            }
+          }
+        }
+      }
+    },
+    "warnings": { "$ref": "#/$defs/stringArray" },
+    "questions": { "$ref": "#/$defs/stringArray" }
+  },
+  "$defs": {
+    "stringArray": { "type": "array", "items": { "type": "string" } }
+  }
+}

@@ -12,12 +12,20 @@ function isStoredAcademicEvent(item: unknown): item is ExtractedItem {
 }
 
 function migrateAcademicEvent(item: ExtractedItem): ExtractedItem {
+  const legacyItemType = item.itemType as string;
+  const itemType: ExtractedItem["itemType"] = legacyItemType === "deadline" || legacyItemType === "submission"
+    ? "assignment"
+    : legacyItemType === "notice"
+      ? "other"
+      : item.itemType;
   const migrated = {
     ...item,
+    itemType,
     scheduledWeek: item.scheduledWeek ?? null,
     scheduledWeekLabel: item.scheduledWeekLabel ?? null,
     weekOneStartDate: item.weekOneStartDate ?? null,
     classMeetingTimes: item.classMeetingTimes ?? [],
+    isAllDay: item.isAllDay ?? false,
     dateCertainty: item.dateCertainty ?? (item.date ? "exact-date" : item.scheduledWeek ? "academic-week" : "unknown"),
     confirmationStatus: item.confirmationStatus ?? "unconfirmed",
     confirmationIssues: item.confirmationIssues ?? [],

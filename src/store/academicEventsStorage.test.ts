@@ -28,4 +28,18 @@ describe("academic events local storage", () => {
     );
     expect(readAcademicEvents()[0].confirmationStatus).toBe("confirmed");
   });
+
+  it.each([
+    ["deadline", "assignment"],
+    ["submission", "assignment"],
+    ["notice", "other"],
+  ])("normalizes the removed %s academic event type to %s", (legacyType, expectedType) => {
+    const legacy = academicEventFixture();
+    window.localStorage.setItem(
+      "catchup.academic-events.v2",
+      JSON.stringify([{ ...legacy, itemType: legacyType }]),
+    );
+
+    expect(readAcademicEvents()[0].itemType).toBe(expectedType);
+  });
 });

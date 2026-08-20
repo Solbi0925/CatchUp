@@ -41,6 +41,7 @@ export async function analyzeAcademicFiles(input: {
         courseCode: event.courseCode,
         date: event.date,
         time: event.time,
+        isAllDay: event.isAllDay ?? false,
         scheduledWeek: event.scheduledWeek,
         scheduledWeekLabel: event.scheduledWeekLabel,
         weekOneStartDate: event.weekOneStartDate,

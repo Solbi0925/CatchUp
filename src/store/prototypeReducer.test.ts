@@ -109,6 +109,32 @@ describe("prototypeReducer", () => {
     expect(prototypeReducer(first, { type: "plan/applied", payload: plan })).toBe(first);
   });
 
+  it("자동 계획 조정의 이전 상태를 보존하고 추가 횟수 차감 없이 되돌린다", () => {
+    const withPlan = prototypeReducer(createInitialPrototypeState(), { type: "plan/applied", payload: plan });
+    withPlan.pendingPlanUpdate = {
+      id: "pending-auto", reasonKind: "assignment-updated", academicEventIds: ["item-1"], message: "자동 정리", detectedAt: "2026-07-20T10:00:00Z", status: "pending", noticeStatus: "unread",
+    };
+    const movedTodo = { ...plan.todos[0], scheduledDate: "2026-07-22" };
+    const adjusted = prototypeReducer(withPlan, {
+      type: "plan/adjusted",
+      payload: { operationId: "auto-1", todos: [movedTodo], usageDate: "2026-07-20", changed: true, trigger: "NEW_ACADEMIC_INFORMATION", requestText: null, relatedAcademicEventIds: ["item-1"], changedTodoIds: ["todo-1"], summary: "수요일로 옮겼어요." },
+    });
+    const undone = prototypeReducer(adjusted, { type: "plan/automaticUpdateUndone", payload: { adjustmentId: "adjustment-auto-1" } });
+
+    expect(adjusted.todosById["todo-1"].scheduledDate).toBe("2026-07-22");
+    expect(adjusted.adjustmentUsageByDate["2026-07-20"]).toBe(1);
+    expect(undone.todosById["todo-1"].scheduledDate).toBe("2026-07-20");
+    expect(undone.adjustmentUsageByDate["2026-07-20"]).toBe(1);
+    expect(undone.planAdjustmentsById["adjustment-auto-1"].undoneAt).toBeTruthy();
+  });
+
+  it("학업 일정 삭제는 원본과 문서 연결을 함께 제거한다", () => {
+    const extracted = prototypeReducer(createInitialPrototypeState(), { type: "extraction/applied", payload: extraction });
+    const deleted = prototypeReducer(extracted, { type: "extraction/itemDeleted", payload: { id: "item-1" } });
+    expect(deleted.extractedItemsById["item-1"]).toBeUndefined();
+    expect(deleted.extractedItemIdsByDocumentId["doc-1"]).toEqual([]);
+  });
+
   it("confirms edited extracted items", () => {
     const state = prototypeReducer(createInitialPrototypeState(), {
       type: "extraction/applied",
@@ -181,7 +207,7 @@ describe("prototypeReducer", () => {
     expect(deleted.calendarEventsById["event-1"]).toBeUndefined();
   });
 
-  it("does not edit or delete Google Calendar events", () => {
+  it("edits and deletes a stored personal schedule regardless of its source label", () => {
     const googleEvent = {
       id: "google-1",
       userId: "user-demo-01",
@@ -194,14 +220,16 @@ describe("prototypeReducer", () => {
       payload: { events: [googleEvent] },
     });
 
-    expect(prototypeReducer(connected, {
+    const updated = prototypeReducer(connected, {
       type: "calendar/eventUpdated",
       payload: { id: "google-1", ...eventDraft, title: "변경" },
-    })).toBe(connected);
-    expect(prototypeReducer(connected, {
+    });
+    const deleted = prototypeReducer(updated, {
       type: "calendar/eventDeleted",
       payload: { id: "google-1" },
-    })).toBe(connected);
+    });
+    expect(updated.calendarEventsById["google-1"].title).toBe("변경");
+    expect(deleted.calendarEventsById["google-1"]).toBeUndefined();
   });
 
   it("stores a color override for the whole calendar category", () => {

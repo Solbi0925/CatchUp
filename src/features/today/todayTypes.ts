@@ -22,6 +22,9 @@ export interface TodayTodoViewModel {
 
 export interface TodayScheduleViewModel {
   id: string;
+  calendarEventId?: string;
+  extractedItemId?: string;
+  classMeetingId?: string;
   title: string;
   timeLabel: string;
   type: "deadline" | "submission" | "exam" | "notice" | "class" | "personal";

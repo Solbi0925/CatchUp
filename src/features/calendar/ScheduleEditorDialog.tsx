@@ -1,4 +1,4 @@
-import { type FormEvent, useEffect, useState } from "react";
+import { type FormEvent, useEffect, useRef, useState } from "react";
 import type { CalendarEvent } from "../../domain/types";
 import {
   CALENDAR_CATEGORY_COLORS,
@@ -6,35 +6,48 @@ import {
 } from "./calendarColors";
 import "./scheduleEditor.css";
 
-export type ScheduleDraft = Pick<
+export type ScheduleDisplayType = "deadline" | "submission" | "exam" | "notice" | "class" | "personal";
+export type ScheduleDraft = Omit<Pick<
   CalendarEvent,
   "title" | "date" | "startTime" | "endTime" | "isAllDay" | "eventType"
->;
+>, "eventType"> & { eventType: ScheduleDisplayType };
+
+const fixedTypeLabels: Record<ScheduleDisplayType, string> = {
+  deadline: "학업 마감", submission: "학업 제출", exam: "시험", notice: "중요 공지", class: "수업 일정", personal: "개인 일정",
+};
 
 interface Props {
+  draftIdentity: string;
   initialDraft: ScheduleDraft;
   categoryKind: "course" | "personal";
   categoryColor: CalendarCategoryColor;
   onSave: (draft: ScheduleDraft) => void;
   onColorChange: (color: CalendarCategoryColor) => void;
   onClose: () => void;
+  onDelete?: () => void;
+  deleteLabel?: string;
 }
 
 export function ScheduleEditorDialog({
+  draftIdentity,
   initialDraft,
   categoryKind,
   categoryColor,
   onSave,
   onColorChange,
   onClose,
+  onDelete,
+  deleteLabel = "일정 삭제",
 }: Props) {
   const [draft, setDraft] = useState(initialDraft);
   const [error, setError] = useState("");
+  const latestInitialDraft = useRef(initialDraft);
+  latestInitialDraft.current = initialDraft;
 
   useEffect(() => {
-    setDraft(initialDraft);
+    setDraft(latestInitialDraft.current);
     setError("");
-  }, [initialDraft]);
+  }, [draftIdentity]);
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
@@ -72,13 +85,7 @@ export function ScheduleEditorDialog({
           <label><span>시작</span><input type="time" value={draft.startTime ?? ""} onChange={(event) => setDraft({ ...draft, startTime: event.target.value || null })} /></label>
           <label><span>종료</span><input type="time" value={draft.endTime ?? ""} onChange={(event) => setDraft({ ...draft, endTime: event.target.value || null })} /></label>
         </div>
-        <label>
-          <span>유형</span>
-          <select value={draft.eventType} onChange={(event) => setDraft({ ...draft, eventType: event.target.value as CalendarEvent["eventType"] })}>
-            <option value="personal">개인 일정</option>
-            <option value="class">수업 일정</option>
-          </select>
-        </label>
+        <p className="schedule-editor__fixed-type">{fixedTypeLabels[draft.eventType]}</p>
         <fieldset className="schedule-color-fieldset">
           <legend>색상</legend>
           <div>
@@ -93,6 +100,7 @@ export function ScheduleEditorDialog({
         </fieldset>
         {error && <p className="schedule-editor__error" role="alert">{error}</p>}
         <button className="schedule-editor__primary" type="submit">저장</button>
+        {onDelete && <button className="schedule-editor__delete" type="button" onClick={onDelete}>{deleteLabel}</button>}
       </form>
     </section>
   );

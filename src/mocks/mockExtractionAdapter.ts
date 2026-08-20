@@ -45,6 +45,9 @@ export async function extractAcademicFilesMock({
     uploadedAt: clock.now().toISOString(),
   }));
   const primary = documents[0];
+  if (files.every((file) => /empty|학업정보없음|무관한/i.test(file.name))) {
+    return { operationId, documents, extractedItems: [] };
+  }
   const sourceReferences = documents.map((document, index) => ({
     id: `source-${operationId}-${index}`,
     documentId: document.id,
@@ -69,6 +72,7 @@ export async function extractAcademicFilesMock({
       date: null,
       dateCertainty: "unknown",
       time: null,
+      isAllDay: false,
       scheduledWeek: null,
       scheduledWeekLabel: null,
       weekOneStartDate: null,
@@ -112,6 +116,7 @@ export async function extractAcademicFilesMock({
     date: "2026-07-23",
     dateCertainty: "exact-date",
     time: "23:59",
+    isAllDay: false,
     scheduledWeek: null,
     scheduledWeekLabel: null,
     weekOneStartDate: null,
@@ -149,6 +154,7 @@ export async function extractAcademicFilesMock({
     date: "2026-07-25",
     dateCertainty: "exact-date",
     time: "10:00",
+    isAllDay: false,
     scheduledWeek: 8,
     scheduledWeekLabel: "8주차",
     weekOneStartDate: null,
@@ -186,6 +192,7 @@ export async function extractAcademicFilesMock({
     date: "2026-07-22",
     dateCertainty: "exact-date",
     time: "13:00",
+    isAllDay: false,
     scheduledWeek: null,
     scheduledWeekLabel: null,
     weekOneStartDate: null,

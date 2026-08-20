@@ -1,10 +1,11 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { App } from "../../app/App";
 import { PrototypeStoreProvider } from "../../store/PrototypeStore";
 import { MonthPage } from "./MonthPage";
+import { academicEventFixture } from "../../test/academicEventFixture";
 
 function renderMonth() {
   return render(
@@ -59,16 +60,13 @@ describe("MonthPage", () => {
     expect(screen.getAllByText("팀 프로젝트 회의").length).toBeGreaterThan(0);
   });
 
-  it("edits a Google mock event without exposing delete", async () => {
+  it("edits and deletes a visible personal mock event", async () => {
     const user = userEvent.setup();
     renderMonth();
     await user.click(
       screen.getByRole("button", { name: /2026년 7월 20일.*일정 1개/ }),
     );
 
-    expect(
-      screen.queryByRole("button", { name: "팀 프로젝트 회의 삭제" }),
-    ).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: /팀 프로젝트 회의.*14:00/ }));
 
     const title = screen.getByRole("textbox", { name: "제목" });
@@ -77,6 +75,52 @@ describe("MonthPage", () => {
     await user.click(screen.getByRole("button", { name: "저장" }));
 
     expect(screen.getAllByText("팀 프로젝트 회의 변경").length).toBeGreaterThan(0);
+    await user.click(screen.getByRole("button", { name: /팀 프로젝트 회의 변경.*14:00/ }));
+    await user.click(screen.getByRole("button", { name: "일정 삭제" }));
+    expect(screen.queryByText("팀 프로젝트 회의 변경")).not.toBeInTheDocument();
+  });
+
+  it("Month에서는 반복 수업 일정을 숨긴다", async () => {
+    localStorage.setItem("catchup.academic-events.v2", JSON.stringify([academicEventFixture({
+      id: "class-month", itemType: "class-schedule", title: "도시건축 수업", courseName: "도시건축", date: null,
+      confirmationStatus: "confirmed", classMeetingTimes: [{ id: "meeting-mon", weekday: 1, startTime: "10:30", endTime: "11:45", location: "401-930" }],
+    })]));
+    renderMonth();
+    expect(screen.queryByText("도시건축 수업")).not.toBeInTheDocument();
+    expect(JSON.parse(localStorage.getItem("catchup.academic-events.v2") ?? "[]")[0].title).toBe("도시건축 수업");
+  });
+
+  it("distinguishes a time-unknown AcademicEvent from a real all-day calendar event", async () => {
+    localStorage.setItem("catchup.academic-events.v2", JSON.stringify([academicEventFixture({
+      id: "time-unknown-month", title: "시간 미정 발표", itemType: "presentation", date: "2026-07-20", time: null,
+      requirements: "발표 자료", confirmationStatus: "confirmed", reviewStatus: "confirmed",
+    })]));
+    localStorage.setItem("catchup.calendar-events.v1", JSON.stringify([{
+      id: "real-all-day", userId: "user-demo-01", title: "실제 종일 일정", date: "2026-07-20",
+      startTime: null, endTime: null, isAllDay: true, eventType: "personal", source: "catchup", updatedAt: "2026-07-19T00:00:00Z",
+    }]));
+    const user = userEvent.setup();
+    renderMonth();
+    await user.click(screen.getByRole("button", { name: /2026년 7월 20일/ }));
+    expect(screen.getByRole("button", { name: /시간 미정 발표 시간 없음 선택/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /실제 종일 일정 종일 선택/ })).toBeInTheDocument();
+  });
+
+  it("shares three event lanes between week ranges and single-day schedules, then opens hidden items with +N", async () => {
+    localStorage.setItem("catchup.academic-events.v2", JSON.stringify(Array.from({ length: 5 }, (_, index) => academicEventFixture({
+      id: `crowded-${index}`,
+      title: `숨김 검증 일정 ${index + 1}`,
+      date: "2026-07-22",
+    }))));
+    const user = userEvent.setup();
+    const { container } = renderMonth();
+    const lanes = [...container.querySelectorAll<HTMLElement>("[data-event-lane]")].map((element) => Number(element.dataset.eventLane));
+    expect(Math.max(...lanes)).toBeLessThanOrEqual(3);
+    const more = screen.getByRole("button", { name: /2026년 7월 22일 수요일 숨겨진 일정/ });
+    await user.click(more);
+    const dialog = screen.getByRole("dialog", { name: "7월 22일 일정" });
+    expect(within(dialog).getByRole("heading", { name: "7월 22일 일정" })).toBeInTheDocument();
+    expect(within(dialog).getAllByText(/숨김 검증 일정/)).toHaveLength(5);
   });
 
   it("edits an Upload-derived schedule without leaving Month", async () => {
@@ -110,12 +154,12 @@ describe("MonthPage", () => {
 
     await user.click(screen.getByRole("button", { name: /2026년 7월 23일/ }));
     await user.click(screen.getByRole("button", { name: /UX 리서치 보고서.*23:59/ }));
-    expect(screen.getByRole("dialog", { name: "일정 편집" })).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: /학업 이벤트 수정/ })).toBeInTheDocument();
 
-    const title = screen.getByRole("textbox", { name: "제목" });
+    const title = screen.getByRole("textbox", { name: "이벤트명" });
     await user.clear(title);
     await user.type(title, "UX 보고서 제출");
-    await user.click(screen.getByRole("button", { name: "저장" }));
+    await user.click(screen.getByRole("button", { name: "학업 이벤트 저장" }));
 
     expect(screen.getAllByText("UX 보고서 제출").length).toBeGreaterThan(0);
     expect(screen.queryByText("Upload에서 수정")).not.toBeInTheDocument();

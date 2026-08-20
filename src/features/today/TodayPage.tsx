@@ -5,10 +5,11 @@ import { AiMateCharacter } from "../ai-mate/components/AiMateCharacter";
 import { useAiMate } from "../ai-mate/AiMateProvider";
 import { ScheduleEditorDialog, type ScheduleDraft } from "../calendar/ScheduleEditorDialog";
 import { PERSONAL_CATEGORY_KEY, resolveCategoryColor } from "../calendar/calendarColors";
-import type { CalendarEvent } from "../../domain/types";
 import { selectTodayViewModel } from "./todaySelectors";
 import type { TodayScheduleViewModel } from "./todayTypes";
 import { currentTodayDate } from "../../application/clock";
+import { AcademicEventEditorDialog } from "../upload/AcademicEventEditorDialog";
+import { CalendarIcon, ClockIcon } from "../../ui/icons";
 import "./today.css";
 
 const scheduleTypeLabels = {
@@ -63,7 +64,7 @@ function TodayScheduleSection({
       <button type="button" className="today-add-button" onClick={onAdd}>추가</button>
     </div>
     {schedules.length === 0 ? <div className="today-zero-state"><strong>예정된 일정이 없어요.</strong></div> : <div className="today-card-list">
-      {schedules.map((schedule) => <button type="button" className={`today-schedule-card${schedule.isProvisional ? " is-provisional" : ""}`} key={schedule.id} disabled={schedule.type === "class" || schedule.isProvisional} onClick={() => onEdit(schedule.id)} aria-label={schedule.isProvisional ? `${schedule.timeLabel} 미확정 일정 ${schedule.title}` : schedule.type === "class" ? `${schedule.timeLabel} ${schedule.title}` : `${schedule.title} 일정 수정`}>
+      {schedules.map((schedule) => <button type="button" className={`today-schedule-card${schedule.isProvisional ? " is-provisional" : ""}`} key={schedule.id} onClick={() => onEdit(schedule.id)} aria-label={`${schedule.title} 일정 수정`}>
         <time>{schedule.timeLabel}</time>
         <div><h3>{schedule.title}</h3><p>{schedule.isProvisional ? "미확정 학업 일정" : scheduleTypeLabels[schedule.type]} · {schedule.sourceLabel}</p></div>
       </button>)}
@@ -78,20 +79,26 @@ export function TodayPage() {
   const [selectedDate, setSelectedDate] = useState(todayDate);
   const [editingScheduleId, setEditingScheduleId] = useState<string>();
   const [addingSchedule, setAddingSchedule] = useState(false);
-  const [eventOverrides, setEventOverrides] = useState<Record<string, CalendarEvent>>({});
   const hasDocuments = Object.keys(state.documentsById).length > 0 || Object.keys(state.extractedItemsById).length > 0;
   const hasPlan = Object.keys(state.weeklyPlansById).length > 0;
+  const recentlyChangedTodoIds = useMemo(() => {
+    const latest = Object.values(state.planAdjustmentsById).filter((adjustment) => adjustment.trigger === "USER_REQUEST").sort((left, right) => right.createdAt.localeCompare(left.createdAt))[0];
+    return new Set(latest?.changedTodoIds ?? []);
+  }, [state.planAdjustmentsById]);
   const viewModel = useMemo(
-    () => selectTodayViewModel({ ...state, calendarEventsById: { ...state.calendarEventsById, ...eventOverrides } }, selectedDate, todayDate),
-    [eventOverrides, selectedDate, state, todayDate],
+    () => selectTodayViewModel(state, selectedDate, todayDate),
+    [selectedDate, state, todayDate],
   );
   const editingSchedule = viewModel.schedules.find((item) => item.id === editingScheduleId);
-  const editingEvent = editingSchedule ? ({ ...state.calendarEventsById, ...eventOverrides })[editingSchedule.id] : undefined;
-  const editingItem = editingSchedule ? state.extractedItemsById[editingSchedule.id] : undefined;
+  const editingEvent = editingSchedule?.calendarEventId ? state.calendarEventsById[editingSchedule.calendarEventId] : undefined;
+  const editingItem = editingSchedule?.extractedItemId ? state.extractedItemsById[editingSchedule.extractedItemId] : undefined;
+  const editingMeeting = editingItem && editingSchedule?.classMeetingId ? editingItem.classMeetingTimes.find((meeting) => meeting.id === editingSchedule.classMeetingId) : undefined;
   const editorDraft: ScheduleDraft = editingEvent ? {
     title: editingEvent.title, date: editingEvent.date, startTime: editingEvent.startTime, endTime: editingEvent.endTime, isAllDay: editingEvent.isAllDay, eventType: editingEvent.eventType,
+  } : editingMeeting && editingItem ? {
+    title: editingItem.title, date: selectedDate, startTime: editingMeeting.startTime, endTime: editingMeeting.endTime, isAllDay: false, eventType: "class",
   } : editingItem ? {
-    title: editingItem.title, date: editingItem.date ?? selectedDate, startTime: editingItem.time, endTime: null, isAllDay: !editingItem.time, eventType: "class",
+    title: editingItem.title, date: editingItem.date ?? selectedDate, startTime: editingItem.time, endTime: null, isAllDay: editingItem.isAllDay === true, eventType: editingSchedule?.type ?? "class",
   } : { title: "", date: selectedDate, startTime: "09:00", endTime: "10:00", isAllDay: false, eventType: "personal" };
   const editorCategoryKey = editingSchedule?.categoryKey ?? PERSONAL_CATEGORY_KEY;
 
@@ -203,7 +210,7 @@ export function TodayPage() {
             ) : (
               <div className="today-card-list">
                 {viewModel.todos.map((todo) => (
-                  <article className={`today-todo-card${todo.completed ? " completed" : ""}`} key={todo.id}>
+                  <article className={`today-todo-card${todo.completed ? " completed" : ""}${recentlyChangedTodoIds.has(todo.id) ? " recently-adjusted" : ""}`} key={todo.id}>
                     <input
                       type="checkbox"
                       checked={todo.completed}
@@ -222,10 +229,11 @@ export function TodayPage() {
                       onClick={() => openForTodo(todo.id)}
                     >
                       <span className="today-course">{todo.courseOrSource}</span>
+                      {recentlyChangedTodoIds.has(todo.id) && <span className="today-adjusted-label">방금 조정</span>}
                       <h3>{todo.title}</h3>
                       <div className="today-todo-meta">
-                        <span>{todo.estimatedMinutes < 60 ? `${todo.estimatedMinutes}M` : `${Number((todo.estimatedMinutes / 60).toFixed(1))}H`}</span>
-                        {todo.dueAt && <span>▣ {formatDueDate(todo.dueAt)} 마감</span>}
+                        {todo.estimatedMinutes > 0 && <span><ClockIcon />{todo.estimatedMinutes < 60 ? `${todo.estimatedMinutes}M` : `${Number((todo.estimatedMinutes / 60).toFixed(1))}H`}</span>}
+                        <span><CalendarIcon />{todo.dueAt ? `${formatDueDate(todo.dueAt)} 마감` : "마감일 없음"}</span>
                       </div>
                     </button>
                   </article>
@@ -244,28 +252,44 @@ export function TodayPage() {
         onEdit={setEditingScheduleId}
       />}
       {(editingSchedule || addingSchedule) && <div className="today-editor-backdrop">
-        <ScheduleEditorDialog
+        {editingItem && !editingMeeting ? <AcademicEventEditorDialog
+          item={editingItem}
+          onClose={() => setEditingScheduleId(undefined)}
+          onDelete={() => { dispatch({ type: "extraction/itemDeleted", payload: { id: editingItem.id } }); setEditingScheduleId(undefined); }}
+          onSave={(item) => { dispatch({ type: "extraction/itemReplaced", payload: item }); setEditingScheduleId(undefined); }}
+        /> : <ScheduleEditorDialog
+          draftIdentity={editingSchedule?.id ?? `new-${selectedDate}`}
           initialDraft={editorDraft}
           categoryKind={editorCategoryKey === PERSONAL_CATEGORY_KEY ? "personal" : "course"}
           categoryColor={resolveCategoryColor(editorCategoryKey, state.categoryColorByKey)}
           onColorChange={(color) => dispatch({ type: "calendar/categoryColorSet", payload: { categoryKey: editorCategoryKey, color } })}
           onClose={() => { setEditingScheduleId(undefined); setAddingSchedule(false); }}
+          onDelete={editingSchedule ? () => {
+            if (editingMeeting && editingItem) dispatch({ type: "extraction/classMeetingDeleted", payload: { id: editingItem.id, meetingId: editingMeeting.id } });
+            else if (editingItem) dispatch({ type: "extraction/itemDeleted", payload: { id: editingItem.id } });
+            else if (editingEvent) dispatch({ type: "calendar/eventDeleted", payload: { id: editingEvent.id } });
+            setEditingScheduleId(undefined); setAddingSchedule(false);
+          } : undefined}
           onSave={(draft) => {
-            if (editingItem) dispatch({
+            if (editingMeeting && editingItem) dispatch({
+              type: "extraction/classMeetingUpdated",
+              payload: { id: editingItem.id, meetingId: editingMeeting.id, title: draft.title, weekday: new Date(`${draft.date}T00:00:00Z`).getUTCDay() as 0 | 1 | 2 | 3 | 4 | 5 | 6, startTime: draft.startTime ?? editingMeeting.startTime, endTime: draft.endTime ?? editingMeeting.endTime },
+            });
+            else if (editingItem) dispatch({
               type: "extraction/itemUpdated",
               payload: {
                 id: editingItem.id,
                 title: draft.title,
                 date: draft.date,
                 time: draft.startTime,
+                isAllDay: draft.isAllDay,
               },
             });
-            else if (editingEvent?.source === "google-calendar") setEventOverrides((current) => ({ ...current, [editingEvent.id]: { ...editingEvent, ...draft } }));
-            else if (editingEvent) dispatch({ type: "calendar/eventUpdated", payload: { id: editingEvent.id, ...draft } });
-            else dispatch({ type: "calendar/eventCreated", payload: { id: `catchup-${Date.now()}`, ...draft } });
+            else if (editingEvent) dispatch({ type: "calendar/eventUpdated", payload: { id: editingEvent.id, ...draft, eventType: editingEvent.eventType } });
+            else dispatch({ type: "calendar/eventCreated", payload: { id: `catchup-${Date.now()}`, ...draft, eventType: "personal" } });
             setEditingScheduleId(undefined); setAddingSchedule(false);
           }}
-        />
+        />}
       </div>}
     </section>
   );

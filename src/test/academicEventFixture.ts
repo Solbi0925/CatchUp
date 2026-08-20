@@ -12,6 +12,7 @@ export function academicEventFixture(overrides: Partial<ExtractedItem> = {}): Ex
     courseCode: null,
     date: "2026-07-23",
     time: "23:59",
+    isAllDay: false,
     dateCertainty: "exact-date",
     scheduledWeek: null,
     scheduledWeekLabel: null,
