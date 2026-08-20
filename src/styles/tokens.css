@@ -1,3 +1,5 @@
+@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css");
+
 :root {
   --color-canvas: #f8f7fb;
   --color-surface: #ffffff;
@@ -15,7 +17,7 @@
   --color-error: #d94b55;
   --shadow-card: 0 4px 14px rgba(37, 33, 53, 0.045);
   --shadow-fab: 0 6px 14px rgba(64, 48, 110, 0.22);
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: Pretendard, "Apple SD Gothic Neo", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   color: var(--color-ink);
   background: var(--color-canvas);
   font-synthesis: none;
