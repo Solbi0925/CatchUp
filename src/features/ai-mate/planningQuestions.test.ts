@@ -7,11 +7,13 @@ describe("planning personalization question priority", () => {
   it("asks for and then reuses the user's realistic maximum daily study time", () => {
     const question = selectGenerationPlanningQuestion([], emptyPlanningProfile);
     expect(question?.kind).toBe("max-daily-study");
-    expect(question?.chips.map((chip) => chip.label)).toEqual(["2-4시간", "4-6시간", "6-8시간", "그 이상"]);
+    expect(question?.prompt).toBe("하루에 최대 몇 시간 정도까지 공부하거나 과제를 할 수 있나요?");
+    expect(question?.chips.map((chip) => chip.label)).toEqual(["1시간 이내", "2-4시간", "4-6시간", "6-8시간", "그 이상"]);
     expect(selectGenerationPlanningQuestion([], { ...emptyPlanningProfile, maxDailyStudyMinutes: 240 })).toBeNull();
   });
 
   it.each([
+    ["1시간 이내", 60],
     ["2-4시간", 180],
     ["4~6시간", 300],
     ["6–8시간", 420],
@@ -29,13 +31,18 @@ describe("planning personalization question priority", () => {
     expect(selectNextPlanningQuestion([event], emptyPlanningProfile)).toBeNull();
   });
 
-  it("does not ask for missing dates while generating a plan", () => {
+  it("asks only for the shared semester mapping date, not each event's missing date", () => {
     const event = academicEventFixture({
       date: null, scheduledWeek: 8, weekOneStartDate: null, reviewStatus: "confirmed",
       confirmationStatus: "unconfirmed",
     });
     expect(selectGenerationPlanningQuestion([event], {
       ...emptyPlanningProfile,
+      maxDailyStudyMinutes: 240,
+    })?.kind).toBe("semester-start");
+    expect(selectGenerationPlanningQuestion([event], {
+      ...emptyPlanningProfile,
+      semesterWeekOneStartDate: "2026-08-31",
       maxDailyStudyMinutes: 240,
     })).toBeNull();
   });

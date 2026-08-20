@@ -10,6 +10,7 @@ import type { TodayScheduleViewModel } from "./todayTypes";
 import { currentTodayDate } from "../../application/clock";
 import { AcademicEventEditorDialog } from "../upload/AcademicEventEditorDialog";
 import { CalendarIcon, ClockIcon } from "../../ui/icons";
+import { GoogleCalendarSyncStatus } from "../calendar/GoogleCalendarSyncStatus";
 import "./today.css";
 
 const scheduleTypeLabels = {
@@ -64,7 +65,7 @@ function TodayScheduleSection({
       <button type="button" className="today-add-button" onClick={onAdd}>추가</button>
     </div>
     {schedules.length === 0 ? <div className="today-zero-state"><strong>예정된 일정이 없어요.</strong></div> : <div className="today-card-list">
-      {schedules.map((schedule) => <button type="button" className={`today-schedule-card${schedule.isProvisional ? " is-provisional" : ""}`} key={schedule.id} onClick={() => onEdit(schedule.id)} aria-label={`${schedule.title} 일정 수정`}>
+      {schedules.map((schedule) => <button type="button" className={`today-schedule-card${schedule.isProvisional ? " is-provisional" : ""}`} key={schedule.id} onClick={() => onEdit(schedule.id)} aria-label={`${schedule.title} 일정 ${schedule.sourceLabel === "Google Calendar" ? "보기" : "수정"}`}>
         <time>{schedule.timeLabel}</time>
         <div><h3>{schedule.title}</h3><p>{schedule.isProvisional ? "미확정 학업 일정" : scheduleTypeLabels[schedule.type]} · {schedule.sourceLabel}</p></div>
       </button>)}
@@ -126,16 +127,6 @@ export function TodayPage() {
         ))}
       </div>
 
-      {state.user.calendarConnectionStatus !== "connected" && (
-        <article className="today-empty-card">
-          <span className="today-empty-icon" aria-hidden="true">31</span>
-          <div>
-            <h2>Google Calendar를 연결해보세요</h2>
-            <p>개인 일정을 불러오려면 Google Calendar 연결이 필요해요.</p>
-            <Link to="/onboarding/calendar">연결하기</Link>
-          </div>
-        </article>
-      )}
       {!hasDocuments && (
           <article className="today-empty-card">
             <span className="today-empty-icon upload" aria-hidden="true">↑</span>
@@ -244,13 +235,23 @@ export function TodayPage() {
 
         </>
       )}
-      {hasDocuments && <TodayScheduleSection
+      {(hasDocuments || viewModel.schedules.length > 0 || state.user.calendarConnectionStatus === "connected") && <TodayScheduleSection
         selectedDate={selectedDate}
         todayDate={todayDate}
         schedules={viewModel.schedules}
         onAdd={() => setAddingSchedule(true)}
         onEdit={setEditingScheduleId}
       />}
+      {state.user.calendarConnectionStatus === "connected" ? <GoogleCalendarSyncStatus /> : (
+        <article className="today-empty-card">
+          <span className="today-empty-icon" aria-hidden="true">31</span>
+          <div>
+            <h2>Google Calendar를 연결해보세요</h2>
+            <p>개인 일정을 불러오려면 Google Calendar 연결이 필요해요.</p>
+            <Link to="/onboarding/calendar">연결하기</Link>
+          </div>
+        </article>
+      )}
       {(editingSchedule || addingSchedule) && <div className="today-editor-backdrop">
         {editingItem && !editingMeeting ? <AcademicEventEditorDialog
           item={editingItem}
@@ -264,6 +265,7 @@ export function TodayPage() {
           categoryColor={resolveCategoryColor(editorCategoryKey, state.categoryColorByKey)}
           onColorChange={(color) => dispatch({ type: "calendar/categoryColorSet", payload: { categoryKey: editorCategoryKey, color } })}
           onClose={() => { setEditingScheduleId(undefined); setAddingSchedule(false); }}
+          readOnly={editingEvent?.source === "google-calendar"}
           onDelete={editingSchedule ? () => {
             if (editingMeeting && editingItem) dispatch({ type: "extraction/classMeetingDeleted", payload: { id: editingItem.id, meetingId: editingMeeting.id } });
             else if (editingItem) dispatch({ type: "extraction/itemDeleted", payload: { id: editingItem.id } });

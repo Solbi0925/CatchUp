@@ -6,7 +6,7 @@ import { App } from "../../app/App";
 import { academicEventFixture } from "../../test/academicEventFixture";
 import { PrototypeStoreProvider } from "../../store/PrototypeStore";
 import { AiMateLayer } from "./AiMateLayer";
-import { AiMateProvider, GENERATE_PLAN_DRAFT, useAiMate } from "./AiMateProvider";
+import { AiMateProvider, GENERATE_PLAN_DRAFT, PLAN_AVAILABLE_GUIDANCE, PLAN_CREATED_GUIDANCE, useAiMate } from "./AiMateProvider";
 import { adjustmentUsageDate } from "../../domain/adjustmentUsage";
 
 afterEach(() => {
@@ -36,6 +36,18 @@ describe("AI Mate first plan flow", () => {
       todoIdsByWeeklyPlanId: { plan: ["todo"] }, profile: { semesterWeekOneStartDate: null, confidenceByCourse: {}, pace: "average", preparationByEventId: {}, examGoalByEventId: {} }, adjustmentUsageByDate: {}, planAdjustments: [], pendingPlanUpdate: null,
     }));
   }
+
+  it("shows generation limits before a plan and supported actions after one is created", () => {
+    render(<App initialEntries={["/today"]} />);
+    fireEvent.click(screen.getByRole("button", { name: "AI Mate 열기" }));
+    expect(screen.getByText(PLAN_AVAILABLE_GUIDANCE)).toBeInTheDocument();
+    cleanup();
+
+    seedPlan();
+    render(<App initialEntries={["/today"]} />);
+    fireEvent.click(screen.getByRole("button", { name: "AI Mate 열기" }));
+    expect(screen.getByText(PLAN_CREATED_GUIDANCE)).toBeInTheDocument();
+  });
 
   it("only fills the composer when a prompt chip is selected", () => {
     render(<MemoryRouter><PrototypeStoreProvider><AiMateProvider><PromptChipHarness /><AiMateLayer showCoachmark={false} /></AiMateProvider></PrototypeStoreProvider></MemoryRouter>);
@@ -93,6 +105,27 @@ describe("AI Mate first plan flow", () => {
     expect(JSON.parse(localStorage.getItem("catchup.planning.v1") ?? "{}").profile?.maxDailyStudyMinutes).toBeFalsy();
   });
 
+  it("restores the pending maximum-study-time choices after AI Mate is reopened", async () => {
+    localStorage.setItem("catchup.academic-events.v2", JSON.stringify([academicEventFixture({
+      id: "report", title: "행정기획론 보고서", date: "2026-07-23", estimatedDurationMinutes: 120,
+      reviewStatus: "confirmed", confirmationStatus: "confirmed",
+    })]));
+    render(<App initialEntries={["/upload"]} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "AI Mate 열기" }));
+    fireEvent.click(screen.getByRole("button", { name: "주간계획 생성" }));
+    fireEvent.click(screen.getByRole("button", { name: "메시지 보내기" }));
+    expect(await screen.findByText("하루에 최대 몇 시간 정도까지 공부하거나 과제를 할 수 있나요?")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "1시간 이내" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "2-4시간" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "AI Mate 닫기" }));
+    fireEvent.click(screen.getByRole("button", { name: "AI Mate 열기" }));
+
+    expect(screen.getByRole("button", { name: "2-4시간" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "주간계획 생성" })).not.toBeInTheDocument();
+  });
+
   it("최초 생성 문장에 수정형 추가 조건이 붙어도 생성으로 처리한다", async () => {
     seedMaxDailyStudyTime();
     localStorage.setItem("catchup.academic-events.v2", JSON.stringify([
@@ -114,8 +147,7 @@ describe("AI Mate first plan flow", () => {
     });
   });
 
-  it("does not ask users to fill missing academic dates during initial plan generation", async () => {
-    seedMaxDailyStudyTime();
+  it("asks for the semester start before other first-plan questions without asking for missing academic details", async () => {
     localStorage.setItem("catchup.academic-events.v2", JSON.stringify([academicEventFixture({
       id: "week-exam", title: "행정기획론 중간고사", courseName: "행정기획론",
       itemType: "exam", date: null, scheduledWeek: 8, scheduledWeekLabel: "8주차",
@@ -128,11 +160,33 @@ describe("AI Mate first plan flow", () => {
     const composer = screen.getByRole("textbox", { name: "AI Mate 메시지" });
     fireEvent.change(composer, { target: { value: "주간계획 생성해줘" } });
     fireEvent.click(screen.getByRole("button", { name: "메시지 보내기" }));
+
+    expect(await screen.findByText(/이번 학기 1주차는 언제 시작하나요/)).toBeInTheDocument();
+    expect(screen.queryByText(/하루에 최대 몇 시간 정도까지/)).not.toBeInTheDocument();
+
+    fireEvent.change(composer, { target: { value: "2028" } });
+    fireEvent.click(screen.getByRole("button", { name: "메시지 보내기" }));
+    expect(await screen.findByText(/이해하지 못했어요.*YYYY-MM-DD/)).toBeInTheDocument();
+    expect(screen.getByText(/이번 학기 1주차는 언제 시작하나요/)).toBeInTheDocument();
+
+    fireEvent.change(composer, { target: { value: "2026-06-01" } });
+    fireEvent.click(screen.getByRole("button", { name: "메시지 보내기" }));
+    expect(await screen.findByText(/하루에 최대 몇 시간 정도까지/)).toBeInTheDocument();
+    await waitFor(() => expect(JSON.parse(localStorage.getItem("catchup.planning.v1") ?? "{}").profile.semesterWeekOneStartDate).toBe("2026-06-01"));
+
+    fireEvent.click(screen.getByRole("button", { name: "2-4시간" }));
+    fireEvent.click(screen.getByRole("button", { name: "메시지 보내기" }));
     expect(await screen.findByText(/시간표를 업로드하면 수업 일정을 바탕으로 이번 주 복습 계획부터 만들 수 있어요/)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "시간표 업로드하기" })).toHaveAttribute("href", "/upload");
-    expect(screen.queryByText(/이번 학기 1주차는 언제 시작하나요/)).not.toBeInTheDocument();
     expect(screen.queryByText(/AcademicEvent/)).not.toBeInTheDocument();
     expect(JSON.parse(localStorage.getItem("catchup.planning.v1") ?? "{}").weeklyPlans).toHaveLength(0);
+
+    fireEvent.click(screen.getByRole("link", { name: "Today" }));
+    expect(await screen.findByText("행정기획론 중간고사 주")).toBeInTheDocument();
+    expect(screen.getByText("미확정 일정")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("link", { name: "Month" }));
+    expect((await screen.findAllByRole("button", { name: "행정기획론 중간고사 주" })).length).toBeGreaterThan(0);
   });
 
   it("creates a review plan when a confirmed timetable is available", async () => {
@@ -235,7 +289,7 @@ describe("AI Mate first plan flow", () => {
     });
   });
 
-  it("조정 질문의 날짜 답변을 이전 요청과 연결해 마감 전으로 재배치한다", async () => {
+  it("누락된 학업 일정 정보를 AI Mate가 되묻지 않고 Upload 보완을 안내한다", async () => {
     const courseName = "부산재생캡스톤디자인";
     localStorage.setItem("catchup.academic-events.v2", JSON.stringify([academicEventFixture({
       id: "capstone-class",
@@ -269,17 +323,10 @@ describe("AI Mate first plan flow", () => {
     const composer = screen.getByRole("textbox", { name: "AI Mate 메시지" });
     fireEvent.change(composer, { target: { value: `'${courseName} 수업 준비' 계획을 다음의 요청사항을 반영해서 조정해줘: 마감일 반영해서 조정해줘` } });
     fireEvent.click(screen.getByRole("button", { name: "메시지 보내기" }));
-    expect(await screen.findByText(/마감일은 언제인가요/)).toBeInTheDocument();
-
-    fireEvent.change(composer, { target: { value: "7/23일" } });
-    fireEvent.click(screen.getByRole("button", { name: "메시지 보내기" }));
-
-    expect(await screen.findByText(/마감 전 날짜에 순서대로 분산했어요/)).toBeInTheDocument();
-    expect(screen.queryByText(/해당 요청을 이해하지 못했어요/)).not.toBeInTheDocument();
-    await waitFor(() => {
-      const stored = JSON.parse(localStorage.getItem("catchup.planning.v1") ?? "{}");
-      expect(stored.todos.find((todo: { id: string }) => todo.id === "class-prep").scheduledDate < "2026-07-23").toBe(true);
-    });
+    expect(await screen.findByText(/AI Mate에서 새로 정하지 않아요.*Upload의 학업 이벤트 확인 및 수정 화면/)).toBeInTheDocument();
+    expect(screen.queryByText(/마감일은 언제인가요/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/AcademicEvent|candidateTodos|Todo|Task|WeeklyPlan/i)).not.toBeInTheDocument();
+    expect(JSON.parse(localStorage.getItem("catchup.planning.v1") ?? "{}").todos.find((todo: { id: string }) => todo.id === "class-prep").scheduledDate).toBe("2026-07-24");
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
@@ -392,6 +439,41 @@ describe("AI Mate first plan flow", () => {
     expect(screen.getAllByText(/건축환경 과제의 새 정보/)).toHaveLength(1);
   });
 
+  it("prioritizes an explicit repeat-generation request over a pending update question", async () => {
+    seedPlan();
+    const updated = academicEventFixture({
+      id: "report",
+      title: "건축환경 과제",
+      courseName: "건축환경",
+      date: "2026-07-24",
+      estimatedDurationMinutes: null,
+      difficulty: "low",
+      reviewStatus: "confirmed",
+    });
+    localStorage.setItem("catchup.academic-events.v2", JSON.stringify([updated]));
+    const planning = JSON.parse(localStorage.getItem("catchup.planning.v1") ?? "{}");
+    planning.pendingPlanUpdate = {
+      id: "pending-generation-guard",
+      reasonKind: "assignment-updated",
+      academicEventIds: ["report"],
+      message: "새로 확정된 학업 이벤트가 있어요.",
+      detectedAt: "2026-07-21T09:00:00+09:00",
+      noticeStatus: "unread",
+      previousAcademicEvents: [{ ...updated, confirmationStatus: "unconfirmed" }],
+    };
+    localStorage.setItem("catchup.planning.v1", JSON.stringify(planning));
+
+    render(<App initialEntries={["/today"]} />);
+    fireEvent.click(screen.getByRole("button", { name: "AI Mate 열기" }));
+    expect(await screen.findByText(/건축환경 과목은 어느 정도 자신/)).toBeInTheDocument();
+    const composer = screen.getByRole("textbox", { name: "AI Mate 메시지" });
+    fireEvent.change(composer, { target: { value: "주간계획 생성해줘" } });
+    fireEvent.click(screen.getByRole("button", { name: "메시지 보내기" }));
+
+    expect(await screen.findByText(/이미 이번주 주간계획을 생성했어요/)).toBeInTheDocument();
+    expect(screen.queryByText(/답변을 저장했어요/)).not.toBeInTheDocument();
+  });
+
   it("이미 확정된 이벤트의 중요 정보 변경은 불필요한 질문 없이 자동 반영한다", async () => {
     const user = userEvent.setup();
     seedPlan();
@@ -464,7 +546,8 @@ describe("AI Mate first plan flow", () => {
     expect(await screen.findByText(/해당 요청을 이해하지 못했어요/)).toBeInTheDocument();
     fireEvent.change(composer, { target: { value: "주간계획 생성해줘" } });
     fireEvent.click(screen.getByRole("button", { name: "메시지 보내기" }));
-    expect(await screen.findByText(/이미 주간계획이 있어요.*주간계획 수정/)).toBeInTheDocument();
+    expect(await screen.findByText("이미 이번주 주간계획을 생성했어요. 주간계획은 주 1회만 생성할 수 있어요. 주간계획 수정이 필요하다면 주간계획 추가 또는 주간계획 수정 기능을 사용해보세요.")).toBeInTheDocument();
+    expect(screen.queryByText("주간계획을 생성하는 중입니다...")).not.toBeInTheDocument();
   });
 
   it("does not render timestamps and preserves IME composition", () => {

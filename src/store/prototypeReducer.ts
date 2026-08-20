@@ -88,6 +88,9 @@ export type PrototypeAction =
   | { type: "calendar/connectionStarted"; payload: Record<string, never> }
   | { type: "calendar/connectionSucceeded"; payload: { events: CalendarEvent[] } }
   | { type: "calendar/connectionFailed"; payload: Record<string, never> }
+  | { type: "calendar/statusLoaded"; payload: { connected: boolean } }
+  | { type: "calendar/googleSyncApplied"; payload: { events: CalendarEvent[]; changed: boolean } }
+  | { type: "calendar/disconnected"; payload: Record<string, never> }
   | { type: "calendar/onboardingSkipped"; payload: Record<string, never> }
   | {
       type: "calendar/eventCreated";
@@ -213,6 +216,35 @@ export function prototypeReducer(
         user: { ...state.user, calendarConnectionStatus: "failed" },
         onboarding: { ...state.onboarding, introSeen: true, calendarStep: "error" },
       };
+    case "calendar/statusLoaded":
+      return {
+        ...state,
+        user: { ...state.user, calendarConnectionStatus: action.payload.connected ? "connected" : "disconnected" },
+        onboarding: {
+          ...state.onboarding,
+          calendarStep: action.payload.connected ? "connected" : state.onboarding.calendarStep === "connected" ? "idle" : state.onboarding.calendarStep,
+        },
+        calendarEventsById: action.payload.connected
+          ? state.calendarEventsById
+          : Object.fromEntries(Object.values(state.calendarEventsById).filter((event) => event.source === "catchup").map((event) => [event.id, event])),
+      };
+    case "calendar/googleSyncApplied":
+      return {
+        ...state,
+        user: { ...state.user, calendarConnectionStatus: "connected" },
+        onboarding: { ...state.onboarding, introSeen: true, calendarStep: "connected" },
+        calendarEventsById: Object.fromEntries(action.payload.events.map((event) => [event.id, event])),
+        pendingPlanUpdate: action.payload.changed && Object.keys(state.weeklyPlansById).length
+          ? scheduleUpdateRecommendation(state, "변경된 Google Calendar 일정을 반영해 주간계획을 확인할게요.")
+          : state.pendingPlanUpdate,
+      };
+    case "calendar/disconnected":
+      return {
+        ...state,
+        user: { ...state.user, calendarConnectionStatus: "disconnected" },
+        onboarding: { ...state.onboarding, introSeen: true, calendarStep: "skipped" },
+        calendarEventsById: Object.fromEntries(Object.values(state.calendarEventsById).filter((event) => event.source === "catchup").map((event) => [event.id, event])),
+      };
     case "calendar/onboardingSkipped":
       return {
         ...state,
@@ -253,7 +285,7 @@ export function prototypeReducer(
     }
     case "calendar/eventUpdated": {
       const existingEvent = state.calendarEventsById[action.payload.id];
-      if (!existingEvent) return state;
+      if (!existingEvent || existingEvent.source === "google-calendar") return state;
       const { id } = action.payload;
       const editableFields = pickEditableCalendarEventFields(action.payload);
       return {
@@ -279,7 +311,7 @@ export function prototypeReducer(
     }
     case "calendar/eventDeleted": {
       const existingEvent = state.calendarEventsById[action.payload.id];
-      if (!existingEvent) return state;
+      if (!existingEvent || existingEvent.source === "google-calendar") return state;
       const { [action.payload.id]: _deletedEvent, ...calendarEventsById } = state.calendarEventsById;
       return {
         ...state,

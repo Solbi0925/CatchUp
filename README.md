@@ -88,6 +88,30 @@ pnpm build
 
 업로드 파일은 OS 임시 디렉터리에서 처리 후 삭제되며, 구조화된 확정·미확정 학업 이벤트와 원본 출처 정보만 브라우저 Local Storage에 저장된다. 이후 자료 분석 시 기존 미확정 이벤트를 함께 비교해 동일 이벤트의 부족한 정보를 보완한다.
 
+## Google Calendar 읽기 전용 연결
+
+Google Cloud Console에서 Google Calendar API와 OAuth 동의 화면을 설정한 뒤 `웹 애플리케이션` OAuth Client ID를 생성한다. 승인된 리디렉션 URI에는 아래 주소를 정확히 등록한다.
+
+```text
+http://localhost:4318/api/google-calendar/oauth/callback
+```
+
+`.env.example`을 참고해 로컬 `.env`에 다음 값을 설정한다. 실제 Client ID, Client Secret, access token, refresh token은 Git에 커밋하지 않는다.
+
+```dotenv
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+GOOGLE_REDIRECT_URI=http://localhost:4318/api/google-calendar/oauth/callback
+```
+
+Bridge 포트를 바꾸면 `CATCHUP_BRIDGE_PORT`, Vite 프록시, Google Cloud에 등록한 `GOOGLE_REDIRECT_URI`가 같은 포트를 가리켜야 한다. OAuth 동의 화면이 테스트 상태라면 사용할 Google 계정을 테스트 사용자로 등록한다. 앱의 연결 버튼은 일정 이벤트와 캘린더 목록의 읽기 전용 권한만 요청하며 Google Calendar에 일정 생성·수정·삭제 요청을 보내지 않는다.
+
+최초 연결은 Google 계정의 기본(primary) 캘린더에서 연결 시점부터 6개월 뒤까지의 고정 범위를 저장하고 반복 일정을 실제 발생 건으로 펼쳐 가져온다. 이후에는 저장한 `syncToken`으로 추가·수정·삭제만 증분 동기화한다. token이 만료되어 Google이 `410 Gone`을 반환하면 처음 저장한 동일 범위를 다시 조회한다. 일시적인 API 실패 때는 브라우저에 마지막으로 저장된 Google 일정과 CatchUp 직접 입력 일정을 유지한다.
+
+OAuth access/refresh token과 syncToken은 브라우저에 전달하지 않고 Local Bridge가 기본적으로 `~/.catchup/google-calendar-session.json`에 소유자 전용 권한(`0600`)으로 저장한다. 브라우저 Local Storage에는 화면과 계획에 필요한 정규화 일정만 저장한다. 연결 해제 시 서버 token과 Google 출처 일정만 제거하며 CatchUp 직접 입력 일정은 유지한다.
+
+Google의 `start.date` 일정만 실제 종일 일정으로 처리한다. `start.dateTime` 일정은 해당 시간대만 점유하고, 날짜만 확인된 CatchUp 학업 이벤트의 `시간 없음` 상태와 구분한다. 6개월치 Google 일정 전체를 Codex에 보내지 않으며 현재 4주 범위의 제목 없는 busy block만 계획 입력에 포함한다.
+
 ## AI 주간계획 구조
 
 최초 생성과 자동 업데이트는 `Vite -> Local Bridge -> codex exec -> weekly-plan JSON Schema -> 애플리케이션 절대 규칙 검증` 흐름을 사용한다. AI Mate의 사용자 조정은 더 작은 전용 흐름을 사용한다. 날짜 이동, 마감 전 재분배, 분할, 시간·요일 한도처럼 대상과 조건이 명확한 요청은 Fast Path가 Codex 호출 없이 처리한다. 모호하거나 복합적인 요청만 Local Bridge가 Codex로 보내며, Codex는 전체 계획이 아니라 `plan-adjustment.schema.json`의 변경 명령만 반환한다. 실제 날짜 배치와 최소 diff 적용은 애플리케이션이 수행한다.
@@ -96,4 +120,4 @@ pnpm build
 
 최초 생성·자동 업데이트의 첫 초안이 실패하면 구조화된 위반 목록을 포함해 한 번만 재생성한다. 두 번째 초안도 실패하거나 모델 실행·타임아웃·JSON 오류가 발생하면 기존 계획과 pending 업데이트를 유지한다. 테스트에서는 외부 모델을 호출하지 않고 모델 실행기 인터페이스에 Fake/Stub을 주입한다.
 
-필수 환경 변수는 없다. Bridge 포트를 바꿀 때만 `CATCHUP_BRIDGE_PORT`를 설정한다. 조정 명령에만 다른 Codex 모델을 사용하려면 `CATCHUP_CODEX_ADJUST_MODEL`을 선택적으로 설정한다. 값이 없으면 로그인된 Codex CLI의 기본 모델을 사용하며, 설치된 CLI가 지원하지 않는 모델이면 계획을 바꾸지 않고 명확한 실행 오류를 표시한다. 별도 reasoning 설정은 추측해 추가하지 않았다. Codex CLI 로그인 상태는 `codex login status`로 확인할 수 있고 OpenAI API Key나 외부 AI SDK는 사용하지 않는다. Google Calendar 화면과 샘플 일정은 MVP 프로토타입이며 실제 Google Calendar OAuth/API 연동은 아직 구현하지 않았다. 세부 요청·응답과 검증 정책은 `API_SPEC.md`를 참고한다.
+Google Calendar 연결에는 `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI`가 필요하다. Bridge 포트를 바꿀 때는 `CATCHUP_BRIDGE_PORT`도 함께 설정한다. 조정 명령에만 다른 Codex 모델을 사용하려면 `CATCHUP_CODEX_ADJUST_MODEL`을 선택적으로 설정한다. 값이 없으면 로그인된 Codex CLI의 기본 모델을 사용하며, 설치된 CLI가 지원하지 않는 모델이면 계획을 바꾸지 않고 명확한 실행 오류를 표시한다. 별도 reasoning 설정은 추측해 추가하지 않았다. Codex CLI 로그인 상태는 `codex login status`로 확인할 수 있고 OpenAI API Key나 외부 AI SDK는 사용하지 않는다. 세부 요청·응답과 검증 정책은 `API_SPEC.md`를 참고한다.

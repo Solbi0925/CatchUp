@@ -4,7 +4,7 @@
 
 CatchUp의 MVP 정보 구조는 Google Calendar를 사용하는 사용자가 학업 자료와 Google Calendar 개인 일정, CatchUp에서 직접 추가·수정한 개인 일정, 기존 미완료 과제를 바탕으로 현재부터 7일 동안 해야 할 학습 항목을 확인하도록 구성한다. Today는 이 Plan 기간과 분리된 월~일 Calendar Week 단위로 표시한다.
 
-이번 MVP는 발표용 노트북의 localhost에서만 동작한다. `frontend/`는 화면과 필요한 Local Storage를, `backend/` Local Backend/Bridge는 파일 임시 처리와 `codex exec` 결과 반환을 담당한다. Google Calendar 실제 OAuth 연결은 핵심 Upload·AI·계획 흐름을 완성한 뒤 localhost에서 진행한다.
+이번 MVP는 발표용 노트북의 localhost에서만 동작한다. `frontend/`는 화면과 필요한 Local Storage를, `backend/` Local Backend/Bridge는 파일 임시 처리, `codex exec`, Google Calendar 읽기 전용 OAuth·동기화를 담당한다.
 
 AI Mate는 하단 네비게이션의 개별 탭으로 두지 않고, 어떤 화면에 있어도 접근할 수 있는 전역 플로팅 탭으로 제공한다. 사용자는 Upload 화면에 올린 학업 자료와 일정, 기존 미완료 과제를 바탕으로 원하는 날짜에 AI Mate에게 7일 Plan 생성을 요청하고, 계획 생성 시 요청사항을 자연어로 입력할 수 있다. 계획 생성 후 수정하고 싶은 부분이 있으면 같은 플로팅 AI Mate를 통해 계획 조정을 요청한다.
 
@@ -32,7 +32,7 @@ AI Mate는 하단 네비게이션의 개별 탭으로 두지 않고, 어떤 화�
 
 - 첫 사용자는 온보딩을 본 뒤 Google Calendar 연동 화면으로 이동한다.
 - 온보딩은 워드마크 중심의 짧은 브랜드 인트로이며, 일정 시간 노출 후 Google Calendar 연동 화면으로 자동 전환한다.
-- Google Calendar 연동을 완료하면 메인 앱으로 진입한다. 핵심 기능 완성 전에는 Mock 연결 상태로 같은 화면 흐름을 검증한다.
+- Google Calendar 연동을 완료하고 최초 동기화가 끝나면 메인 앱으로 진입한다. 테스트에서는 실제 계정 대신 Fake Calendar 응답을 사용한다.
 - 메인 앱의 기본 진입 탭은 `Today`이다.
 
 ### 3.2 메인 네비게이션
@@ -175,7 +175,7 @@ CatchUp
 - 완료 체크
 - 할 일 카드를 눌러 AI Mate의 추천 이유·조정·추가 Prompt Chips 확인
 - 주간 계획 미생성 또는 빈 날짜의 문맥형 버튼으로 AI Mate 입력 초안 열기
-- 예정 일정 카드를 눌러 출처와 관계없이 현재 화면에서 일정 수정
+- 예정 일정 카드를 눌러 상세 확인. Google 일정은 읽기 전용이며 CatchUp 직접 입력 일정과 학업 일정만 현재 화면에서 수정
 
 #### MVP 제한
 
@@ -212,7 +212,7 @@ CatchUp
 
 - 월간 캘린더에서 일정이 있는 날짜 확인
 - 날짜를 선택해 해당 날짜의 일정 상세 팝업 확인
-- Upload 추출 일정, Google Calendar 일정, CatchUp 직접 입력 일정 추가 및 수정
+- Upload 추출 일정과 CatchUp 직접 입력 일정 추가·수정, Google Calendar 일정 상세 확인
 - 계획 변경이 필요하면 플로팅 AI Mate를 열어 조정 요청
 
 #### MVP 제한
@@ -220,7 +220,7 @@ CatchUp
 - 월간 화면은 일정 확인용 캘린더이며, 전체 월간 계획을 세부 단위까지 자동 생성하지 않는다.
 - Google Calendar 외 다른 외부 캘린더는 연결하지 않는다.
 - 사용자가 주간 계획 항목의 시간, 날짜, 우선순위, 내용을 직접 수정하는 기능은 MVP에서 제외한다.
-- 원본 일정은 출처와 관계없이 일정 편집창에서 수정할 수 있지만, AI가 만든 주간 계획 항목은 직접 수정하지 않고 AI Mate로만 변경한다.
+- Google Calendar 일정은 읽기 전용으로 표시하고 수정은 Google Calendar에서 수행한다. Upload 추출 일정과 CatchUp 직접 입력 일정은 일정 편집창에서 수정할 수 있지만, AI가 만든 주간 계획 항목은 직접 수정하지 않고 AI Mate로만 변경한다.
 - 확인 필요 일정을 일반 일정과 다르게 표시하는 기능은 초기 구현에서 제외한다.
 
 ### 5.3 탭 3: Upload

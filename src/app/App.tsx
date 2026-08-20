@@ -15,6 +15,7 @@ import { TodayPage } from "../features/today/TodayPage";
 import { MonthPage } from "../features/month/MonthPage";
 import { AppShell } from "./AppShell";
 import { InitialRoute } from "./InitialRoute";
+import { GoogleCalendarSyncProvider } from "../features/calendar/GoogleCalendarSyncProvider";
 
 const routes = [
   {
@@ -57,11 +58,13 @@ export function App({ initialEntries }: { initialEntries?: string[] }) {
   );
   return (
     <PrototypeStoreProvider>
-      <UploadSessionProvider>
-        <AiMateProvider>
-          <RouterProvider router={router} />
-        </AiMateProvider>
-      </UploadSessionProvider>
+      <GoogleCalendarSyncProvider>
+        <UploadSessionProvider>
+          <AiMateProvider>
+            <RouterProvider router={router} />
+          </AiMateProvider>
+        </UploadSessionProvider>
+      </GoogleCalendarSyncProvider>
     </PrototypeStoreProvider>
   );
 }

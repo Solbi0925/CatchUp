@@ -10,17 +10,29 @@ import {
 import { validatePlanPrerequisites } from "../../domain/policies";
 import { adjustmentUsageDate } from "../../domain/adjustmentUsage";
 import type {
-  AiMateIntent, AiMateMessage, AiMateMessageAction, ExtractedItem, OperationId, PlanningProfile, PlanPrerequisiteReason, Todo,
+  AiMateIntent, AiMateMessage, AiMateMessageAction, ExtractedItem, OperationId, PlanningProfile, PlanPrerequisiteReason, Todo, WeeklyPlan,
 } from "../../domain/types";
 import { usePrototypeStore } from "../../store/PrototypeStore";
 import { classifyAiMateIntent } from "./classifyAiMateIntent";
 import { createWeeklyPlanModelRunner } from "./weeklyPlanModelRunner";
 import { createAdjustmentCommandRunner } from "./adjustmentCommandRunner";
 
-const INITIAL_MESSAGES: AiMateMessage[] = [
-  { id: "catch-introduction", role: "assistant", text: "안녕하세요! 여러분의 AI Mate 캐치예요.", createdAt: demoInteractionClock.now().toISOString(), status: "sent" },
-  { id: "catch-plan-guidance", role: "assistant", text: "확인한 학업 일정을 바탕으로 오늘부터 7일 계획을 만들 수 있어요.", createdAt: demoInteractionClock.now().toISOString(), status: "sent" },
-];
+export const PLAN_AVAILABLE_GUIDANCE = "캐치가 확인한 학업 일정을 바탕으로 오늘부터 7일 계획을 만들어줄게요! 단, 주간계획 생성은 일주일에 한번만 가능해요.";
+export const PLAN_CREATED_GUIDANCE = "캐치에게 주간계획 생성, 주간계획 수정, 할 일 추천이유, 자동 업데이트 취소를 요청할 수 있어요!";
+
+function isActiveWeeklyPlan(plan: WeeklyPlan | null, now = demoInteractionClock.now()) {
+  if (!plan) return false;
+  const currentDate = adjustmentUsageDate(now);
+  return currentDate >= plan.weekStartDate && currentDate <= plan.weekEndDate;
+}
+
+function initialMessages(hasActivePlan: boolean): AiMateMessage[] {
+  const createdAt = demoInteractionClock.now().toISOString();
+  return [
+    { id: "catch-introduction", role: "assistant", text: "안녕하세요! 여러분의 AI Mate 캐치예요.", createdAt, status: "sent" },
+    { id: "catch-plan-guidance", role: "assistant", text: hasActivePlan ? PLAN_CREATED_GUIDANCE : PLAN_AVAILABLE_GUIDANCE, createdAt, status: "sent" },
+  ];
+}
 
 export const GENERATE_PLAN_DRAFT = "주간계획 생성해줘. 다음의 요청사항을 반영해: ";
 export interface AiMatePromptChip {
@@ -29,7 +41,7 @@ export interface AiMatePromptChip {
   action?: "explain-selected" | "update-plan" | "undo-auto-update" | "start-add-todo" | "select-add-course";
   courseName?: string;
 }
-type QuestionKind = "max-daily-study" | "confidence" | "pace" | "preparation" | "exam-goal";
+type QuestionKind = "semester-start" | "max-daily-study" | "confidence" | "pace" | "preparation" | "exam-goal";
 interface PlanningQuestion {
   id: string; kind: QuestionKind; prompt: string; courseName?: string; eventId?: string;
   chips: AiMatePromptChip[];
@@ -64,7 +76,7 @@ function prerequisiteMessage(operationId: OperationId, reason: PlanPrerequisiteR
     "no-upload": { text: "계획을 만들려면 먼저 학업 자료가 필요해요.", actions: [{ label: "Upload로 이동", href: "/upload" }] },
     "calendar-disconnected": { text: "연결된 개인 일정 없이 현재 학업 정보만으로 계획을 만들게요." },
     "needs-review": { text: "확인이 필요한 추출 결과가 있어요. 내용을 확인하고 저장해주세요.", actions: [{ label: "학업 이벤트 확인", href: "/upload/extraction" }] },
-    "already-generated": { text: "이미 주간계획이 있어요. 대신 주간계획 수정을 통해 원하는 요구사항을 반영해봐요!" },
+    "already-generated": { text: "이미 이번주 주간계획을 생성했어요. 주간계획은 주 1회만 생성할 수 있어요. 주간계획 수정이 필요하다면 주간계획 추가 또는 주간계획 수정 기능을 사용해보세요." },
   };
   const response = messages[reason];
   return assistantMessage(operationId, response.text, "generate-plan", response.actions);
@@ -181,10 +193,19 @@ export function selectNextPlanningQuestion(items: ExtractedItem[], profile: Plan
 }
 
 export function selectGenerationPlanningQuestion(items: ExtractedItem[], profile: PlanningProfile): PlanningQuestion | null {
+  const needsWeekMapping = items.some((item) =>
+    item.date === null && item.scheduledWeek !== null && item.weekOneStartDate === null,
+  );
+  if (needsWeekMapping && profile.semesterWeekOneStartDate === null) return {
+    id: "semester-week-one-start", kind: "semester-start",
+    prompt: "주차별 학업 일정을 Today와 Month의 실제 날짜에 표시하려면 시작일이 필요해요. 이번 학기 1주차는 언제 시작하나요? YYYY-MM-DD 형식으로 알려주세요.",
+    chips: [],
+  };
   if (!profile.maxDailyStudyMinutes) return {
     id: "max-daily-study", kind: "max-daily-study",
-    prompt: "할 일이 많은 날에는 하루에 최대 몇 시간 정도까지 공부하거나 과제를 할 수 있나요?",
+    prompt: "하루에 최대 몇 시간 정도까지 공부하거나 과제를 할 수 있나요?",
     chips: [
+      { label: "1시간 이내", draft: "1시간 이내" },
       { label: "2-4시간", draft: "2-4시간" },
       { label: "4-6시간", draft: "4-6시간" },
       { label: "6-8시간", draft: "6-8시간" },
@@ -218,6 +239,15 @@ export function parseMaxDailyStudyMinutes(answer: string): number | null {
 }
 
 function applyQuestionAnswer(profile: PlanningProfile, question: PlanningQuestion, answer: string): PlanningProfile | null {
+  if (question.kind === "semester-start") {
+    const match = answer.match(/(20\d{2})\D+(\d{1,2})\D+(\d{1,2})/);
+    if (!match) return null;
+    const candidate = `${match[1]}-${match[2].padStart(2, "0")}-${match[3].padStart(2, "0")}`;
+    const parsed = new Date(`${candidate}T00:00:00Z`);
+    return Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== candidate
+      ? null
+      : { ...profile, semesterWeekOneStartDate: candidate };
+  }
   if (question.kind === "max-daily-study") {
     const value = parseMaxDailyStudyMinutes(answer);
     return value === null ? null : { ...profile, maxDailyStudyMinutes: value };
@@ -230,16 +260,20 @@ function applyQuestionAnswer(profile: PlanningProfile, question: PlanningQuestio
 }
 
 function invalidQuestionAnswerMessage(question: PlanningQuestion) {
+  if (question.kind === "semester-start") {
+    return "이해하지 못했어요. 이번 학기 1주차 시작일을 YYYY-MM-DD 형식으로 알려주세요.";
+  }
   if (question.kind === "max-daily-study") {
-    return "이해하지 못했어요. 2-4시간처럼 범위를 선택하거나, 하루에 가능한 최대 시간을 알려주세요.";
+    return "이해하지 못했어요. 1시간 이내 또는 2-4시간처럼 가능한 최대 시간을 알려주세요.";
   }
   return "답변을 이해하지 못했어요. 선택지 중 하나를 고르거나 다시 입력해주세요.";
 }
 
 export function AiMateProvider({ children }: { children: ReactNode }) {
   const { state, dispatch } = usePrototypeStore();
+  const hasActivePlan = isActiveWeeklyPlan(selectCurrentWeeklyPlan(state));
   const [isOpen, setIsOpen] = useState(false);
-  const [messages, setMessages] = useState<AiMateMessage[]>(() => INITIAL_MESSAGES.map((message) => ({ ...message })));
+  const [messages, setMessages] = useState<AiMateMessage[]>(() => initialMessages(hasActivePlan));
   const [draft, setDraft] = useState("");
   const [promptChips, setPromptChips] = useState<AiMatePromptChip[]>([]);
   const [isResponding, setResponding] = useState(false);
@@ -256,6 +290,11 @@ export function AiMateProvider({ children }: { children: ReactNode }) {
   const processedUpdateRef = useRef(new Set<string>());
   const stateRef = useRef(state); stateRef.current = state;
   const appendAssistant = useCallback((message: AiMateMessage) => setMessages((current) => [...current, message]), []);
+  useEffect(() => {
+    setMessages((current) => current.map((message) => message.id === "catch-plan-guidance"
+      ? { ...message, text: hasActivePlan ? PLAN_CREATED_GUIDANCE : PLAN_AVAILABLE_GUIDANCE }
+      : message));
+  }, [hasActivePlan]);
   const taskChips = useCallback((todo?: Todo, includeUpdate = true) => {
     const managedTodo = todo && participatesInPlanning(todo) ? todo : undefined;
     const chips: AiMatePromptChip[] = [];
@@ -276,7 +315,7 @@ export function AiMateProvider({ children }: { children: ReactNode }) {
   }, [taskChips]);
   const openDefault = useCallback(() => {
     const current = stateRef.current;
-    if (!selectCurrentWeeklyPlan(current)) { openForPlanGeneration(); return; }
+    if (!isActiveWeeklyPlan(selectCurrentWeeklyPlan(current))) { openForPlanGeneration(); return; }
     setPendingTodoAddition(null); setPendingAdjustmentQuestion(null); setSelectedTodoId(null); setDraft(""); setPromptChips(taskChips()); setIsOpen(true);
   }, [openForPlanGeneration, taskChips]);
 
@@ -406,9 +445,9 @@ export function AiMateProvider({ children }: { children: ReactNode }) {
       if (/오류 테스트/.test(text)) throw new Error("test");
       const current = stateRef.current;
       if (intent === "generate-plan") {
-        appendAssistant(assistantMessage(operationId, "주간계획을 생성하는 중입니다...", intent));
         const prerequisite = validatePlanPrerequisites({ user: current.user, documents: selectDocuments(current), extractedItems: selectAllExtractedItems(current), existingWeeklyPlan: selectCurrentWeeklyPlan(current), now: demoInteractionClock.now() });
         if (!prerequisite.ok) { appendAssistant(prerequisiteMessage(operationId, prerequisite.reason)); return; }
+        appendAssistant(assistantMessage(operationId, "주간계획을 생성하는 중입니다...", intent));
         await generatePlan(operationId, text, current.planningProfile);
         return;
       }
@@ -532,8 +571,16 @@ export function AiMateProvider({ children }: { children: ReactNode }) {
   const sendMessage = useCallback((event?: FormEvent) => {
     event?.preventDefault(); const text = draft.trim(); if (!text || isResponding) return;
     operationSequence.current += 1; const newOperationId = `ai-operation-${operationSequence.current}`;
-    setMessages((current) => [...current, { id: `user-${newOperationId}`, role: "user", text, createdAt: demoInteractionClock.now().toISOString(), status: "sent", intent: pendingAdjustmentQuestion ? "adjust-plan" : pendingGeneration?.mode === "update" ? "update-plan" : pendingGeneration?.mode === "generate" ? "generate-plan" : classifyAiMateIntent(text), operationId: newOperationId }]);
+    const explicitIntent = classifyAiMateIntent(text);
+    setMessages((current) => [...current, { id: `user-${newOperationId}`, role: "user", text, createdAt: demoInteractionClock.now().toISOString(), status: "sent", intent: explicitIntent === "generate-plan" ? explicitIntent : pendingAdjustmentQuestion ? "adjust-plan" : pendingGeneration?.mode === "update" ? "update-plan" : pendingGeneration?.mode === "generate" ? "generate-plan" : explicitIntent, operationId: newOperationId }]);
     setDraft(""); setPromptChips([]);
+    if (explicitIntent === "generate-plan" && isActiveWeeklyPlan(selectCurrentWeeklyPlan(stateRef.current))) {
+      setPendingTodoAddition(null);
+      setPendingAdjustmentQuestion(null);
+      setPendingGeneration(null);
+      void execute(text, newOperationId);
+      return;
+    }
     if (pendingTodoAddition) {
       const intent: AiMateIntent = "unknown";
       if (!pendingTodoAddition.title) {
@@ -655,7 +702,8 @@ export function AiMateProvider({ children }: { children: ReactNode }) {
     const automatic = latestAutomaticAdjustment(state);
     return automatic?.noticeStatus === "unread" ? "업데이트 사항이 있어요!" : null;
   })();
-  const value = useMemo<AiMateContextValue>(() => ({ isOpen, setOpen, openWithDraft, openForPlanGeneration, openForTodo, openDefault, messages, draft, setDraft, promptChips, selectPromptChip, isResponding, responseStage, adjustmentRemaining, sendMessage, retryFailed, updateCoachmark }), [adjustmentRemaining, draft, isOpen, isResponding, messages, openDefault, openForPlanGeneration, openForTodo, openWithDraft, promptChips, responseStage, retryFailed, selectPromptChip, sendMessage, setOpen, updateCoachmark]);
+  const visiblePromptChips = pendingGeneration?.question.chips ?? promptChips;
+  const value = useMemo<AiMateContextValue>(() => ({ isOpen, setOpen, openWithDraft, openForPlanGeneration, openForTodo, openDefault, messages, draft, setDraft, promptChips: visiblePromptChips, selectPromptChip, isResponding, responseStage, adjustmentRemaining, sendMessage, retryFailed, updateCoachmark }), [adjustmentRemaining, draft, isOpen, isResponding, messages, openDefault, openForPlanGeneration, openForTodo, openWithDraft, responseStage, retryFailed, selectPromptChip, sendMessage, setOpen, updateCoachmark, visiblePromptChips]);
   return <AiMateContext.Provider value={value}>{children}</AiMateContext.Provider>;
 }
 

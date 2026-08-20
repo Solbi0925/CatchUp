@@ -207,7 +207,7 @@ describe("prototypeReducer", () => {
     expect(deleted.calendarEventsById["event-1"]).toBeUndefined();
   });
 
-  it("edits and deletes a stored personal schedule regardless of its source label", () => {
+  it("keeps synchronized Google events read-only", () => {
     const googleEvent = {
       id: "google-1",
       userId: "user-demo-01",
@@ -228,8 +228,17 @@ describe("prototypeReducer", () => {
       type: "calendar/eventDeleted",
       payload: { id: "google-1" },
     });
-    expect(updated.calendarEventsById["google-1"].title).toBe("변경");
-    expect(deleted.calendarEventsById["google-1"]).toBeUndefined();
+    expect(updated.calendarEventsById["google-1"].title).toBe("스터디");
+    expect(deleted.calendarEventsById["google-1"]).toBeDefined();
+  });
+
+  it("applies Google sync and disconnect without deleting manual events", () => {
+    const withManual = prototypeReducer(createInitialPrototypeState(), { type: "calendar/eventCreated", payload: { id: "manual", ...eventDraft } });
+    const googleEvent = { id: "google", userId: "user-demo-01", ...eventDraft, source: "google-calendar" as const, externalId: "external", externalCalendarId: "primary", updatedAt: "2026-07-01T00:00:00Z" };
+    const synced = prototypeReducer(withManual, { type: "calendar/googleSyncApplied", payload: { events: [withManual.calendarEventsById.manual, googleEvent], changed: true } });
+    const disconnected = prototypeReducer(synced, { type: "calendar/disconnected", payload: {} });
+    expect(synced.calendarEventsById.google).toBeDefined();
+    expect(disconnected.calendarEventsById).toEqual({ manual: withManual.calendarEventsById.manual });
   });
 
   it("stores a color override for the whole calendar category", () => {

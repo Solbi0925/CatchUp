@@ -26,6 +26,7 @@ interface Props {
   onClose: () => void;
   onDelete?: () => void;
   deleteLabel?: string;
+  readOnly?: boolean;
 }
 
 export function ScheduleEditorDialog({
@@ -38,6 +39,7 @@ export function ScheduleEditorDialog({
   onClose,
   onDelete,
   deleteLabel = "일정 삭제",
+  readOnly = false,
 }: Props) {
   const [draft, setDraft] = useState(initialDraft);
   const [error, setError] = useState("");
@@ -59,13 +61,13 @@ export function ScheduleEditorDialog({
       setError("종료 시간은 시작 시간보다 늦어야 합니다.");
       return;
     }
-    onSave({ ...draft, title: draft.title.trim() });
+    if (!readOnly) onSave({ ...draft, title: draft.title.trim() });
   };
 
   return (
     <section className="schedule-editor" role="dialog" aria-label="일정 편집">
       <header>
-        <h3>일정 편집</h3>
+        <h3>{readOnly ? "Google Calendar 일정" : "일정 편집"}</h3>
         <button type="button" onClick={onClose} aria-label="일정 편집 닫기">×</button>
       </header>
       <form onSubmit={submit}>
@@ -75,15 +77,16 @@ export function ScheduleEditorDialog({
             aria-label="제목"
             value={draft.title}
             onChange={(event) => setDraft({ ...draft, title: event.target.value })}
+            disabled={readOnly}
           />
         </label>
         <label>
           <span>날짜</span>
-          <input type="date" value={draft.date} onChange={(event) => setDraft({ ...draft, date: event.target.value })} />
+          <input type="date" value={draft.date} onChange={(event) => setDraft({ ...draft, date: event.target.value })} disabled={readOnly} />
         </label>
         <div className="schedule-editor__times">
-          <label><span>시작</span><input type="time" value={draft.startTime ?? ""} onChange={(event) => setDraft({ ...draft, startTime: event.target.value || null })} /></label>
-          <label><span>종료</span><input type="time" value={draft.endTime ?? ""} onChange={(event) => setDraft({ ...draft, endTime: event.target.value || null })} /></label>
+          <label><span>시작</span><input type="time" value={draft.startTime ?? ""} onChange={(event) => setDraft({ ...draft, startTime: event.target.value || null })} disabled={readOnly} /></label>
+          <label><span>종료</span><input type="time" value={draft.endTime ?? ""} onChange={(event) => setDraft({ ...draft, endTime: event.target.value || null })} disabled={readOnly} /></label>
         </div>
         <p className="schedule-editor__fixed-type">{fixedTypeLabels[draft.eventType]}</p>
         <fieldset className="schedule-color-fieldset">
@@ -99,8 +102,9 @@ export function ScheduleEditorDialog({
           <p>{categoryKind === "course" ? "같은 과목의 모든 일정에 적용돼요." : "모든 개인 일정에 적용돼요."}</p>
         </fieldset>
         {error && <p className="schedule-editor__error" role="alert">{error}</p>}
-        <button className="schedule-editor__primary" type="submit">저장</button>
-        {onDelete && <button className="schedule-editor__delete" type="button" onClick={onDelete}>{deleteLabel}</button>}
+        {readOnly && <p className="schedule-editor__fixed-type">일정 변경은 Google Calendar에서 해주세요.</p>}
+        {!readOnly && <button className="schedule-editor__primary" type="submit">저장</button>}
+        {!readOnly && onDelete && <button className="schedule-editor__delete" type="button" onClick={onDelete}>{deleteLabel}</button>}
       </form>
     </section>
   );

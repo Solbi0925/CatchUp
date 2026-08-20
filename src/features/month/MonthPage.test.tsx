@@ -6,12 +6,16 @@ import { App } from "../../app/App";
 import { PrototypeStoreProvider } from "../../store/PrototypeStore";
 import { MonthPage } from "./MonthPage";
 import { academicEventFixture } from "../../test/academicEventFixture";
+import { GoogleCalendarSyncProvider } from "../calendar/GoogleCalendarSyncProvider";
+import { demoCalendarEvents } from "../../mocks/templates";
 
 function renderMonth() {
   return render(
     <MemoryRouter>
       <PrototypeStoreProvider>
-        <MonthPage />
+        <GoogleCalendarSyncProvider autoInitialize={false}>
+          <MonthPage />
+        </GoogleCalendarSyncProvider>
       </PrototypeStoreProvider>
     </MemoryRouter>,
   );
@@ -21,6 +25,14 @@ afterEach(cleanup);
 beforeEach(() => sessionStorage.clear());
 
 describe("MonthPage", () => {
+  it("does not render the Google Calendar sync status box", () => {
+    renderMonth();
+
+    expect(
+      screen.queryByRole("complementary", { name: "Google Calendar 동기화 상태" }),
+    ).not.toBeInTheDocument();
+  });
+
   it("renders the actual month grid and opens a selected date", async () => {
     const user = userEvent.setup();
     renderMonth();
@@ -45,6 +57,7 @@ describe("MonthPage", () => {
   });
 
   it("shows schedule titles directly on the calendar", async () => {
+    localStorage.setItem("catchup.calendar-events.v1", JSON.stringify([demoCalendarEvents[0]]));
     const user = userEvent.setup();
     const { container } = renderMonth();
 
@@ -60,7 +73,8 @@ describe("MonthPage", () => {
     expect(screen.getAllByText("팀 프로젝트 회의").length).toBeGreaterThan(0);
   });
 
-  it("edits and deletes a visible personal mock event", async () => {
+  it("edits and deletes a visible CatchUp personal event", async () => {
+    localStorage.setItem("catchup.calendar-events.v1", JSON.stringify([{ ...demoCalendarEvents[0], source: "catchup" }]));
     const user = userEvent.setup();
     renderMonth();
     await user.click(

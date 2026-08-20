@@ -39,6 +39,22 @@ PDF와 이미지 파일들을 하나의 분석 작업으로 전달한다. Vite �
 
 Bridge는 요청마다 OS 임시 디렉터리를 만들고 종료 시 삭제한다. 원본 파일은 저장하지 않으며 확정·미확정 구조화 이벤트는 날짜 정확도, 버전, 새 정보 확인 상태와 함께 브라우저의 `catchup.academic-events.v2`에 즉시 저장한다.
 
+## Google Calendar 읽기 전용 API
+
+- `GET /api/google-calendar/connect?returnTo=...`: 서버가 CSRF 방지 `state`를 생성·저장하고 Google OAuth 승인 화면으로 redirect한다.
+- `GET /api/google-calendar/oauth/callback`: `state`와 승인 코드를 검증하고 서버에서 token을 교환한 뒤 앱으로 redirect한다.
+- `GET /api/google-calendar/status`: token을 노출하지 않고 연결 여부, 마지막 동기화 시각, 고정 동기화 범위와 오류 코드만 반환한다.
+- `POST /api/google-calendar/sync`: 최초 전체 동기화 또는 캘린더별 `syncToken` 증분 동기화를 실행한다.
+- `POST /api/google-calendar/disconnect`: Google token 저장과 syncToken을 삭제한다.
+
+기본 callback은 `http://localhost:4318/api/google-calendar/oauth/callback`이다. `CATCHUP_BRIDGE_PORT`를 변경하면 `GOOGLE_REDIRECT_URI`와 Google Cloud Console의 승인된 redirect URI도 같은 주소로 변경한다. 권한은 `calendar.events.readonly`와 캘린더 목록 확인용 `calendar.calendarlist.readonly`만 요청한다.
+
+최초 동기화는 Google 계정의 기본(primary) 캘린더를 선택하고 OAuth 완료 시각부터 6개월 뒤까지의 범위를 한 번 고정한다. Google Events API는 `singleEvents=true`로 반복 일정을 발생 건별로 펼치고 `nextPageToken`이 끝날 때까지 조회한다. 마지막 페이지의 `nextSyncToken`을 저장하며 이후 호출은 변경·취소된 이벤트만 받는다. `410 Gone`이면 token을 버리고 처음 저장한 동일 범위를 전체 재동기화한다. 전체 재조회가 성공하기 전에는 브라우저의 기존 일정 컬렉션을 지우지 않는다.
+
+서버 응답의 `upserts`, `deletedExternalKeys`, `replaceCalendarIds`, `removedCalendarIds`를 브라우저 저장소가 원자적으로 병합한다. `source=google-calendar` 일정만 교체·삭제하며 `source=catchup` 직접 입력 일정은 제목이 같아도 보존한다. Google `start.date/end.date`는 실제 종일 일정, `start.dateTime/end.dateTime`은 시간형 일정이다. 시간 없는 CatchUp AcademicEvent는 이 동기화 모델에 포함되지 않으며 종일로 변환하지 않는다.
+
+access token, refresh token, OAuth state, syncToken은 Local Bridge의 서버 전용 파일에 `0600` 권한으로 저장하고 API·로그·브라우저에 반환하지 않는다. 기본 위치는 `~/.catchup/google-calendar-session.json`이며 테스트에서는 메모리 저장소와 Fake fetch를 사용한다. 동기화 실패 응답은 기존 Google 일정이나 WeeklyPlan을 삭제하지 않는다.
+
 ## AI 주간계획 API
 
 최초 생성과 자동 업데이트는 동일한 `weekly-plan.schema.json`을 사용하되 모드별 지시와 잠금 범위를 다르게 전달한다.
@@ -129,7 +145,7 @@ AI Mate 조정은 먼저 브라우저 애플리케이션의 고신뢰 파서가 
 
 Local Bridge와 클라이언트의 조정 진단 로그에는 `operationId`, mode, attempt, 단계, 프롬프트 문자·바이트 수, Codex 시작·종료 및 실행시간, JSON 파싱시간, 명령 실행시간, 규칙 검증시간, 재시도·Fast Path 여부, 전체 응답시간과 결과 코드만 기록한다. 요청 원문, 학업자료, 개인정보, 캘린더 제목과 인증 정보는 로그 필드 whitelist에서 제외한다.
 
-현재 계획·완료 상태·대기/처리 업데이트·개인화 프로필은 `catchup.planning.v1`에 저장한다. 실제 Google Calendar OAuth/API 연동은 구현하지 않았고 CatchUp 직접 입력 및 익명 샘플 일정만 사용한다.
+현재 계획·완료 상태·대기/처리 업데이트·개인화 프로필은 `catchup.planning.v1`에 저장한다. Google Calendar의 정규화 일정과 CatchUp 직접 입력 일정은 `catchup.calendar-events.v1`에서 `source`와 외부 ID로 구분한다. AI 계획 입력에는 현재 4주 범위의 `date`, `startTime`, `endTime`, `isAllDay`, `busy`만 전달하며 개인 일정 제목은 전달하지 않는다.
 
 ## 실행과 테스트
 

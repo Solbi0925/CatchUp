@@ -78,6 +78,35 @@ export interface PlanAdjustmentResult {
 
 const weekdayLabels = ["일요일", "월요일", "화요일", "수요일", "목요일", "금요일", "토요일"];
 const nowMs = () => typeof performance === "undefined" ? Date.now() : performance.now();
+const internalAiTermPattern = /candidateTodos|completedTodoIds|lockedTodoIds|selectedTodoId|targetTodoIds|targetAcademicEventIds|sourceAcademicEventId|clientTaskKey|AcademicEvent|WeeklyPlan|Todo|Task|dependency|validation|schema|JSON/i;
+const missingAcademicFactQuestionPattern = /(마감일|시험일|제출일|시험 범위|과제 요구사항).*(언제|알려|입력|추가)/;
+
+function userFacingClarification(question: string, selectedTodoId: string | null) {
+  const normalized = question.normalize("NFC").replace(/\s+/g, " ").trim();
+  const fallback = selectedTodoId
+    ? "선택한 할 일을 어떤 날짜나 학습량으로 조정하면 좋을지 알려주세요."
+    : "조정할 할 일 또는 과목과 원하는 변경 내용을 알려주세요.";
+  const safeQuestion = !normalized || normalized.length > 140 || internalAiTermPattern.test(normalized)
+    ? fallback
+    : normalized;
+  return `조정 전에 한 가지만 확인할게요. ${safeQuestion}`;
+}
+
+function asksForMissingAcademicFact(question: string) {
+  return missingAcademicFactQuestionPattern.test(question.normalize("NFC").replace(/\s+/g, " ").trim());
+}
+
+function missingAcademicFactMessage(operationId: string, requestedAt: string): AiMateMessage {
+  return {
+    id: `assistant-${operationId}`,
+    role: "assistant",
+    text: "요청을 확인했어요. 마감일이나 시험일 같은 학업 일정 정보는 AI Mate에서 새로 정하지 않아요. Upload의 학업 이벤트 확인 및 수정 화면에서 먼저 보완해주세요.",
+    createdAt: requestedAt,
+    status: "sent",
+    intent: "adjust-plan",
+    operationId,
+  };
+}
 
 function diagnosticLog(meta: Record<string, string | number | boolean | null>) {
   console.info("[catchup:adjust]", meta);
@@ -214,7 +243,7 @@ function requestForOperation(operation: AdjustmentOperation, todo: Todo | undefi
 }
 
 function executeDraft(draft: AdjustmentCommandDraft, base: AdjustPlanInput) {
-  let todos = base.todos; const changedIds = new Set<string>(); let lastText = draft.interpretationSummary;
+  let todos = base.todos; const changedIds = new Set<string>(); let lastText = "";
   for (const operation of draft.operations) {
     const target = todos.find((todo) => operation.targetTodoIds.includes(todo.id));
     if (operation.type === "set_duration" && target && operation.minutes) {
@@ -229,7 +258,9 @@ function executeDraft(draft: AdjustmentCommandDraft, base: AdjustPlanInput) {
     }
     todos = result.todos; result.changedTodoIds?.forEach((id) => changedIds.add(id)); lastText = result.assistantMessage.text;
   }
-  const text = changedIds.size > 0 && lastText ? `${draft.interpretationSummary} ${lastText}` : draft.interpretationSummary || lastText;
+  const text = changedIds.size > 0
+    ? `요청을 반영해 주간계획을 조정했어요. ${lastText || "변경이 필요한 할 일만 반영했어요."}`
+    : `요청을 확인했어요. ${lastText || "현재 계획에서 변경할 내용을 찾지 못했어요."}`;
   return { operationId: base.operationId, todos, changed: changedIds.size > 0, changedTodoIds: [...changedIds], assistantMessage: { id: `assistant-${base.operationId}`, role: "assistant" as const, text, createdAt: base.requestedAt, status: "sent" as const, intent: "adjust-plan" as const, operationId: base.operationId } };
 }
 
@@ -251,9 +282,24 @@ export async function runPlanAdjustment(input: {
       catch (error) {
         const text = error instanceof Error ? error.message : "AI 변경 명령 실행에 실패했어요.";
         diagnosticLog({ operationId: input.command.operationId, mode: "adjust", stage: "complete", totalMs: Math.round(nowMs() - started), fastPath: false, attempt, result: "model-failure" });
-        return { todos: input.todos, changed: false, changedTodoIds: [], validationError: text, questions: [], usedFastPath: false, modelAttempts: attempt, resultCode: "model-failure", assistantMessage: { id: `assistant-${input.command.operationId}`, role: "assistant", text: `${text} 기존 계획은 그대로 유지했어요.`, createdAt: input.command.requestedAt, status: "failed", intent: "adjust-plan", operationId: input.command.operationId } };
+        return { todos: input.todos, changed: false, changedTodoIds: [], validationError: text, questions: [], usedFastPath: false, modelAttempts: attempt, resultCode: "model-failure", assistantMessage: { id: `assistant-${input.command.operationId}`, role: "assistant", text: "요청을 처리하는 중 문제가 생겨 주간계획을 변경하지 않았어요. 잠시 후 다시 시도해주세요.", createdAt: input.command.requestedAt, status: "failed", intent: "adjust-plan", operationId: input.command.operationId } };
       }
-      if (draft.questions.length) return { todos: input.todos, changed: false, changedTodoIds: [], questions: draft.questions, usedFastPath: false, modelAttempts: attempt, resultCode: "question", assistantMessage: { id: `assistant-${input.command.operationId}`, role: "assistant", text: draft.questions[0], createdAt: input.command.requestedAt, status: "sent", intent: "adjust-plan", operationId: input.command.operationId } };
+      if (draft.questions.length) {
+        if (asksForMissingAcademicFact(draft.questions[0])) {
+          return {
+            todos: input.todos,
+            changed: false,
+            changedTodoIds: [],
+            questions: [],
+            usedFastPath: false,
+            modelAttempts: attempt,
+            resultCode: "no-change",
+            assistantMessage: missingAcademicFactMessage(input.command.operationId, input.command.requestedAt),
+          };
+        }
+        const question = userFacingClarification(draft.questions[0], input.selectedTodoId);
+        return { todos: input.todos, changed: false, changedTodoIds: [], questions: [question], usedFastPath: false, modelAttempts: attempt, resultCode: "question", assistantMessage: { id: `assistant-${input.command.operationId}`, role: "assistant", text: question, createdAt: input.command.requestedAt, status: "sent", intent: "adjust-plan", operationId: input.command.operationId } };
+      }
       errors = validateCommandDraft(draft, modelInput);
       if (!errors.length) break;
       draft = null;

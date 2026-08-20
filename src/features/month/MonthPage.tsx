@@ -2,7 +2,6 @@ import { useMemo, useRef, useState } from "react";
 import { currentTodayDate } from "../../application/clock";
 import { selectScheduleAcademicItems } from "../../domain/selectors";
 import type { CalendarEvent } from "../../domain/types";
-import { demoCalendarEvents } from "../../mocks/templates";
 import { usePrototypeStore } from "../../store/PrototypeStore";
 import { MonthCalendar } from "./MonthCalendar";
 import { MonthScheduleDialog, type MonthEventDraft, type MonthScheduleTarget } from "./MonthScheduleDialog";
@@ -15,24 +14,11 @@ export function MonthPage() {
   const [visibleMonth, setVisibleMonth] = useState(todayDate.slice(0, 7));
   const [selectedDate, setSelectedDate] = useState(todayDate);
   const [sheetOpen, setSheetOpen] = useState(false);
-  const [mockEventOverrides, setMockEventOverrides] = useState<
-    Record<string, CalendarEvent>
-  >({});
-  const [hiddenMockEventIds, setHiddenMockEventIds] = useState<Set<string>>(() => new Set());
   const returnFocusDate = useRef(selectedDate);
   const month = parseCanonicalMonth(visibleMonth)!;
   const gridCells = useMemo(() => buildMonthGrid(visibleMonth), [visibleMonth]);
 
-  const calendarEventsById = useMemo(
-    () => {
-      return {
-        ...Object.fromEntries(demoCalendarEvents.filter((event) => !hiddenMockEventIds.has(event.id)).map((event) => [event.id, event])),
-        ...state.calendarEventsById,
-        ...mockEventOverrides,
-      };
-    },
-    [hiddenMockEventIds, mockEventOverrides, state.calendarEventsById],
-  );
+  const calendarEventsById = state.calendarEventsById as Record<string, CalendarEvent>;
   const schedules = useMemo(
     () =>
       buildMonthSchedules(
@@ -83,17 +69,7 @@ export function MonthPage() {
     } else if (target?.eventId) {
       const eventId = target.eventId;
       const existingEvent = calendarEventsById[eventId];
-      if (existingEvent?.source === "google-calendar" && !state.calendarEventsById[eventId]) {
-        setMockEventOverrides((current) => ({
-          ...current,
-          [eventId]: {
-            ...existingEvent,
-            ...draft,
-            eventType: existingEvent.eventType,
-            updatedAt: new Date().toISOString(),
-          },
-        }));
-      } else {
+      if (existingEvent?.source !== "google-calendar") {
         dispatch({ type: "calendar/eventUpdated", payload: { id: eventId, ...draft, eventType: existingEvent?.eventType ?? "personal" } });
       }
     } else {
@@ -141,10 +117,6 @@ export function MonthPage() {
             if (target.extractedItemId && target.classMeetingId) dispatch({ type: "extraction/classMeetingDeleted", payload: { id: target.extractedItemId, meetingId: target.classMeetingId } });
             else if (target.extractedItemId) dispatch({ type: "extraction/itemDeleted", payload: { id: target.extractedItemId } });
             else if (target.eventId && state.calendarEventsById[target.eventId]) dispatch({ type: "calendar/eventDeleted", payload: { id: target.eventId } });
-            else if (target.eventId) {
-              setHiddenMockEventIds((current) => new Set(current).add(target.eventId!));
-              setMockEventOverrides((current) => Object.fromEntries(Object.entries(current).filter(([id]) => id !== target.eventId)));
-            }
           }}
           categoryColorByKey={state.categoryColorByKey}
           onColorChange={(categoryKey, color) =>

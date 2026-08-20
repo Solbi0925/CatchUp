@@ -5,7 +5,7 @@ import { resolve } from "node:path";
 export const developmentProcesses = [
   // Vite already reloads frontend changes. Keep the Local Bridge in sync too,
   // otherwise a newly added API route can hit an older long-running process.
-  { name: "bridge", command: process.execPath, args: ["--watch", "server/index.mjs"] },
+  { name: "bridge", command: process.execPath, args: ["--env-file-if-exists=.env", "--watch", "server/index.mjs"] },
   { name: "frontend", command: process.execPath, args: ["node_modules/vite/bin/vite.js"] },
 ];
 

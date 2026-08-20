@@ -1,10 +1,7 @@
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { usePrototypeStore } from "../../store/PrototypeStore";
-import {
-  connectMockCalendar,
-  type CalendarMockScenario,
-} from "./mockCalendarConnector";
+import { useGoogleCalendarSync } from "../calendar/GoogleCalendarSyncProvider";
 import "./onboarding.css";
 import googleCalendarIcon from "../../assets/google-calendar-blue.png";
 
@@ -12,42 +9,20 @@ export function CalendarOnboardingPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { state, dispatch } = usePrototypeStore();
-  const attemptRef = useRef(0);
-  const abortRef = useRef<AbortController | null>(null);
-  const step = state.onboarding.calendarStep;
-  const scenario: CalendarMockScenario =
-    searchParams.get("calendarMock") === "fail-once" ? "fail-once" : "success";
+  const { phase, status, error, connectUrl, ensureFresh, disconnect } = useGoogleCalendarSync();
+  const oauthResult = searchParams.get("googleCalendar");
+  const connecting = phase === "checking" || phase === "syncing";
+  const notConfigured = status?.configured === false;
 
-  useEffect(
-    () => () => {
-      abortRef.current?.abort();
-    },
-    [],
-  );
+  useEffect(() => {
+    if (oauthResult === "connected") void ensureFresh(true);
+  }, [ensureFresh, oauthResult]);
 
-  async function connect() {
-    if (step === "connecting") return;
-    attemptRef.current += 1;
-    dispatch({ type: "calendar/connectionStarted", payload: {} });
-    abortRef.current?.abort();
-    const controller = new AbortController();
-    abortRef.current = controller;
-    try {
-      const result = await connectMockCalendar({
-        scenario,
-        attempt: attemptRef.current,
-        signal: controller.signal,
-      });
-      dispatch({ type: "calendar/connectionSucceeded", payload: result });
-      navigate("/today", { replace: true });
-    } catch (error) {
-      if (error instanceof DOMException && error.name === "AbortError") return;
-      dispatch({ type: "calendar/connectionFailed", payload: {} });
-    }
-  }
+  useEffect(() => {
+    if (oauthResult === "connected" && phase === "connected") navigate("/today", { replace: true });
+  }, [navigate, oauthResult, phase]);
 
   function skip() {
-    abortRef.current?.abort();
     dispatch({ type: "calendar/onboardingSkipped", payload: {} });
     navigate("/today", { replace: true });
   }
@@ -77,31 +52,36 @@ export function CalendarOnboardingPage() {
           <li>충돌 없는 일정으로 하루 만들기</li>
           <li>언제든 연결 해제 가능</li>
         </ul>
-        {step === "error" ? (
+        <p className="calendar-help">Google Calendar에 시작·종료 시간을 정확히 입력할수록 실제 학습 가능 시간을 더 정확하게 계산할 수 있어요. 종일 일정은 해당 날짜 전체 일정으로 반영됩니다.</p>
+        {phase === "error" || oauthResult === "denied" || oauthResult === "error" || notConfigured ? (
           <p className="calendar-error" role="alert">
-            Calendar 연결에 실패했어요. 다시 시도해주세요.
+            {oauthResult === "denied" ? "Google Calendar 연결이 승인되지 않았어요." : notConfigured ? "Google Calendar 연결 환경변수를 먼저 설정해주세요." : error ?? "Google Calendar 연결을 완료하지 못했어요. 설정을 확인하고 다시 시도해주세요."}
           </p>
         ) : (
           <p className="calendar-status" role="status" aria-live="polite">
-            {step === "connecting" ? "Calendar를 연결하고 있어요." : ""}
+            {phase === "syncing" ? "일정을 처음 동기화하고 있어요." : phase === "checking" ? "연결 상태를 확인하고 있어요." : phase === "connected" ? `연결됨${status?.lastSyncAt ? ` · 마지막 동기화 ${new Date(status.lastSyncAt).toLocaleString("ko-KR")}` : ""}` : "Google Calendar 연결 안 됨"}
           </p>
         )}
-        <button
-          className="calendar-connect-button"
-          type="button"
-          disabled={step === "connecting"}
-          onClick={connect}
+        {phase === "connected" ? <>
+          <button className="calendar-connect-button" type="button" onClick={() => void ensureFresh(true)}>지금 동기화</button>
+          <button className="calendar-skip-button" type="button" onClick={() => void disconnect()}>연결 해제</button>
+          <button className="calendar-skip-button" type="button" onClick={() => navigate("/today", { replace: true })}>Today로 이동</button>
+        </> : <a
+          className={`calendar-connect-button${connecting || notConfigured ? " is-disabled" : ""}`}
+          aria-disabled={connecting || notConfigured}
+          href={connecting || notConfigured ? undefined : connectUrl(`${window.location.origin}/onboarding/calendar`)}
+          onClick={() => dispatch({ type: "calendar/connectionStarted", payload: {} })}
         >
-          {step === "connecting" ? "연결 중..." : step === "error" ? "다시 시도" : "캘린더 연결하기"}
-        </button>
-        <button
+          {connecting ? "연결 중..." : notConfigured ? "연결 설정 필요" : phase === "error" ? "다시 시도" : "캘린더 연결하기"}
+        </a>}
+        {phase !== "connected" && <button
           className="calendar-skip-button"
           type="button"
-          disabled={step === "connecting"}
+          disabled={connecting}
           onClick={skip}
         >
           나중에 할게요
-        </button>
+        </button>}
       </section>
     </main>
   );
