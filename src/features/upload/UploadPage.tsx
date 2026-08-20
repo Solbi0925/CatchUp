@@ -27,7 +27,13 @@ export function UploadPage() {
   const [showHelp, setShowHelp] = useState(false);
   const [showAllFiles, setShowAllFiles] = useState(false);
   const events = selectAllExtractedItems(store);
-  const previewEvents = events.slice(0, 4);
+  const courses = [...new Set(events.map((event) => event.courseName || "과목 확인 필요"))]
+    .sort((left, right) => {
+      const hasUnread = (course: string) => events.some((event) =>
+        (event.courseName || "과목 확인 필요") === course && event.updateNoticeStatus === "unread");
+      return Number(hasUnread(right)) - Number(hasUnread(left)) || left.localeCompare(right, "ko");
+    });
+  const previewCourses = courses.slice(0, 4);
 
   function addFiles(selected: File[]) {
     const invalid = selected.filter((file) => !isSupportedAcademicFile(file));
@@ -51,7 +57,7 @@ export function UploadPage() {
 
       <label className="upload-zone" htmlFor="academic-files">
         <UploadCloudIcon />
-        <strong>이번 학기 학업 자료를 한꺼번에 올려주세요</strong>
+        <strong>이번학기 학업자료를 올려주세요</strong>
         <div className="upload-zone__examples" aria-label="업로드할 수 있는 학업 자료 예시">
           {["강의계획서", "과제 명세서", "시간표", "수업 공지", "시험 안내"].map((label) => <span key={label}>{label}</span>)}
         </div>
@@ -103,16 +109,18 @@ export function UploadPage() {
               <span className="event-list-chevron" aria-hidden="true"><ChevronRightIcon /></span>
             </div>
             <div className="event-preview-list">
-              {previewEvents.map((event) => (
-                <div className="event-preview" key={event.id}>
-                  <span><strong>{event.title}</strong><small>{event.courseName} · {event.sourceReferences.length}개 자료 통합</small></span>
-                  <span className={`status-badge status-badge--${event.confirmationStatus}`}>
-                    {event.confirmationStatus === "confirmed" ? "확정" : "미확정"}
-                  </span>
-                </div>
-              ))}
-              {events.length > previewEvents.length && (
-                <p className="event-preview-more" aria-label={`추가 학업 이벤트 ${events.length - previewEvents.length}개`}>•••</p>
+              {previewCourses.map((course) => {
+                const courseEvents = events.filter((event) => (event.courseName || "과목 확인 필요") === course);
+                const hasUnread = courseEvents.some((event) => event.updateNoticeStatus === "unread");
+                return (
+                  <div className="event-preview event-preview--course" key={course}>
+                    <span><strong>{course}{hasUnread && <span className="update-notice-dot" aria-label="새 업데이트" />}</strong><small>학업 이벤트 {courseEvents.length}개</small></span>
+                    <span className="event-preview-chevron" aria-hidden="true">›</span>
+                  </div>
+                );
+              })}
+              {courses.length > previewCourses.length && (
+                <p className="event-preview-more" aria-label={`추가 과목 ${courses.length - previewCourses.length}개`}>•••</p>
               )}
             </div>
           </Link>

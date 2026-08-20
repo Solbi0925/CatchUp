@@ -6,6 +6,7 @@ import { basename, extname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { analysisTimeoutMs } from "./analysisLimits.mjs";
 import { logAdjustmentPerformance } from "./adjustmentTelemetry.mjs";
+import { createGoogleCalendarService, GoogleCalendarError } from "./googleCalendar.mjs";
 
 const serverDir = fileURLToPath(new URL(".", import.meta.url));
 const academicExtractionSchemaPath = resolve(serverDir, "academic-extraction.schema.json");
@@ -13,6 +14,7 @@ const weeklyPlanSchemaPath = resolve(serverDir, "weekly-plan.schema.json");
 const planAdjustmentSchemaPath = resolve(serverDir, "plan-adjustment.schema.json");
 const port = Number(process.env.CATCHUP_BRIDGE_PORT ?? 4318);
 const bodyLimit = 40 * 1024 * 1024;
+const googleCalendar = createGoogleCalendarService();
 
 function json(response, status, value) {
   response.writeHead(status, { "Content-Type": "application/json; charset=utf-8" });
@@ -231,6 +233,7 @@ function weeklyPlanPrompt(payload, mode) {
 - 확정 AcademicEvent를 실행 가능한 준비, 조사, 초안, 작업, 검토, 마무리 단계로 필요한 만큼 분해한다.
 - Optional 정보, PlanningProfile, 기존 미완료 Task를 이용해 실제 예상 소요시간과 우선순위를 제안한다.
 - 4주 일정은 planning horizon이며 4주치 작업을 현재 7일에 모두 넣지 않는다.
+- 확정된 과제·시험 일정이 하나도 없고 확정된 class-schedule이 있으면, 이번 주 수업을 기준으로 45분의 최소 복습 Task를 주간계획에 과목당 하나씩 배치한다.
 - 추천 근거는 실제 입력과 배치 판단에 근거한다. 완료 확률이나 성과 예측 수치를 만들지 않는다.
 - questions는 비워 둔다. 날짜, 마감, 시험 범위, 요구사항처럼 업로드 자료나 학업 일정 확인 화면에서 보완해야 하는 원본 정보를 사용자에게 질문하지 않는다.
 - 현재 입력만으로 계획할 수 없는 항목은 추측하거나 재촉하지 말고 제외한다. 사용자가 나중에 자료를 추가하거나 직접 보완하면 다음 계획에서 다시 반영한다.
@@ -261,7 +264,10 @@ function adjustmentCommandPrompt(payload) {
 - 완료 또는 locked Todo를 대상으로 삼지 않는다.
 - 원본 마감일과 AcademicEvent 사실을 변경하지 않는다.
 - 실제 날짜 선택, 분할, 충돌 해결, 저장은 애플리케이션 코드가 한다.
-- 대상이나 의미가 불명확하면 operations는 빈 배열로 두고 questions에 한 가지 확인 질문을 쓴다.
+- interpretationSummary, warnings, questions는 학생이 바로 이해할 수 있는 쉬운 한국어 존댓말로 작성한다.
+- candidateTodos, selectedTodoId, targetTodoIds, targetAcademicEventIds, AcademicEvent, WeeklyPlan, Todo, Task, dependency, validation, schema, JSON, ID 같은 코드·스키마 내부 용어를 interpretationSummary, warnings, questions에 절대 쓰지 않는다.
+- 대상이나 변경 방법이 불명확하면 operations는 빈 배열로 두고 questions에 최대 한 개의 짧은 확인 질문만 쓴다. 질문은 조정할 할 일·과목·날짜·학습량 중 조정에 꼭 필요한 한 가지만 묻는다.
+- 마감일, 시험일, 제출일, 시험 범위, 과제 요구사항 같은 원본 학업 정보를 추가로 묻지 않는다. 이 정보는 Upload의 학업 일정 확인 화면에서 보완한다.
 - scheduledDate는 사용자가 정확한 날짜를 명시한 move에서만 사용하고, 추측하지 않는다.
 - 오직 제공된 JSON Schema에 맞는 JSON을 반환한다.${retry}
 
@@ -317,18 +323,43 @@ async function generateAdjustmentCommands(payload) {
 }
 
 createServer(async (request, response) => {
-  if (request.method === "GET" && request.url === "/health") return json(response, 200, { ok: true, service: "catchup-local-bridge" });
-  if (request.method !== "POST") return json(response, 404, { error: "Not found" });
+  const requestUrl = new URL(request.url ?? "/", `http://127.0.0.1:${port}`);
+  if (request.method === "GET" && requestUrl.pathname === "/health") return json(response, 200, { ok: true, service: "catchup-local-bridge" });
   try {
+    if (request.method === "GET" && requestUrl.pathname === "/api/google-calendar/connect") {
+      const location = await googleCalendar.beginAuthorization(requestUrl.searchParams.get("returnTo"));
+      response.writeHead(302, { Location: location, "Cache-Control": "no-store" });
+      return response.end();
+    }
+    if (request.method === "GET" && requestUrl.pathname === "/api/google-calendar/oauth/callback") {
+      const location = await googleCalendar.completeAuthorization({
+        code: requestUrl.searchParams.get("code"),
+        state: requestUrl.searchParams.get("state"),
+        error: requestUrl.searchParams.get("error"),
+      });
+      response.writeHead(302, { Location: location, "Cache-Control": "no-store" });
+      return response.end();
+    }
+    if (request.method === "GET" && requestUrl.pathname === "/api/google-calendar/status") return json(response, 200, await googleCalendar.status());
+    if (request.method === "POST" && requestUrl.pathname === "/api/google-calendar/sync") return json(response, 200, await googleCalendar.sync());
+    if (request.method === "POST" && requestUrl.pathname === "/api/google-calendar/disconnect") return json(response, 200, await googleCalendar.disconnect());
+    if (request.method !== "POST") return json(response, 404, { error: "Not found" });
     const payload = await readJson(request);
-    if (request.url === "/api/academic-materials/analyze") return json(response, 200, await analyze(payload));
-    if (request.url === "/api/weekly-plans/generate") return json(response, 200, await generateWeeklyPlanDraft(payload, "generate"));
-    if (request.url === "/api/weekly-plans/update") return json(response, 200, await generateWeeklyPlanDraft(payload, "update"));
-    if (request.url === "/api/weekly-plans/adjust") return json(response, 200, await generateAdjustmentCommands(payload));
+    if (requestUrl.pathname === "/api/academic-materials/analyze") return json(response, 200, await analyze(payload));
+    if (requestUrl.pathname === "/api/weekly-plans/generate") return json(response, 200, await generateWeeklyPlanDraft(payload, "generate"));
+    if (requestUrl.pathname === "/api/weekly-plans/update") return json(response, 200, await generateWeeklyPlanDraft(payload, "update"));
+    if (requestUrl.pathname === "/api/weekly-plans/adjust") return json(response, 200, await generateAdjustmentCommands(payload));
     return json(response, 404, { error: "Not found" });
   }
   catch (error) {
-    console.error(error);
+    if (requestUrl.pathname === "/api/google-calendar/oauth/callback" && error instanceof GoogleCalendarError) {
+      const returnTo = process.env.CATCHUP_APP_URL?.trim() || "http://localhost:5173/onboarding/calendar";
+      const location = `${returnTo}${returnTo.includes("?") ? "&" : "?"}googleCalendar=error&code=${encodeURIComponent(error.code)}`;
+      response.writeHead(302, { Location: location, "Cache-Control": "no-store" });
+      return response.end();
+    }
+    if (!(error instanceof GoogleCalendarError)) console.error(error);
+    if (error instanceof GoogleCalendarError) return json(response, error.status, { error: error.message, code: error.code });
     const isPublicError = error instanceof PublicAnalysisError;
     const invalidJson = error instanceof SyntaxError;
     return json(response, isPublicError ? error.status : invalidJson ? 400 : 500, {

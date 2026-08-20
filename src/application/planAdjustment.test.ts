@@ -252,6 +252,111 @@ describe("runPlanAdjustment", () => {
     expect(result.todos.find((item) => item.id === "research")?.priority).toBe("high");
   });
 
+  it("never exposes model field names or free-form model wording in AI Mate messages", async () => {
+    const runner: AdjustmentCommandRunner = {
+      execute: vi.fn().mockResolvedValue(draft({
+        interpretationSummary: "candidateTodos 중 대상 Todo를 우선 처리하겠다.",
+        operations: [],
+        questions: ["대상 Todo를 candidateTodos에 포함해 주시겠어요?"],
+      })),
+    };
+
+    const result = await runPlanAdjustment({
+      command: command("시간표를 반영해서 계획 짜줘"),
+      plan,
+      todos: [todos[0]],
+      selectedTodoId: null,
+      runner,
+    });
+
+    expect(result.resultCode).toBe("question");
+    expect(result.assistantMessage.text).toMatch(/^조정 전에 한 가지만 확인할게요\./);
+    expect(result.assistantMessage.text).not.toMatch(/candidateTodos|Todo|Task|AcademicEvent|WeeklyPlan/i);
+    expect(result.questions[0]).toBe(result.assistantMessage.text);
+  });
+
+  it("keeps a safe model clarification inside the fixed question format", async () => {
+    const runner: AdjustmentCommandRunner = {
+      execute: vi.fn().mockResolvedValue(draft({
+        operations: [],
+        questions: ["어느 과목의 할 일을 시간표에 맞춰 조정할까요?"],
+      })),
+    };
+
+    const result = await runPlanAdjustment({
+      command: command("시간표를 반영해서 계획 짜줘"),
+      plan,
+      todos: [todos[0]],
+      selectedTodoId: null,
+      runner,
+    });
+
+    expect(result.resultCode).toBe("question");
+    expect(result.assistantMessage.text).toBe("조정 전에 한 가지만 확인할게요. 어느 과목의 할 일을 시간표에 맞춰 조정할까요?");
+  });
+
+  it("does not let the model ask AI Mate for missing academic facts", async () => {
+    const runner: AdjustmentCommandRunner = {
+      execute: vi.fn().mockResolvedValue(draft({
+        operations: [],
+        questions: ["선택한 과제의 마감일은 언제인가요?"],
+      })),
+    };
+
+    const result = await runPlanAdjustment({
+      command: command("마감일을 반영해서 조정해줘"),
+      plan,
+      todos: [todos[0]],
+      selectedTodoId: "research",
+      runner,
+    });
+
+    expect(result.resultCode).toBe("no-change");
+    expect(result.questions).toEqual([]);
+    expect(result.assistantMessage.text).toMatch(/AI Mate에서 새로 정하지 않아요.*Upload의 학업 이벤트 확인 및 수정 화면/);
+    expect(result.assistantMessage.text).not.toContain("마감일은 언제인가요");
+  });
+
+  it("keeps technical model failures out of the AI Mate message", async () => {
+    const runner: AdjustmentCommandRunner = {
+      execute: vi.fn().mockRejectedValue(new Error("JSON_SCHEMA_MISMATCH: candidateTodos를 파싱할 수 없음")),
+    };
+
+    const result = await runPlanAdjustment({
+      command: command("이 할 일을 조정해줘"),
+      plan,
+      todos: [todos[0]],
+      selectedTodoId: "research",
+      runner,
+    });
+
+    expect(result.resultCode).toBe("model-failure");
+    expect(result.assistantMessage.text).toBe("요청을 처리하는 중 문제가 생겨 주간계획을 변경하지 않았어요. 잠시 후 다시 시도해주세요.");
+    expect(result.assistantMessage.text).not.toMatch(/JSON|candidateTodos|schema/i);
+    expect(result.validationError).toContain("JSON_SCHEMA_MISMATCH");
+  });
+
+  it("wraps flexible model decisions in the fixed adjustment response format", async () => {
+    const runner: AdjustmentCommandRunner = {
+      execute: vi.fn().mockResolvedValue(draft({
+        interpretationSummary: "내가 원하는 방식으로 candidateTodos를 바꾸겠다.",
+        operations: [{ type: "prioritize", targetTodoIds: ["research"], targetAcademicEventIds: [event.id], scheduledDate: null, weekday: null, minutes: null, taskCount: null }],
+      })),
+    };
+
+    const result = await runPlanAdjustment({
+      command: command("이 할 일을 더 중요하게 반영해줘"),
+      plan,
+      todos: [todos[0]],
+      selectedTodoId: "research",
+      runner,
+    });
+
+    expect(result.changed).toBe(true);
+    expect(result.assistantMessage.text).toMatch(/^요청을 반영해 주간계획을 조정했어요\./);
+    expect(result.assistantMessage.text).not.toMatch(/candidateTodos|Todo|Task|AcademicEvent|WeeklyPlan|내가 원하는 방식/i);
+  });
+
   it("rejects unknown IDs twice and never lets a command overwrite the whole plan", async () => {
     const execute = vi.fn().mockResolvedValue(draft({ operations: [{ type: "move", targetTodoIds: ["invented"], targetAcademicEventIds: [event.id], scheduledDate: "2026-08-21", weekday: null, minutes: null, taskCount: null }] }));
     const result = await runPlanAdjustment({ command: command("알아서 일정 흐름을 더 좋게 바꿔줘"), plan, todos, selectedTodoId: null, runner: { execute } });

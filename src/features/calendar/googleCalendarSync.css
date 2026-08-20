@@ -1,0 +1,34 @@
+.google-sync-status {
+  display: flex;
+  margin: 14px 32px 8px;
+  padding: 13px 15px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid #e5dcff;
+  border-radius: 16px;
+  background: #faf8ff;
+}
+
+.google-sync-status > div:first-child { display: grid; gap: 3px; }
+.google-sync-status strong { color: #312a3d; font-size: 13px; }
+.google-sync-status span { color: #746e7f; font-size: 11px; }
+.google-sync-status.is-error span { color: #b63852; }
+.google-sync-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
+.google-sync-actions button,
+.google-sync-actions a {
+  padding: 7px 9px;
+  border: 1px solid #d6c8ff;
+  border-radius: 10px;
+  background: white;
+  color: #6549d8;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+@media (max-width: 420px) {
+  .google-sync-status { margin-inline: 20px; align-items: flex-start; }
+  .google-sync-actions { max-width: 118px; }
+}

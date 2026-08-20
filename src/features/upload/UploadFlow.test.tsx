@@ -145,7 +145,7 @@ describe("Upload flow", () => {
 
   it("keeps selected files and analysis running while navigating away from Upload", async () => {
     render(<App initialEntries={["/upload"]} />);
-    expect(screen.getByText("이번 학기 학업 자료를 한꺼번에 올려주세요")).toBeInTheDocument();
+    expect(screen.getByText("이번학기 학업자료를 올려주세요")).toBeInTheDocument();
     expect(screen.getByLabelText("업로드할 수 있는 학업 자료 예시")).toHaveTextContent("강의계획서과제 명세서시간표수업 공지시험 안내");
     expect(screen.getByText("새로운 학업자료나 정보가 생기면 언제든지 추가해주세요!")).toBeInTheDocument();
     const file = new File(["syllabus"], "강의계획서.pdf", { type: "application/pdf" });
@@ -199,24 +199,25 @@ describe("Upload flow", () => {
     expect(screen.getByText("10:00–11:45")).toBeInTheDocument();
   });
 
-  it("shows only four preview cards inside one review-page entry area", async () => {
+  it("shows only four course preview cards inside one review-page entry area", async () => {
     const events = Array.from({ length: 6 }, (_, index) => academicEventFixture({
       id: `preview-${index + 1}`,
       title: `미리보기 이벤트 ${index + 1}`,
+      courseName: `미리보기 과목 ${index + 1}`,
     }));
     window.localStorage.setItem("catchup.academic-events.v2", JSON.stringify(events));
     const user = userEvent.setup();
     render(<App initialEntries={["/upload"]} />);
 
     expect(screen.getAllByRole("link", { name: "학업 이벤트 전체 확인 및 수정" })).toHaveLength(1);
-    expect(screen.getAllByText(/미리보기 이벤트/)).toHaveLength(4);
-    expect(screen.queryByText("미리보기 이벤트 5")).not.toBeInTheDocument();
-    expect(screen.getByLabelText("추가 학업 이벤트 2개")).toBeInTheDocument();
+    expect(screen.getAllByText(/미리보기 과목/)).toHaveLength(4);
+    expect(screen.queryByText("미리보기 이벤트 1")).not.toBeInTheDocument();
+    expect(screen.queryByText("미리보기 과목 5")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("추가 과목 2개")).toBeInTheDocument();
 
     await user.click(screen.getByRole("link", { name: "학업 이벤트 전체 확인 및 수정" }));
     expect(screen.getByRole("heading", { name: "학업 이벤트 확인 및 수정" })).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: /UX 디자인\s+학업 이벤트/ }));
-    expect(screen.getAllByRole("button", { expanded: false })).toHaveLength(6);
+    expect(screen.getAllByRole("button", { name: /미리보기 과목 \d\s+학업 이벤트 1개/ })).toHaveLength(6);
     expect(screen.queryByLabelText("이벤트명")).not.toBeInTheDocument();
   });
 
@@ -237,12 +238,28 @@ describe("Upload flow", () => {
     expect(screen.queryByText("삭제할 이벤트")).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "학업 이벤트 저장" }));
-    expect(await screen.findByText("남길 이벤트")).toBeInTheDocument();
+    expect(await screen.findByText("UX 디자인")).toBeInTheDocument();
+    expect(screen.getByText("학업 이벤트 1개")).toBeInTheDocument();
     expect(screen.queryByText("삭제할 이벤트")).not.toBeInTheDocument();
     await waitFor(() => {
       const stored = JSON.parse(window.localStorage.getItem("catchup.academic-events.v2") ?? "[]");
       expect(stored.map((item: { id: string }) => item.id)).toEqual(["keep-event"]);
     });
+  });
+
+  it("explains when same-course academic events should be merged", async () => {
+    window.localStorage.setItem("catchup.academic-events.v2", JSON.stringify([
+      academicEventFixture({ id: "merge-help-event" }),
+    ]));
+    const user = userEvent.setup();
+    render(<App initialEntries={["/upload/extraction"]} />);
+
+    const helpButton = screen.getByRole("button", { name: "이벤트 병합 도움말" });
+    expect(helpButton).toHaveAttribute("aria-expanded", "false");
+    await user.click(helpButton);
+
+    expect(helpButton).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByRole("tooltip")).toHaveTextContent("같은 과목의 하나의 학업 이벤트가 AI 추출·분석 과정에서 두 개 이상의 이벤트로 잘못 분리된 경우");
   });
 
   it("merges selected events and keeps the merged draft open for review", async () => {
@@ -304,8 +321,8 @@ describe("Upload flow", () => {
     expect(screen.getAllByText("확정").length).toBeGreaterThan(0);
     await user.click(screen.getByRole("button", { name: "학업 이벤트 저장" }));
 
-    expect(await screen.findByText("과제 1")).toBeInTheDocument();
-    expect(screen.getByText("확정")).toBeInTheDocument();
+    expect(await screen.findByText("UX 디자인")).toBeInTheDocument();
+    expect(screen.getByText("학업 이벤트 1개")).toBeInTheDocument();
     await waitFor(() => {
       const stored = JSON.parse(window.localStorage.getItem("catchup.academic-events.v2") ?? "[]");
       expect(stored[0]?.confirmationStatus).toBe("confirmed");
@@ -367,7 +384,7 @@ describe("Upload flow", () => {
     await user.click(screen.getByRole("button", { name: "모든 자료 통합 분석하기" }));
     expect(screen.getByRole("button", { name: "2개 자료 통합 분석 중..." })).toBeDisabled();
 
-    await screen.findByText("UX 리서치 보고서", {}, { timeout: 2_000 });
+    await screen.findByText("UX 디자인", {}, { timeout: 2_000 });
     expect(screen.getByRole("status")).toHaveTextContent("추출 완료");
     expect(screen.queryByText("이벤트 중심 결과 확인 및 수정")).not.toBeInTheDocument();
     await user.click(screen.getByRole("link", { name: "학업 이벤트 전체 확인 및 수정" }));
@@ -386,7 +403,11 @@ describe("Upload flow", () => {
     await waitFor(() => {
       expect(screen.getByRole("heading", { name: "자료 업로드" })).toBeInTheDocument();
     });
-    expect(screen.getByText("사용자 수정 UX 리서치 보고서")).toBeInTheDocument();
-    expect(screen.getAllByText("확정")).toHaveLength(3);
+    expect(screen.getByText("UX 디자인")).toBeInTheDocument();
+    expect(screen.getByText("학업 이벤트 1개")).toBeInTheDocument();
+    await waitFor(() => {
+      const stored = JSON.parse(window.localStorage.getItem("catchup.academic-events.v2") ?? "[]");
+      expect(stored.some((item: { title: string }) => item.title === "사용자 수정 UX 리서치 보고서")).toBe(true);
+    });
   });
 });

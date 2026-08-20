@@ -56,7 +56,7 @@ export interface NormalizedAiPlanInput {
   planEndDate: string;
   referenceWindowEndDate: string;
   academicEvents: Array<Pick<ExtractedItem, "id" | "title" | "itemType" | "courseName" | "date" | "time" | "isAllDay" | "scheduledWeek" | "scheduledWeekLabel" | "requirements" | "workload" | "examScope" | "estimatedDurationMinutes" | "assignmentType" | "researchNeeded" | "difficulty" | "deliverableComplexity" | "submissionMethod" | "requiredMaterials" | "gradingMethod" | "classMeetingTimes">>;
-  calendarEvents: Array<Pick<CalendarEvent, "id" | "title" | "date" | "startTime" | "endTime" | "isAllDay" | "eventType" | "source">>;
+  calendarEvents: Array<Pick<CalendarEvent, "date" | "startTime" | "endTime" | "isAllDay"> & { busy: true }>;
   incompleteTodos: Todo[];
   completedTodos: Todo[];
   lockedTodoIds: string[];
@@ -184,7 +184,9 @@ export function normalizeAiPlanInput(input: {
   return {
     planStartDate: input.plan.weekStartDate, planEndDate: input.plan.weekEndDate, referenceWindowEndDate: input.plan.referenceWindowEndDate,
     academicEvents,
-    calendarEvents: input.command.calendarEvents.map(({ id, title, date, startTime, endTime, isAllDay, eventType, source }) => ({ id, title, date, startTime, endTime, isAllDay, eventType, source })),
+    calendarEvents: input.command.calendarEvents
+      .filter((event) => event.date >= input.plan.weekStartDate && event.date <= input.plan.referenceWindowEndDate)
+      .map(({ date, startTime, endTime, isAllDay }) => ({ date, startTime, endTime, isAllDay, busy: true as const })),
     incompleteTodos: (input.mode === "generate" ? validCarryOvers : input.currentTodos).filter((todo) => !todo.isCompleted),
     completedTodos: input.currentTodos.filter((todo) => todo.isCompleted),
     lockedTodoIds: locked.map((todo) => todo.id), planningProfile: input.command.planningProfile, userRequest: input.command.requestText,
@@ -216,6 +218,24 @@ export function validateAiPlanDraft(draft: AiPlanDraft, context: {
   const priorities = new Set<Todo["priority"]>(["high", "medium", "low"]);
   const phases = new Set<NonNullable<Todo["taskPhase"]>>(["prepare", "research", "draft", "work", "review", "finalize"]);
   const keys = new Set<string>(); const semanticKeys = new Set<string>();
+  const hasConfirmedDatedEventInHorizon = context.command.extractedItems.some((item) => {
+    if (item.itemType === "class-schedule" || item.confirmationStatus !== "confirmed" || !item.date) return false;
+    const days = daysBetween(context.plan.weekStartDate, item.date);
+    return days >= 0 && days <= 27;
+  });
+  if (context.mode === "generate" && !hasConfirmedDatedEventInHorizon) {
+    for (const timetable of context.command.extractedItems.filter((item) =>
+      item.itemType === "class-schedule" && item.confirmationStatus === "confirmed" && item.classMeetingTimes.length > 0,
+    )) {
+      const hasReviewTask = draft.tasks.some((task) => task.sourceAcademicEventId === timetable.id);
+      if (!hasReviewTask) {
+        violations.push({
+          code: "REQUIRED_EVENT_TASK_MISSING",
+          message: `${timetable.courseName} 시간표를 바탕으로 이번 주 최소 수업 복습 할 일이 누락됐어요.`,
+        });
+      }
+    }
+  }
   for (const task of draft.tasks) {
     if (!exactKeys(task, taskKeys) || !exactKeys(task.recommendation, recommendationKeys)) {
       violations.push({ code: "SCHEMA_MISMATCH", taskKey: task?.clientTaskKey, message: "Task에 허용되지 않은 필드가 있거나 필수 추천 근거가 없습니다." }); continue;

@@ -140,6 +140,10 @@ export interface CalendarEvent {
   isAllDay: boolean;
   eventType: "personal" | "class";
   source: "google-calendar" | "catchup";
+  /** Google identifiers are present only for read-only synchronized events. */
+  externalId?: string;
+  externalCalendarId?: string;
+  externalUpdatedAt?: string | null;
   updatedAt: string;
 }
 

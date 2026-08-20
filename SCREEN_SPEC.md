@@ -2,11 +2,11 @@
 
 ## 1. 문서 목적
 
-> 최초 계획이 없으면 `주간계획 생성`을 제공하고, 계획이 있으면 Today 할 일 컨텍스트의 `주간계획 수정`·`할 일 추천이유`를 제공한다. 새 확정 학업 정보나 서비스 내 개인 일정으로 계획 변경이 필요하면 필요한 질문 후 자동 조정하고, 결과 설명과 `아냐, 취소해줘`를 제공한다. 실제 Google Calendar 연동은 후속 단계다.
+> 최초 계획이 없으면 `주간계획 생성`을 제공하고, 계획이 있으면 Today 할 일 컨텍스트의 `주간계획 수정`·`할 일 추천이유`를 제공한다. 새 확정 학업 정보나 개인 일정으로 계획 변경이 필요하면 필요한 질문 후 자동 조정하고, 결과 설명과 `아냐, 취소해줘`를 제공한다. Google Calendar는 읽기 전용으로 동기화한다.
 
 이 문서는 `IA.md`와 `USER_FLOW.md`를 바탕으로 CatchUp MVP의 화면별 구성 요소, 표시 정보, 사용자 행동, 상태를 정의한다.
 
-화면은 발표용 노트북의 localhost에서 동작한다. UI는 `frontend/`, 파일 임시 처리와 `codex exec` 결과 반환은 `backend/` Local Backend/Bridge가 담당하며, 화면에는 필요한 결과만 Local Storage에서 표시한다. Google Calendar 실제 OAuth는 핵심 기능 완성 후 localhost 환경에서 연결한다.
+화면은 발표용 노트북의 localhost에서 동작한다. UI는 `frontend/`, 파일 임시 처리와 `codex exec` 결과 반환, Google OAuth token 관리는 `backend/` Local Backend/Bridge가 담당하며, 화면에는 정규화된 일정만 Local Storage에서 표시한다.
 
 현재 화면 구조는 아래를 기준으로 한다.
 
@@ -136,7 +136,7 @@
 - 연결 실패 시 재시도
 - 연결 완료 후 메인 앱 진입
 
-실제 OAuth는 Upload·AI·계획 핵심 기능 완성 후 localhost 리디렉션 URI로 진행한다. 그 전에는 Mock 연결 상태로 화면과 계획 흐름을 검증한다.
+OAuth는 Local Bridge의 localhost callback으로 처리한다. Google 일정은 CatchUp에서 읽기 전용이며 변경은 Google Calendar에서 수행한다. 자동화 테스트에서는 실제 계정 대신 Fake Calendar 응답을 사용한다.
 
 ### 오류 상태
 
@@ -283,7 +283,7 @@ AI가 이번 주 계획에서 선택한 날짜로 배치한 학습 항목과 예
 - 선택한 날짜의 예정 일정 확인
 - 일정 출처 확인
 - `추가` 버튼으로 일정 추가
-- Upload 추출, Google Calendar, CatchUp 직접 입력 일정 카드를 눌러 현재 화면에서 수정
+- 일정 카드를 눌러 상세 확인. Google Calendar 일정은 읽기 전용으로 표시하고 Upload 추출·CatchUp 직접 입력 일정만 현재 화면에서 수정
 
 ### 탭 1에서 제외하는 기능
 
@@ -612,7 +612,7 @@ AI가 학업 자료에서 추출한 정보를 사용자에게 보여주고, 사�
 | --- | --- | --- |
 | 출처 | 업로드한 학업 자료 | Google Calendar 또는 CatchUp 직접 입력 |
 | 예시 | 마감일, 제출일, 시험일, 중요 공지 | 병원, 약속, 아르바이트, 개인 일정 |
-| 수정 위치 | Upload·Today·Month가 공유하는 AcademicEvent 상세 편집기 | Google Calendar 원본 또는 Month 탭의 직접 추가·수정 |
+| 수정 위치 | Upload·Today·Month가 공유하는 AcademicEvent 상세 편집기 | Google 일정은 Google Calendar 원본에서 수정, CatchUp 직접 입력 일정은 Today·Month에서 수정 |
 
 ## 11. MVP 제외 화면 및 기능
 

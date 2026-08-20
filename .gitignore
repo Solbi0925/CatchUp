@@ -9,3 +9,6 @@ test-results/
 .DS_Store
 .worktrees/
 .gstack/
+.env
+.env.*
+!.env.example

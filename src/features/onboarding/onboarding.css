@@ -129,6 +129,7 @@
 }
 
 .calendar-connect-button {
+  display: grid;
   min-height: 66px;
   margin-top: auto;
   border: 0;
@@ -139,11 +140,25 @@
   font: inherit;
   font-size: 16px;
   font-weight: 750;
+  place-items: center;
+  text-decoration: none;
 }
 
 .calendar-connect-button:disabled {
   cursor: progress;
   opacity: 0.7;
+}
+
+.calendar-connect-button.is-disabled {
+  pointer-events: none;
+  opacity: 0.7;
+}
+
+.calendar-help {
+  margin: 0 0 16px;
+  color: #686371;
+  font-size: 12px;
+  line-height: 1.55;
 }
 
 .calendar-connect-button:focus-visible,

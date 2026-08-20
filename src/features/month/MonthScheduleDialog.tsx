@@ -86,6 +86,7 @@ export function MonthScheduleDialog({ selectedDate, schedules, eventsById, categ
           categoryColor={resolveCategoryColor(categoryKey, categoryColorByKey)}
           onColorChange={(color) => onColorChange(categoryKey, color)}
           onClose={() => { setSelectedItem(undefined); setAdding(false); }}
+          readOnly={event?.source === "google-calendar"}
           onDelete={selectedItem ? () => {
             onDelete({ eventId: selectedItem.eventId, extractedItemId: selectedItem.extractedItemId, classMeetingId: selectedItem.classMeetingId });
             setSelectedItem(undefined);

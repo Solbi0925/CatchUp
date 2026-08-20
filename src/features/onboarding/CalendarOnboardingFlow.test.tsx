@@ -1,16 +1,14 @@
-import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { App } from "../../app/App";
 
 describe("Calendar onboarding flow", () => {
   beforeEach(() => {
     sessionStorage.clear();
-    vi.useFakeTimers();
   });
 
   afterEach(() => {
     cleanup();
-    vi.useRealTimers();
   });
 
   it("centers the Google icon in a frame above the connector", () => {
@@ -25,37 +23,20 @@ describe("Calendar onboarding flow", () => {
     );
   });
 
-  it("prevents duplicate submission and moves to Today after Mock connection", async () => {
+  it("starts the real Local Bridge OAuth flow without injecting mock events", () => {
     render(<App initialEntries={["/onboarding/calendar"]} />);
 
     expect(screen.getByRole("img", { name: "Google Calendar" })).toBeInTheDocument();
     expect(screen.queryByText(/개인 일정과 수업 시간을\s*함께 반영해요/)).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "캘린더 연결하기" }));
-    expect(screen.getByRole("button", { name: "연결 중..." })).toBeDisabled();
-
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(700);
-    });
-
-    expect(screen.getByLabelText("이번 주 날짜 선택")).toBeInTheDocument();
+    const connect = screen.getByRole("link", { name: "캘린더 연결하기" });
+    expect(connect).toHaveAttribute("href", expect.stringContaining("/api/google-calendar/connect?returnTo="));
+    expect(localStorage.getItem("catchup.calendar-events.v1")).toBeNull();
   });
 
-  it("shows a retry action after a deterministic first failure", async () => {
-    render(<App initialEntries={["/onboarding/calendar?calendarMock=fail-once"]} />);
-
-    fireEvent.click(screen.getByRole("button", { name: "캘린더 연결하기" }));
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(700);
-    });
-
-    expect(screen.getByRole("alert")).toHaveTextContent("Calendar 연결에 실패했어요.");
-    fireEvent.click(screen.getByRole("button", { name: "다시 시도" }));
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(700);
-    });
-
-    expect(screen.getByLabelText("이번 주 날짜 선택")).toBeInTheDocument();
+  it("shows a clear message when OAuth approval is denied", () => {
+    render(<App initialEntries={["/onboarding/calendar?googleCalendar=denied"]} />);
+    expect(screen.getByRole("alert")).toHaveTextContent("연결이 승인되지 않았어요");
   });
 
   it("allows the user to skip and explore Today without Calendar data", () => {

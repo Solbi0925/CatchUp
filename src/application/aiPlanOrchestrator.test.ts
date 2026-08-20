@@ -16,6 +16,26 @@ const command: GeneratePlanCommand = {
   planningProfile: { semesterWeekOneStartDate: null, confidenceByCourse: {}, pace: "average", preparationByEventId: {}, examGoalByEventId: {}, maxDailyStudyMinutes: 240 },
 };
 
+const timetable = academicEventFixture({
+  id: "class-urban-design",
+  itemType: "class-schedule",
+  title: "Urban Design class",
+  courseName: "Urban Design",
+  date: null,
+  confirmationStatus: "confirmed",
+  reviewStatus: "confirmed",
+  classMeetingTimes: [{ id: "class-urban-design-thu", weekday: 4, startTime: "09:30", endTime: "11:00", location: null }],
+});
+
+const timetableOnlyCommand: GeneratePlanCommand = {
+  ...command,
+  requestText: "",
+  extractedItems: [
+    academicEventFixture({ id: "unconfirmed-assignment", title: "Later assignment", date: null, scheduledWeek: 8, confirmationStatus: "unconfirmed" }),
+    timetable,
+  ],
+};
+
 function draft(overrides: Partial<AiPlanDraft> = {}): AiPlanDraft {
   return {
     interpretationSummary: "금요일 할 일을 한 개로 제한합니다.",
@@ -68,6 +88,19 @@ describe("validateAiPlanDraft", () => {
     expect(validateAiPlanDraft(classDraft, { mode: "generate", command: { ...calendarCommand, calendarEvents: [] }, plan: existingPlan(), currentTodos: [] }).violations.some((violation) => violation.code === "SCHEDULE_TIME_COLLISION")).toBe(true);
   });
 
+  it("requires timetable review work when only unconfirmed dated events exist", () => {
+    const result = validateAiPlanDraft(draft({ tasks: [] }), {
+      mode: "generate",
+      command: timetableOnlyCommand,
+      plan: existingPlan(),
+      currentTodos: [],
+    });
+
+    expect(result.violations).toContainEqual(expect.objectContaining({
+      code: "REQUIRED_EVENT_TASK_MISSING",
+    }));
+  });
+
   it("rejects reversed or same-day task dependencies", () => {
     const first = { ...draft().tasks[0], clientTaskKey: "research", title: "요구사항과 자료 정리", scheduledDate: "2026-08-22", taskPhase: "research" as const };
     const second = { ...draft().tasks[0], clientTaskKey: "finalize", title: "검토하고 마무리", scheduledDate: "2026-08-21", taskPhase: "finalize" as const, dependsOnClientTaskKey: "research" };
@@ -106,6 +139,16 @@ describe("normalizeAiPlanInput", () => {
     expect(normalized.incompleteTodos).toEqual([carry]);
     expect(JSON.stringify(normalized)).not.toContain("sourceReferences");
   });
+
+  it("sends only anonymous busy blocks inside the four-week planning horizon", () => {
+    const calendarEvents = [
+      { id: "inside", userId: command.user.id, title: "민감한 개인 일정 제목", date: "2026-08-21", startTime: "15:00", endTime: "17:00", isAllDay: false, eventType: "personal" as const, source: "google-calendar" as const, updatedAt: command.requestedAt },
+      { id: "outside", userId: command.user.id, title: "6개월 뒤 일정", date: "2027-01-21", startTime: null, endTime: null, isAllDay: true, eventType: "personal" as const, source: "google-calendar" as const, updatedAt: command.requestedAt },
+    ];
+    const normalized = normalizeAiPlanInput({ mode: "generate", command: { ...command, calendarEvents }, plan: existingPlan(), currentTodos: [] });
+    expect(normalized.calendarEvents).toEqual([{ date: "2026-08-21", startTime: "15:00", endTime: "17:00", isAllDay: false, busy: true }]);
+    expect(JSON.stringify(normalized)).not.toContain("민감한 개인 일정 제목");
+  });
 });
 
 describe("runAiPlanning", () => {
@@ -129,6 +172,47 @@ describe("runAiPlanning", () => {
     expect(execute.mock.calls[1][0].validationViolations[0].code).toBe("TASK_OUTSIDE_PLAN");
     expect(result.validationError).toBeUndefined();
     expect(result.todos).toHaveLength(1);
+  });
+
+  it("rejects an empty timetable-only draft and accepts a review draft on retry", async () => {
+    const reviewTask = {
+      ...draft().tasks[0],
+      clientTaskKey: "class-urban-design-review",
+      sourceAcademicEventId: timetable.id,
+      title: "Review Urban Design class",
+      todoType: "review" as const,
+      scheduledDate: "2026-08-20",
+      startTime: null,
+      estimatedDurationMinutes: 45,
+      priority: "low" as const,
+      taskPhase: "review" as const,
+      recommendation: {
+        needReasons: ["Confirmed class schedule"],
+        placementReasons: ["Placed on the class day"],
+        priorityReasons: ["Minimum timetable review"],
+        durationReasons: ["Minimum timetable review duration: 45 minutes"],
+        personalizationReasons: [],
+        userRequestReasons: [],
+      },
+    };
+    const execute = vi.fn()
+      .mockResolvedValueOnce(draft({ tasks: [], interpretedConstraints: { ...draft().interpretedConstraints, maxTasksByWeekday: [], lightStudyWeekdays: [] } }))
+      .mockResolvedValueOnce(draft({ tasks: [reviewTask], interpretedConstraints: { ...draft().interpretedConstraints, maxTasksByWeekday: [], lightStudyWeekdays: [] } }));
+    const runner: WeeklyPlanModelRunner = { execute };
+
+    const result = await runAiPlanning({ mode: "generate", command: timetableOnlyCommand, runner });
+
+    expect(execute).toHaveBeenCalledTimes(2);
+    expect(execute.mock.calls[1][0].validationViolations).toContainEqual(expect.objectContaining({
+      code: "REQUIRED_EVENT_TASK_MISSING",
+    }));
+    expect(result.validationError).toBeUndefined();
+    expect(result.todos).toHaveLength(1);
+    expect(result.todos[0]).toEqual(expect.objectContaining({
+      sourceExtractedItemId: timetable.id,
+      title: "Review Urban Design class",
+    }));
+    expect(result.assistantMessage.text).toContain("\uC2DC\uAC04\uD45C\uB97C \uBC14\uD0D5\uC73C\uB85C");
   });
 
   it("keeps the existing plan when regeneration also violates absolute rules", async () => {

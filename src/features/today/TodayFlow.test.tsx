@@ -15,6 +15,23 @@ describe("Today screen", () => {
     expect(screen.getByRole("button", { name: /7월 20일 월요일.*선택됨/ })).toBeInTheDocument();
   });
 
+  it("places the Google Calendar connection card after the briefing, todos, and schedules", () => {
+    localStorage.setItem("catchup.academic-events.v2", JSON.stringify([
+      academicEventFixture({ id: "schedule", title: "오늘 제출", date: "2026-07-20", reviewStatus: "confirmed" }),
+    ]));
+    render(<App initialEntries={["/today"]} />);
+
+    const connectionCard = screen.getByRole("heading", { name: "Google Calendar를 연결해보세요" }).closest("article");
+    const briefing = screen.getByRole("heading", { name: "아직 생성된 주간 계획이 없어요." }).closest("article");
+    const todos = screen.getByRole("heading", { name: "오늘의 할 일" }).closest("section");
+    const schedules = screen.getByRole("heading", { name: "오늘의 예정 일정" }).closest("section");
+    expect(connectionCard).not.toBeNull();
+    for (const precedingSection of [briefing, todos, schedules]) {
+      expect(precedingSection).not.toBeNull();
+      expect(precedingSection!.compareDocumentPosition(connectionCard!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    }
+  });
+
   it("shows stored plan todos separately from source academic schedules", () => {
     const item = academicEventFixture({ id: "report", title: "보고서 제출", date: "2026-07-20", reviewStatus: "confirmed" });
     localStorage.setItem("catchup.academic-events.v2", JSON.stringify([item]));
@@ -95,6 +112,18 @@ describe("Today screen", () => {
     })]));
     render(<App initialEntries={["/today"]} />);
     expect(screen.getByRole("button", { name: "시간 미정 시험 일정 수정" })).toHaveTextContent("시간 없음");
+  });
+
+  it("shows a synchronized Google all-day event separately from time-unknown academic events", () => {
+    localStorage.setItem("catchup.calendar-events.v1", JSON.stringify([{
+      id: "google-all-day", userId: "user-demo-01", title: "Google 종일 일정", date: "2026-07-20",
+      startTime: null, endTime: null, isAllDay: true, eventType: "personal", source: "google-calendar",
+      externalId: "external", externalCalendarId: "primary", updatedAt: "2026-07-20T00:00:00Z",
+    }]));
+    render(<App initialEntries={["/today"]} />);
+    const googleAllDayEvent = screen.getByRole("button", { name: "Google 종일 일정 일정 보기" });
+    expect(googleAllDayEvent).toHaveTextContent("종일");
+    expect(googleAllDayEvent).toHaveTextContent("Google Calendar");
   });
 
   it("reuses the detailed AcademicEvent editor and persists its fields from Today", async () => {
