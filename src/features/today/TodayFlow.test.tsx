@@ -48,6 +48,23 @@ describe("Today screen", () => {
     expect(screen.getByRole("checkbox")).toBeChecked();
   });
 
+  it("encourages the user in the planned Today briefing", () => {
+    const item = academicEventFixture({ id: "report", title: "보고서 제출", date: "2026-07-20", reviewStatus: "confirmed" });
+    localStorage.setItem("catchup.academic-events.v2", JSON.stringify([item]));
+    localStorage.setItem("catchup.planning.v1", JSON.stringify({
+      weeklyPlans: [{ id: "plan", userId: "user-demo-01", weekStartDate: "2026-07-20", weekEndDate: "2026-07-26", status: "complete", createdAt: "2026-07-20T09:00:00+09:00", generationRequest: "주간계획 생성", referenceWindowEndDate: "2026-08-16", summary: "7일 계획" }],
+      todos: [{ id: "todo", weeklyPlanId: "plan", sourceExtractedItemId: "report", scheduledDate: "2026-07-20", title: "보고서 목차 작성하기", todoType: "assignment-work", courseName: "UX 디자인", estimatedDurationMinutes: 60, priority: "high", isCompleted: false, recommendationReason: "마감을 고려함", durationRationale: ["보고서 분량"], carriedOverFromTodoId: null }],
+      todoIdsByWeeklyPlanId: { plan: ["todo"] }, profile: { confidenceByCourse: {}, pace: null, preparationByEventId: {}, examGoalByEventId: {} },
+    }));
+
+    render(<App initialEntries={["/today"]} />);
+
+    const briefingText = screen.getByText((_, element) =>
+      element?.tagName === "P"
+      && element.textContent === "우리 오늘도 같이 하나씩 따라잡아봐요~하나씩 끝내다 보면 분명 가벼워질 거예요!");
+    expect(briefingText.querySelector("br")).toBeInTheDocument();
+  });
+
   it("shows that a timetable review task has no academic deadline", () => {
     const classItem = academicEventFixture({
       id: "class-item",

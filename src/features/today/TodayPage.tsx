@@ -170,7 +170,7 @@ export function TodayPage() {
             <div>
               <span>AI Mate</span>
               <h2>4주 일정을 고려해 중요한 일부터 정리했어요.</h2>
-              <p>우리 오늘도 같이 하나씩 따라잡아봐요!</p>
+              <p>우리 오늘도 같이 하나씩 따라잡아봐요~<br />하나씩 끝내다 보면 분명 가벼워질 거예요!</p>
             </div>
             <AiMateCharacter size={88} />
           </article>

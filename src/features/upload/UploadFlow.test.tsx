@@ -221,6 +221,34 @@ describe("Upload flow", () => {
     expect(screen.queryByLabelText("이벤트명")).not.toBeInTheDocument();
   });
 
+  it("opens a course review list directly from an Upload course preview", async () => {
+    window.localStorage.setItem("catchup.academic-events.v2", JSON.stringify([
+      academicEventFixture({
+        id: "content-1",
+        title: "콘텐츠 제작 1 과제",
+        courseName: "콘텐츠디자인",
+        itemType: "assignment",
+        date: "2026-08-25",
+      }),
+      academicEventFixture({
+        id: "strategy-1",
+        title: "전략 수립 과제",
+        courseName: "콘텐츠 디자인 전략 수립2",
+        itemType: "assignment",
+        date: "2026-08-28",
+      }),
+    ]));
+    const user = userEvent.setup();
+    render(<App initialEntries={["/upload"]} />);
+
+    await user.click(screen.getByRole("link", { name: "콘텐츠디자인 학업 이벤트 1개 확인 및 수정" }));
+
+    expect(screen.getByRole("heading", { name: "학업 이벤트 확인 및 수정" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "콘텐츠디자인" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /콘텐츠 제작 1 과제/ })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /콘텐츠 디자인 전략 수립2\s+학업 이벤트/ })).not.toBeInTheDocument();
+  });
+
   it("deletes an academic event from review only after saving", async () => {
     const events = [
       academicEventFixture({ id: "keep-event", title: "남길 이벤트" }),
@@ -259,7 +287,13 @@ describe("Upload flow", () => {
     await user.click(helpButton);
 
     expect(helpButton).toHaveAttribute("aria-expanded", "true");
-    expect(screen.getByRole("tooltip")).toHaveTextContent("같은 과목의 하나의 학업 이벤트가 AI 추출·분석 과정에서 두 개 이상의 이벤트로 잘못 분리된 경우");
+    expect(getComputedStyle(helpButton).width).toBe("34px");
+    expect(getComputedStyle(helpButton).height).toBe("34px");
+    const tooltip = screen.getByRole("tooltip");
+    const tooltipTitle = screen.getByRole("heading", { name: "이벤트 병합이란 무엇인가요?" });
+    expect(tooltipTitle).toBeInTheDocument();
+    expect(getComputedStyle(tooltipTitle).fontSize).toBe("15px");
+    expect(tooltip).toHaveTextContent("AI 추출, 분석 과정에서 학업 이벤트가 두 개 이상의 학업 이벤트로 잘못 분리된 경우, 해당 이벤트를 선택하여 하나로 합칠 수 있어요");
   });
 
   it("merges selected events and keeps the merged draft open for review", async () => {

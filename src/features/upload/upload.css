@@ -88,7 +88,7 @@
 .status-badge--error { background: #ffe9eb; color: var(--color-error); }
 .chevron-icon { flex: 0 0 23px; width: 23px; color: var(--color-icon-muted); }
 .selection-actions { display: grid; grid-template-columns: 86px 1fr; gap: 10px; margin-top: 12px; }
-.event-review-entry { display: block; border-radius: 16px; }
+.event-review-entry { display: block; border-radius: 16px; color: inherit; text-decoration: none; }
 .event-review-entry:focus-visible { outline: 3px solid rgba(128,108,242,.22); outline-offset: 5px; }
 .event-section-heading h2 { margin-bottom: 0; }
 .event-list-chevron { display: grid; width: 36px; height: 36px; place-items: center; }
@@ -98,6 +98,8 @@
   display: flex; min-height: 72px; padding: 14px; align-items: center; justify-content: space-between; gap: 12px;
   border: 1px solid var(--color-line); border-radius: 14px; background: rgba(255,255,255,.95);
 }
+.event-preview--course { color: inherit; text-decoration: none; }
+.event-preview--course:focus-visible { outline: 3px solid rgba(128,108,242,.22); outline-offset: 3px; }
 .event-preview strong, .event-preview small { display: block; }
 .event-preview--course > span:first-child { display: grid; min-width: 0; gap: 6px; }
 .event-preview--course strong { display: flex; min-width: 0; align-items: center; }
@@ -135,19 +137,20 @@
 .review-summary-row .review-summary { margin: 0; }
 .merge-help { position: relative; flex: 0 0 auto; }
 .merge-help__button {
-  display: grid; width: 22px; height: 22px; padding: 0; place-items: center;
+  display: grid; width: 34px; height: 34px; padding: 0; place-items: center;
   border: 1px solid var(--color-purple-line); border-radius: 50%; background: transparent;
-  color: var(--color-purple-dark); font-size: 12px; font-weight: 800;
+  color: var(--color-purple-dark); font-size: 15px; font-weight: 800;
 }
 .merge-help__button:focus-visible { outline: 3px solid rgba(128,108,242,.2); outline-offset: 2px; }
 .merge-help__tooltip {
   position: absolute; z-index: 10; top: calc(100% + 8px); right: 0;
-  width: min(280px, calc(100vw - 40px)); padding: 11px 12px;
+  width: min(350px, calc(100vw - 40px)); padding: 16px;
   border: 1px solid var(--color-purple-line); border-radius: 11px; background: white;
   box-shadow: 0 10px 28px rgba(45, 35, 76, .14); color: #5f5670;
-  font-size: 11px; font-weight: 500; line-height: 17px;
   opacity: 0; pointer-events: none; transform: translateY(-3px); transition: opacity .14s ease, transform .14s ease;
 }
+.merge-help__tooltip h2 { margin: 0 0 12px; color: #121018; font-size: 15px; font-weight: 800; line-height: 20px; }
+.merge-help__tooltip p { margin: 0; color: #5f596a; font-size: 13px; font-weight: 500; line-height: 20px; }
 .merge-help:hover .merge-help__tooltip,
 .merge-help:focus-within .merge-help__tooltip,
 .merge-help.is-open .merge-help__tooltip { opacity: 1; pointer-events: auto; transform: translateY(0); }

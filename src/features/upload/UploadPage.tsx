@@ -108,22 +108,27 @@ export function UploadPage() {
               <h2>학업 이벤트 <span>{events.length}</span></h2>
               <span className="event-list-chevron" aria-hidden="true"><ChevronRightIcon /></span>
             </div>
-            <div className="event-preview-list">
-              {previewCourses.map((course) => {
-                const courseEvents = events.filter((event) => (event.courseName || "과목 확인 필요") === course);
-                const hasUnread = courseEvents.some((event) => event.updateNoticeStatus === "unread");
-                return (
-                  <div className="event-preview event-preview--course" key={course}>
-                    <span><strong>{course}{hasUnread && <span className="update-notice-dot" aria-label="새 업데이트" />}</strong><small>학업 이벤트 {courseEvents.length}개</small></span>
-                    <span className="event-preview-chevron" aria-hidden="true">›</span>
-                  </div>
-                );
-              })}
-              {courses.length > previewCourses.length && (
-                <p className="event-preview-more" aria-label={`추가 과목 ${courses.length - previewCourses.length}개`}>•••</p>
-              )}
-            </div>
           </Link>
+          <div className="event-preview-list">
+            {previewCourses.map((course) => {
+              const courseEvents = events.filter((event) => (event.courseName || "과목 확인 필요") === course);
+              const hasUnread = courseEvents.some((event) => event.updateNoticeStatus === "unread");
+              return (
+                <Link
+                  className="event-preview event-preview--course"
+                  key={course}
+                  to={`/upload/extraction?course=${encodeURIComponent(course)}`}
+                  aria-label={`${course} 학업 이벤트 ${courseEvents.length}개 확인 및 수정`}
+                >
+                  <span><strong>{course}{hasUnread && <span className="update-notice-dot" aria-label="새 업데이트" />}</strong><small>학업 이벤트 {courseEvents.length}개</small></span>
+                  <span className="event-preview-chevron" aria-hidden="true">›</span>
+                </Link>
+              );
+            })}
+            {courses.length > previewCourses.length && (
+              <p className="event-preview-more" aria-label={`추가 과목 ${courses.length - previewCourses.length}개`}>•••</p>
+            )}
+          </div>
         </section>
       )}
       <footer className="upload-developer-tools">
