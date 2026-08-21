@@ -6,9 +6,11 @@ import { basename, extname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { analysisTimeoutMs } from "./analysisLimits.mjs";
 import { logAdjustmentPerformance } from "./adjustmentTelemetry.mjs";
+import { resolveCodexCommand } from "./codexCommand.mjs";
 import { createGoogleCalendarService, GoogleCalendarError } from "./googleCalendar.mjs";
 
 const serverDir = fileURLToPath(new URL(".", import.meta.url));
+const projectRoot = resolve(serverDir, "..");
 const academicExtractionSchemaPath = resolve(serverDir, "academic-extraction.schema.json");
 const weeklyPlanSchemaPath = resolve(serverDir, "weekly-plan.schema.json");
 const planAdjustmentSchemaPath = resolve(serverDir, "plan-adjustment.schema.json");
@@ -53,7 +55,8 @@ function runCodex({ workingDirectory, outputPath, prompt, imagePaths = [], timeo
   return new Promise((resolvePromise, rejectPromise) => {
     const codexStarted = performance.now();
     if (diagnostic) logAdjustmentPerformance({ ...diagnostic, stage: "codex-start", modelConfigured: Boolean(model) });
-    const child = spawn("codex", args, { cwd: workingDirectory, stdio: ["ignore", "ignore", "pipe"] });
+    const codex = resolveCodexCommand({ cwd: projectRoot });
+    const child = spawn(codex.command, [...codex.prefixArgs, ...args], { cwd: workingDirectory, stdio: ["ignore", "ignore", "pipe"] });
     let stderr = "";
     let timedOut = false;
     const timer = setTimeout(() => {

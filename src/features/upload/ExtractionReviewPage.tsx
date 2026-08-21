@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { selectAllExtractedItems } from "../../domain/selectors";
 import type { ExtractedItem } from "../../domain/types";
 import {
@@ -74,6 +74,7 @@ export function sortAcademicEventsForReview(items: ExtractedItem[], semesterWeek
 
 export function ExtractionReviewPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { state, dispatch } = usePrototypeStore();
   const items = selectAllExtractedItems(state);
   const [draft, setDraft] = useState<ExtractedItem[]>(() => items.map((item) => ({ ...item })));
@@ -82,7 +83,7 @@ export function ExtractionReviewPage() {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [mergeMode, setMergeMode] = useState(false);
   const [showMergeHelp, setShowMergeHelp] = useState(false);
-  const [selectedCourse, setSelectedCourse] = useState<string>();
+  const [selectedCourse, setSelectedCourse] = useState<string | undefined>(() => searchParams.get("course") ?? undefined);
   const isDirty = useMemo(() => JSON.stringify(draft) !== JSON.stringify(items), [draft, items]);
   const courses = useMemo(() => [...new Set(draft.map((item) => item.courseName || "과목 확인 필요"))]
     .sort((left, right) => {
@@ -159,6 +160,20 @@ export function ExtractionReviewPage() {
     if (!isDirty || window.confirm("저장하지 않은 변경사항이 있어요. 나갈까요?")) navigate("/upload");
   }
 
+  function selectCourse(course: string) {
+    setSelectedCourse(course);
+    setExpandedId(undefined);
+    setSelectedIds([]);
+    navigate(`/upload/extraction?course=${encodeURIComponent(course)}`, { replace: true });
+  }
+
+  function showCourseList() {
+    setSelectedCourse(undefined);
+    setExpandedId(undefined);
+    setSelectedIds([]);
+    navigate("/upload/extraction", { replace: true });
+  }
+
   if (!items.length) return <main className="focus-page"><h1>분석된 학업 이벤트가 없어요</h1><button type="button" className="primary-button" onClick={() => navigate("/upload")}>Upload로 돌아가기</button></main>;
 
   return (
@@ -166,10 +181,13 @@ export function ExtractionReviewPage() {
       <header className="focus-header"><button type="button" className="back-button" aria-label="Upload로 돌아가기" onClick={goBack}>‹</button><div><h1>학업 이벤트 확인 및 수정</h1><p>파일이 아닌 최종 과제·시험 단위로 확인하세요.</p></div></header>
       <div className="review-summary-row">
         <p className="review-summary">이벤트 {draft.length}개 · 확정 {draft.filter((item) => item.confirmationStatus === "confirmed").length}개 · 미확정 {draft.filter((item) => item.confirmationStatus === "unconfirmed").length}개</p>
-        <span className={`merge-help${showMergeHelp ? " is-open" : ""}`}>
+        <div className={`merge-help${showMergeHelp ? " is-open" : ""}`}>
           <button type="button" className="merge-help__button" aria-label="이벤트 병합 도움말" aria-expanded={showMergeHelp} aria-controls="merge-help-tooltip" aria-describedby="merge-help-tooltip" onClick={() => setShowMergeHelp((current) => !current)}>?</button>
-          <span className="merge-help__tooltip" id="merge-help-tooltip" role="tooltip">같은 과목의 하나의 학업 이벤트가 AI 추출·분석 과정에서 두 개 이상의 이벤트로 잘못 분리된 경우, 해당 이벤트를 선택해 하나로 병합할 수 있어요.</span>
-        </span>
+          <div className="merge-help__tooltip" id="merge-help-tooltip" role="tooltip">
+            <h2>이벤트 병합이란 무엇인가요?</h2>
+            <p>AI 추출, 분석 과정에서 학업 이벤트가 두 개 이상의 학업 이벤트로 잘못 분리된 경우, 해당 이벤트를 선택하여 하나로 합칠 수 있어요</p>
+          </div>
+        </div>
       </div>
       <div className="event-correction-toolbar">
         <span>{mergeMode ? "병합할 같은 이벤트를 선택하세요." : "과목별로 추출 결과를 확인하세요."}</span>
@@ -180,12 +198,12 @@ export function ExtractionReviewPage() {
         {!selectedCourse ? courses.map((course) => {
           const courseItems = draft.filter((item) => (item.courseName || "과목 확인 필요") === course);
           const hasUnread = courseItems.some((item) => item.updateNoticeStatus === "unread");
-          return <button type="button" className="extraction-course-card" key={course} aria-label={`${course} 학업 이벤트 ${courseItems.length}개`} onClick={() => setSelectedCourse(course)}>
+          return <button type="button" className="extraction-course-card" key={course} aria-label={`${course} 학업 이벤트 ${courseItems.length}개`} onClick={() => selectCourse(course)}>
             <span><strong>{course}{hasUnread && <span className="update-notice-dot" aria-label="새 업데이트" />}</strong><small>학업 이벤트 {courseItems.length}개</small></span>
             <span aria-hidden="true">›</span>
           </button>;
         }) : <>
-          <button type="button" className="extraction-course-back" onClick={() => { setSelectedCourse(undefined); setExpandedId(undefined); setSelectedIds([]); }}>‹ 과목 목록</button>
+          <button type="button" className="extraction-course-back" onClick={showCourseList}>‹ 과목 목록</button>
           <h2 className="extraction-course-title">{selectedCourse}</h2>
         {visibleItems.map((item) => {
           const expanded = expandedId === item.id;
