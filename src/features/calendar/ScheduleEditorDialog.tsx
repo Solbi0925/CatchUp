@@ -54,7 +54,7 @@ export function ScheduleEditorDialog({
   const submit = (event: FormEvent) => {
     event.preventDefault();
     if (!draft.title.trim()) {
-      setError("일정 제목을 입력해주세요.");
+      setError("일정 제목을 입력해 주세요.");
       return;
     }
     if (draft.startTime && draft.endTime && draft.endTime <= draft.startTime) {

@@ -134,7 +134,7 @@ export async function extractAcademicFilesMock({
     difficulty: "high",
     estimatedDurationMinutes: 180,
     confidence: .78,
-    uncertaintyNotes: ["LMS 공지의 마감 변경 여부를 확인해주세요."],
+    uncertaintyNotes: ["LMS 공지의 마감 변경 여부를 확인해 주세요."],
     confirmationStatus: "confirmed",
     confirmationIssues: [],
     updatedAt: clock.now().toISOString(),

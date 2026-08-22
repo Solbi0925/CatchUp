@@ -143,7 +143,7 @@ export function TodayPage() {
             <div>
               <span>AI Mate</span>
               <h2>아직 생성된 주간 계획이 없어요.</h2>
-              <p>확인한 학업 자료를 바탕으로 이번 주 계획을 만들어보세요.</p>
+              <p>확인한 학업 자료를 바탕으로 이번 주 계획을 만들어 보세요.</p>
             </div>
             <AiMateCharacter size={88} />
           </article>
@@ -153,10 +153,10 @@ export function TodayPage() {
             </div>
             <div className="today-zero-state">
               <strong>아직 이번 주 할 일이 없어요.</strong>
-              <p>AI Mate에서 이번 주 계획을 생성해보세요.</p>
+              <p>AI Mate에서 이번 주 계획을 생성해 보세요.</p>
               <button
                 type="button"
-                onClick={() => openWithDraft("", [{ label: "주간계획 생성", draft: "주간계획 생성해줘. 다음의 요청사항을 반영해: " }])}
+                onClick={() => openWithDraft("", [{ label: "주간 계획 생성", draft: "주간 계획 생성해 줘. 다음의 요청 사항을 반영해: " }])}
               >
                 계획 생성하기
               </button>
@@ -188,11 +188,11 @@ export function TodayPage() {
             {viewModel.todos.length === 0 ? (
               <div className="today-zero-state">
                 <strong>이날의 할 일은 없어요.</strong>
-                <p>다른 날짜를 확인하거나 AI Mate에게 계획 조정을 요청해보세요.</p>
+                <p>다른 날짜를 확인하거나 AI Mate에게 계획 조정을 요청해 보세요.</p>
                 <button
                   type="button"
                   onClick={() =>
-                    openWithDraft("현재 주간계획을 다음의 요청사항을 반영해서 조정해줘: ")
+                    openWithDraft("현재 주간 계획을 다음의 요청 사항을 반영해서 조정해 줘: ")
                   }
                 >
                   계획 조정
@@ -246,7 +246,7 @@ export function TodayPage() {
         <article className="today-empty-card">
           <span className="today-empty-icon" aria-hidden="true">31</span>
           <div>
-            <h2>Google Calendar를 연결해보세요</h2>
+            <h2>Google Calendar를 연결해 보세요</h2>
             <p>개인 일정을 불러오려면 Google Calendar 연결이 필요해요.</p>
             <Link to="/onboarding/calendar">연결하기</Link>
           </div>

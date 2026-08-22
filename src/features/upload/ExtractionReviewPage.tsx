@@ -107,9 +107,9 @@ export function ExtractionReviewPage() {
   function save() {
     const nextErrors: Record<string, string> = {};
     draft.forEach((item) => {
-      if (!item.title.trim()) nextErrors[`${item.id}-title`] = "이벤트명을 입력해주세요.";
-      if (!item.courseName.trim()) nextErrors[`${item.id}-course`] = "과목명을 입력해주세요.";
-      if (item.date && !/^\d{4}-\d{2}-\d{2}$/.test(item.date)) nextErrors[`${item.id}-date`] = "올바른 날짜를 입력해주세요.";
+      if (!item.title.trim()) nextErrors[`${item.id}-title`] = "이벤트명을 입력해 주세요.";
+      if (!item.courseName.trim()) nextErrors[`${item.id}-course`] = "과목명을 입력해 주세요.";
+      if (item.date && !/^\d{4}-\d{2}-\d{2}$/.test(item.date)) nextErrors[`${item.id}-date`] = "올바른 날짜를 입력해 주세요.";
     });
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length) {
@@ -151,7 +151,7 @@ export function ExtractionReviewPage() {
   function splitItem(item: ExtractedItem) {
     const split = splitAcademicEventBySources(item);
     if (!split.length) return;
-    if (!window.confirm(`원본 자료 ${split.length}개를 기준으로 이벤트를 분리할까요? 분리 후 각 내용을 직접 확인해주세요.`)) return;
+    if (!window.confirm(`원본 자료 ${split.length}개를 기준으로 이벤트를 분리할까요? 분리 후 각 내용을 직접 확인해 주세요.`)) return;
     setDraft((current) => current.flatMap((candidate) => candidate.id === item.id ? split : candidate));
     setExpandedId(undefined);
   }

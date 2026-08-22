@@ -137,7 +137,7 @@ export function AiMateLayer({ showCoachmark }: { showCoachmark: boolean }) {
         <div className="ai-mate-launcher">
           {(updateCoachmark || showCoachmark) && (
             <div className="ai-coachmark" role="status">
-              {updateCoachmark ?? "주간계획 생성해봐요!"}
+              {updateCoachmark ?? "주간 계획 생성해 봐요!"}
             </div>
           )}
           <button
