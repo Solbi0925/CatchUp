@@ -56,7 +56,7 @@ export function UploadSessionProvider({ children }: { children: ReactNode }) {
         fileIds,
         message: error instanceof Error && error.message !== "analysis-failed"
           ? error.message
-          : "자료를 통합 분석하지 못했어요. 로컬 브리지 실행 상태를 확인하고 다시 시도해주세요.",
+          : "자료를 통합 분석하지 못했어요. 로컬 브리지 실행 상태를 확인하고 다시 시도해 주세요.",
       });
     }
   }, [events, storeDispatch, uiState.files, uiState.status]);

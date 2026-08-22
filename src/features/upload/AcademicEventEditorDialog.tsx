@@ -13,8 +13,8 @@ export function AcademicEventEditorDialog({ item, onSave, onDelete, onClose }: P
   const update = (patch: Partial<ExtractedItem>) => setDraft((current) => { const next = { ...current, ...patch }; return { ...next, ...assessAcademicEventConfirmation(next) }; });
   const save = () => {
     const nextErrors: Record<string, string> = {};
-    if (!draft.title.trim()) nextErrors[`${draft.id}-title`] = "이벤트명을 입력해주세요.";
-    if (!draft.courseName.trim()) nextErrors[`${draft.id}-course`] = "과목명을 입력해주세요.";
+    if (!draft.title.trim()) nextErrors[`${draft.id}-title`] = "이벤트명을 입력해 주세요.";
+    if (!draft.courseName.trim()) nextErrors[`${draft.id}-course`] = "과목명을 입력해 주세요.";
     setErrors(nextErrors); if (Object.keys(nextErrors).length) return;
     onSave(draft);
   };

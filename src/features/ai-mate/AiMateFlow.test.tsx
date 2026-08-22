@@ -16,7 +16,7 @@ afterEach(() => {
 
 function PromptChipHarness() {
   const { openWithDraft } = useAiMate();
-  return <button type="button" onClick={() => openWithDraft("", [{ label: "할 일 추천이유", draft: "추천 이유를 알려줘" }])}>맥락 열기</button>;
+  return <button type="button" onClick={() => openWithDraft("", [{ label: "할 일 추천 이유", draft: "추천 이유를 알려줘" }])}>맥락 열기</button>;
 }
 
 function seedMaxDailyStudyTime(minutes = 240) {
@@ -52,7 +52,7 @@ describe("AI Mate first plan flow", () => {
   it("only fills the composer when a prompt chip is selected", () => {
     render(<MemoryRouter><PrototypeStoreProvider><AiMateProvider><PromptChipHarness /><AiMateLayer showCoachmark={false} /></AiMateProvider></PrototypeStoreProvider></MemoryRouter>);
     fireEvent.click(screen.getByRole("button", { name: "맥락 열기" }));
-    fireEvent.click(screen.getByRole("button", { name: "할 일 추천이유" }));
+    fireEvent.click(screen.getByRole("button", { name: "할 일 추천 이유" }));
     expect(screen.getByRole("textbox", { name: "AI Mate 메시지" })).toHaveValue("추천 이유를 알려줘");
     expect(screen.queryByLabelText("내 메시지")).not.toBeInTheDocument();
   });
@@ -64,16 +64,16 @@ describe("AI Mate first plan flow", () => {
     })]));
     render(<App initialEntries={["/upload"]} />);
 
-    expect(screen.getByRole("status")).toHaveTextContent("주간계획 생성해봐요!");
+    expect(screen.getByRole("status")).toHaveTextContent("주간 계획 생성해봐요!");
     fireEvent.click(screen.getByRole("button", { name: "AI Mate 열기" }));
-    fireEvent.click(screen.getByRole("button", { name: "주간계획 생성" }));
+    fireEvent.click(screen.getByRole("button", { name: "주간 계획 생성" }));
     const composer = screen.getByRole("textbox", { name: "AI Mate 메시지" });
     expect(composer).toHaveValue(GENERATE_PLAN_DRAFT);
     expect(screen.queryByLabelText("내 메시지")).not.toBeInTheDocument();
     fireEvent.change(composer, { target: { value: `${GENERATE_PLAN_DRAFT}금요일에는 공부하지 않고 싶어.` } });
     fireEvent.click(screen.getByRole("button", { name: "메시지 보내기" }));
 
-    expect(await screen.findByText(/주간계획을 생성하는 중입니다/)).toBeInTheDocument();
+    expect(await screen.findByText(/주간 계획을 생성하는 중입니다/)).toBeInTheDocument();
     expect(await screen.findByText(/하루에 최대 몇 시간 정도까지/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "4-6시간" }));
     fireEvent.click(screen.getByRole("button", { name: "메시지 보내기" }));

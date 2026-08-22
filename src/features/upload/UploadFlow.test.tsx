@@ -145,9 +145,9 @@ describe("Upload flow", () => {
 
   it("keeps selected files and analysis running while navigating away from Upload", async () => {
     render(<App initialEntries={["/upload"]} />);
-    expect(screen.getByText("이번학기 학업자료를 올려주세요")).toBeInTheDocument();
+    expect(screen.getByText("이번 학기 학업 자료를 올려 주세요")).toBeInTheDocument();
     expect(screen.getByLabelText("업로드할 수 있는 학업 자료 예시")).toHaveTextContent("강의계획서과제 명세서시간표수업 공지시험 안내");
-    expect(screen.getByText("새로운 학업자료나 정보가 생기면 언제든지 추가해주세요!")).toBeInTheDocument();
+    expect(screen.getByText("새로운 학업 자료나 정보가 생기면 언제든지 추가해 주세요!")).toBeInTheDocument();
     const file = new File(["syllabus"], "강의계획서.pdf", { type: "application/pdf" });
     fireEvent.change(screen.getByLabelText("학업 자료 업로드"), { target: { files: [file] } });
     fireEvent.click(screen.getByRole("button", { name: "모든 자료 통합 분석하기" }));

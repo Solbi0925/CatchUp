@@ -60,7 +60,7 @@ export function uploadReducer(state: UploadUiState, event: UploadUiEvent): Uploa
         status: empty ? "error" : "ready",
         files: state.files.map((entry) => ids.has(entry.id) ? { ...entry, status: empty ? "failed" : "complete", message: empty ? "이 자료에서 학업 정보를 찾지 못했어요." : undefined } : entry),
         result: event.result,
-        message: empty ? "이 자료에서 학업 정보를 찾지 못했어요. 학업 일정, 과제, 시험 또는 수업 정보가 포함된 자료인지 확인해주세요." : undefined,
+        message: empty ? "이 자료에서 학업 정보를 찾지 못했어요. 학업 일정, 과제, 시험 또는 수업 정보가 포함된 자료인지 확인해 주세요." : undefined,
       };
     }
     case "extraction/failed": {

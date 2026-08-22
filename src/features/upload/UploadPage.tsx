@@ -19,7 +19,7 @@ function compactFileName(fileName: string) {
   return characters.length <= 20 ? fileName : `${characters.slice(0, 20).join("")}…`;
 }
 
-const fileStatusLabels = { pending: "대기", extracting: "추출중", complete: "추출 완료", failed: "추출 실패" } as const;
+const fileStatusLabels = { pending: "대기", extracting: "추출 중", complete: "추출 완료", failed: "추출 실패" } as const;
 
 export function UploadPage() {
   const { state: store } = usePrototypeStore();
@@ -57,11 +57,11 @@ export function UploadPage() {
 
       <label className="upload-zone" htmlFor="academic-files">
         <UploadCloudIcon />
-        <strong>이번학기 학업자료를 올려주세요</strong>
+        <strong>이번 학기 학업 자료를 올려 주세요</strong>
         <div className="upload-zone__examples" aria-label="업로드할 수 있는 학업 자료 예시">
           {["강의계획서", "과제 명세서", "시간표", "수업 공지", "시험 안내"].map((label) => <span key={label}>{label}</span>)}
         </div>
-        <span className="upload-zone__support">새로운 학업자료나 정보가 생기면 언제든지 추가해주세요!</span>
+        <span className="upload-zone__support">새로운 학업 자료나 정보가 생기면 언제든지 추가해 주세요!</span>
       </label>
       <input id="academic-files" className="sr-only" type="file" multiple accept="application/pdf,image/*" aria-label="학업 자료 업로드" disabled={extracting} onChange={(event) => { addFiles(Array.from(event.target.files ?? [])); event.currentTarget.value = ""; }} />
 

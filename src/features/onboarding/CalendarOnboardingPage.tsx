@@ -55,7 +55,7 @@ export function CalendarOnboardingPage() {
         <p className="calendar-help">Google Calendar에 시작·종료 시간을 정확히 입력할수록 실제 학습 가능 시간을 더 정확하게 계산할 수 있어요. 종일 일정은 해당 날짜 전체 일정으로 반영됩니다.</p>
         {phase === "error" || oauthResult === "denied" || oauthResult === "error" || notConfigured ? (
           <p className="calendar-error" role="alert">
-            {oauthResult === "denied" ? "Google Calendar 연결이 승인되지 않았어요." : notConfigured ? "Google Calendar 연결 환경변수를 먼저 설정해주세요." : error ?? "Google Calendar 연결을 완료하지 못했어요. 설정을 확인하고 다시 시도해주세요."}
+            {oauthResult === "denied" ? "Google Calendar 연결이 승인되지 않았어요." : notConfigured ? "Google Calendar 연결 환경 변수를 먼저 설정해 주세요." : error ?? "Google Calendar 연결을 완료하지 못했어요. 설정을 확인하고 다시 시도해 주세요."}
           </p>
         ) : (
           <p className="calendar-status" role="status" aria-live="polite">
